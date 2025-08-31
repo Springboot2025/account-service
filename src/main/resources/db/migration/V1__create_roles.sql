@@ -1,0 +1,8 @@
+CREATE TABLE roles (
+    id BIGSERIAL PRIMARY KEY,
+    uuid UUID DEFAULT gen_random_uuid() NOT NULL UNIQUE,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

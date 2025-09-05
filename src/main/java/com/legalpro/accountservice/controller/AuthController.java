@@ -1,5 +1,7 @@
 package com.legalpro.accountservice.controller;
 
+import com.legalpro.accountservice.dto.ApiResponse;
+import com.legalpro.accountservice.dto.LoginRequest;
 import com.legalpro.accountservice.dto.RegisterRequest;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.security.CustomUserDetails;
@@ -12,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.Map;
 
 @RestController
@@ -31,40 +34,69 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> login(
+            @Valid @RequestBody LoginRequest loginRequest) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            loginRequest.get("email"),
-                            loginRequest.get("password")
+                            loginRequest.getEmail(),
+                            loginRequest.getPassword()
                     )
             );
 
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
             String token = jwtUtil.generateToken(userDetails.getUsername(), userDetails.getAuthorities());
 
-            return ResponseEntity.ok(Map.of("token", token));
+            ApiResponse<Map<String, String>> response =
+                    ApiResponse.success(
+                            HttpStatus.OK.value(),
+                            "Login successful",
+                            Map.of("token", token)
+                    );
+
+            return ResponseEntity.ok(response);
 
         } catch (BadCredentialsException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Invalid email or password"));
+            ApiResponse<Map<String, String>> response =
+                    ApiResponse.error(
+                            HttpStatus.UNAUTHORIZED.value(),
+                            "Invalid email or password"
+                    );
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+
         } catch (AuthenticationException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Authentication failed"));
+            ApiResponse<Map<String, String>> response =
+                    ApiResponse.error(
+                            HttpStatus.UNAUTHORIZED.value(),
+                            "Authentication failed"
+                    );
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
         }
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> register(
+            @Valid @RequestBody RegisterRequest request) {
         try {
             Account account = accountService.register(request);
-            return ResponseEntity.ok(Map.of(
-                    "message", "User registered successfully",
-                    "email", account.getEmail()
-            ));
+
+            ApiResponse<Map<String, String>> response =
+                    ApiResponse.success(
+                            HttpStatus.CREATED.value(),
+                            "User registered successfully",
+                            Map.of("email", account.getEmail())
+                    );
+
+            return ResponseEntity.status(HttpStatus.CREATED.value()).body(response);
+
         } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", e.getMessage()));
+            ApiResponse<Map<String, String>> response =
+                    ApiResponse.error(
+                            HttpStatus.BAD_REQUEST.value(),
+                            e.getMessage()
+                    );
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST.value()).body(response);
         }
     }
+
 }

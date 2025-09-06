@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface AccountRepository extends JpaRepository<Account, Long> {
 
@@ -14,4 +15,6 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     Optional<Account> findByEmail(String email);
     boolean existsByEmail(String email);
+
+    Optional<Account> findByUuid(UUID uuid);
 }

@@ -51,4 +51,15 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR.value()).body(response);
     }
+
+    // Handle endpoint not found (404)
+    @ExceptionHandler(org.springframework.web.servlet.NoHandlerFoundException.class)
+    public ResponseEntity<ApiResponse<String>> handleNotFound(org.springframework.web.servlet.NoHandlerFoundException ex) {
+        ApiResponse<String> response = ApiResponse.error(
+                HttpStatus.NOT_FOUND.value(),
+                "Endpoint not found"
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
 }

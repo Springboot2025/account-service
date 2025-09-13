@@ -92,5 +92,8 @@ public class AccountService {
         return save(account);
     }
 
+    public Optional<Account> findByEmail(String email) {
+        return accountRepository.findByEmail(email);
+    }
 
 }

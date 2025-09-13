@@ -21,10 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import jakarta.validation.Valid;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -62,7 +59,7 @@ public class AuthController {
             String accessToken = jwtUtil.generateAccessToken(userDetails.getUsername(), userDetails.getAuthorities());
             String refreshToken = jwtUtil.generateRefreshToken(userDetails.getUsername(), userDetails.getAuthorities());
 
-            // Send refresh token as HttpOnly cookie
+            // Set refresh token as HttpOnly cookie
             ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", refreshToken)
                     .httpOnly(true)
                     .secure(true)   // set false for local dev without HTTPS
@@ -73,11 +70,19 @@ public class AuthController {
 
             response.addHeader("Set-Cookie", refreshCookie.toString());
 
-            // Send access token in body
+            // Fetch UUID from Account
+            Account account = accountService.findByEmail(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Send access token, email, and uuid in body
             ApiResponse<Map<String, String>> apiResponse = ApiResponse.success(
                     HttpStatus.OK.value(),
                     "Login successful",
-                    Map.of("accessToken", accessToken)
+                    Map.of(
+                            "accessToken", accessToken,
+                            "email", account.getEmail(),
+                            "uuid", account.getUuid().toString()
+                    )
             );
 
             return ResponseEntity.ok(apiResponse);
@@ -101,7 +106,10 @@ public class AuthController {
                     ApiResponse.success(
                             HttpStatus.CREATED.value(),
                             "User registered successfully",
-                            Map.of("email", account.getEmail())
+                            Map.of(
+                                    "email", account.getEmail(),
+                                    "uuid", account.getUuid().toString()
+                            )
                     );
 
             return ResponseEntity.status(HttpStatus.CREATED.value()).body(response);
@@ -118,7 +126,8 @@ public class AuthController {
 
     @GetMapping("/refresh")
     public ResponseEntity<ApiResponse<Map<String, String>>> refreshToken(
-            @CookieValue(value = "refreshToken", required = false) String refreshToken
+            @CookieValue(value = "refreshToken", required = false) String refreshToken,
+            HttpServletResponse response
     ) {
         if (refreshToken == null || !jwtUtil.validateToken(refreshToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -128,7 +137,7 @@ public class AuthController {
         // Extract username + roles
         String username = jwtUtil.getUsernameFromJwt(refreshToken);
         Claims claims = Jwts.parserBuilder()
-                .setSigningKey(jwtUtil.getKey())   // <-- expose getKey() in JwtUtil
+                .setSigningKey(jwtUtil.getKey())   // <-- JwtUtil must expose getKey()
                 .build()
                 .parseClaimsJws(refreshToken)
                 .getBody();
@@ -141,18 +150,27 @@ public class AuthController {
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
 
-        // Generate new access token
+        // Generate new tokens (ROTATION)
         String newAccessToken = jwtUtil.generateAccessToken(username, authorities);
+        String newRefreshToken = jwtUtil.generateRefreshToken(username, authorities);
 
-        ApiResponse<Map<String, String>> response = ApiResponse.success(
+        // Replace old refresh token with new one
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", newRefreshToken)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .sameSite("Strict")
+                .maxAge(30L * 24 * 60 * 60)
+                .build();
+
+        response.addHeader("Set-Cookie", refreshCookie.toString());
+
+        ApiResponse<Map<String, String>> apiResponse = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Access token refreshed successfully",
                 Map.of("accessToken", newAccessToken)
         );
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(apiResponse);
     }
-
-
-
 }

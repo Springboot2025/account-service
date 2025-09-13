@@ -15,7 +15,7 @@ public class JwtUtil {
 
     private final String jwtSecret = "super_secure_secret_key_for_jwt_1234567890";
 
-    private final long accessTokenExpirationMs = 15 * 60 * 1000;             // 15 minutes
+    private final long accessTokenExpirationMs = 24 * 60 * 60 * 1000;             // 1 day
     private final long refreshTokenExpirationMs = 30L * 24 * 60 * 60 * 1000; // 30 days
 
     private final Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());

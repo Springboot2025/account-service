@@ -1,6 +1,7 @@
 package com.legalpro.accountservice.exception;
 
 import com.legalpro.accountservice.dto.ApiResponse;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -62,4 +63,10 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<?>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        String message = "Duplicate entry: An answer already exists for this client and question type.";
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(HttpStatus.CONFLICT.value(), message));
+    }
 }

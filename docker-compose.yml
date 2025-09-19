@@ -3,6 +3,8 @@ version: "3.9"
 services:
   account-service:
     build: .
+    volumes:
+      - ./logs:/logs
     container_name: account-service
     ports:
       - "8080:8080"

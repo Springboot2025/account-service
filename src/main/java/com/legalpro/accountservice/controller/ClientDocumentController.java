@@ -1,0 +1,64 @@
+package com.legalpro.accountservice.controller;
+
+import com.legalpro.accountservice.dto.ApiResponse;
+import com.legalpro.accountservice.entity.ClientDocument;
+import com.legalpro.accountservice.security.CustomUserDetails;
+import com.legalpro.accountservice.service.ClientDocumentService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/client")
+@PreAuthorize("hasRole('Client')")
+public class ClientDocumentController {
+
+    private final ClientDocumentService clientDocumentService;
+
+    public ClientDocumentController(ClientDocumentService clientDocumentService) {
+        this.clientDocumentService = clientDocumentService;
+    }
+
+    @PostMapping("/documents")
+    public ResponseEntity<ApiResponse<ClientDocument>> uploadDocument(
+            @RequestParam("clientUuid") UUID clientUuid,
+            @RequestParam(value = "lawyerUuid", required = false) UUID lawyerUuid,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) throws IOException {
+        // Ownership check
+        if (!clientUuid.equals(userDetails.getUuid())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only upload your own documents"));
+        }
+
+        ClientDocument saved = clientDocumentService.uploadDocument(clientUuid, lawyerUuid, file);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Document uploaded successfully", saved));
+    }
+
+
+
+    @GetMapping("/{uuid}/documents")
+    public ResponseEntity<ApiResponse<List<ClientDocument>>> getClientDocuments(
+            @PathVariable UUID uuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        // Ownership check
+        if (!uuid.equals(userDetails.getUuid())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only view your own documents"));
+        }
+
+        List<ClientDocument> docs = clientDocumentService.getClientDocuments(uuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
+    }
+}

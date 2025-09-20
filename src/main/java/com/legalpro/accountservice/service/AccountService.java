@@ -38,15 +38,18 @@ public class AccountService {
             throw new RuntimeException("Email already registered");
         }
 
-        // 2. Create Account entity
+        // 2. Create Account entity (skip password)
         Account account = Account.builder()
+                .uuid(UUID.randomUUID())                 // account primary key
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .email(request.getEmail())
-                .password(null) // password will be set later via verification link
+                .mobile(request.getMobile())
+                .gender(request.getGender())
+                .address(request.getAddress())
                 .isVerified(false)
                 .isActive(false)
-                .verificationToken(UUID.randomUUID()) // unique token for email verification
+                .verificationToken(UUID.randomUUID())   // email verification token
                 .build();
 
         accountRepository.save(account);
@@ -63,6 +66,7 @@ public class AccountService {
 
         return account;
     }
+
 
 
     // --- NEW METHODS FOR CLIENT PATCH ---

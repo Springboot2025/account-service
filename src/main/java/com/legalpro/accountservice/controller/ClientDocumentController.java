@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,11 +28,11 @@ public class ClientDocumentController {
     }
 
     @PostMapping("/documents")
-    public ResponseEntity<ApiResponse<ClientDocument>> uploadDocument(
+    public ResponseEntity<ApiResponse<List<ClientDocument>>> uploadDocuments(
             @RequestParam("clientUuid") UUID clientUuid,
             @RequestParam(value = "lawyerUuid", required = false) UUID lawyerUuid,
-            @RequestParam("documentType") String documentType,
-            @RequestParam("file") MultipartFile file,
+            @RequestParam("documentTypes") List<String> documentTypes,
+            @RequestParam("files") List<MultipartFile> files,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) throws IOException {
         // Ownership check
@@ -40,20 +41,18 @@ public class ClientDocumentController {
                     .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only upload your own documents"));
         }
 
-        // Check if client already has a document of this type
-        boolean exists = clientDocumentService.existsByClientAndDocumentType(clientUuid, documentType);
-        if (exists) {
+        if (files.size() != documentTypes.size()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(),
-                            "You have already uploaded a document of type: " + documentType));
+                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), "Each file must have a corresponding document type"));
         }
 
-        // Upload the document
-        ClientDocument saved = clientDocumentService.uploadDocument(clientUuid, lawyerUuid, documentType, file);
+        List<ClientDocument> savedDocuments = clientDocumentService.uploadDocuments(clientUuid, lawyerUuid, documentTypes, files);
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Document uploaded successfully", saved));
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Documents uploaded successfully", savedDocuments));
     }
+
+
 
     @GetMapping("/{uuid}/documents")
     public ResponseEntity<ApiResponse<List<ClientDocument>>> getClientDocuments(

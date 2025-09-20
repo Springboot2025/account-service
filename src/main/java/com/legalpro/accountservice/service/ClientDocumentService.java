@@ -6,10 +6,12 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,34 +29,45 @@ public class ClientDocumentService {
     }
 
     // --- Upload document with type ---
-    public ClientDocument uploadDocument(UUID clientUuid, UUID lawyerUuid, String documentType, MultipartFile file) throws IOException {
-        // Check if client already has a document of this type
-        if (existsByClientAndDocumentType(clientUuid, documentType)) {
-            throw new RuntimeException("Client already has a document of type: " + documentType);
+    @Transactional
+    public List<ClientDocument> uploadDocuments(UUID clientUuid, UUID lawyerUuid, List<String> documentTypes, List<MultipartFile> files) throws IOException {
+        List<ClientDocument> savedDocuments = new ArrayList<>();
+
+        for (int i = 0; i < files.size(); i++) {
+            String documentType = documentTypes.get(i);
+            MultipartFile file = files.get(i);
+
+            // Check if client already has a document of this type
+            if (existsByClientAndDocumentType(clientUuid, documentType)) {
+                throw new RuntimeException("Client already has a document of type: " + documentType);
+            }
+
+            // Generate unique filename
+            String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
+
+            // Upload to GCS
+            BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
+                    .setContentType(file.getContentType())
+                    .build();
+            storage.create(blobInfo, file.getBytes());
+
+            // Save metadata in DB
+            ClientDocument document = ClientDocument.builder()
+                    .clientUuid(clientUuid)
+                    .lawyerUuid(lawyerUuid)
+                    .documentType(documentType)
+                    .fileName(file.getOriginalFilename())
+                    .fileType(file.getContentType())
+                    .fileUrl("gs://" + bucketName + "/" + objectName)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            savedDocuments.add(repository.save(document));
         }
 
-        // Generate unique filename
-        String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
-
-        // Upload to GCS
-        BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
-                .setContentType(file.getContentType())
-                .build();
-        storage.create(blobInfo, file.getBytes());
-
-        // Save metadata in DB
-        ClientDocument document = ClientDocument.builder()
-                .clientUuid(clientUuid)
-                .lawyerUuid(lawyerUuid) // may be null
-                .documentType(documentType) // ✅ new field
-                .fileName(file.getOriginalFilename())
-                .fileType(file.getContentType())
-                .fileUrl("gs://" + bucketName + "/" + objectName)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        return repository.save(document);
+        return savedDocuments;
     }
+
 
     // --- Check if client already has document type ---
     public boolean existsByClientAndDocumentType(UUID clientUuid, String documentType) {

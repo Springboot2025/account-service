@@ -55,9 +55,21 @@ public class AuthController {
 
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-            // Generate tokens
-            String accessToken = jwtUtil.generateAccessToken(userDetails.getUsername(), userDetails.getAuthorities());
-            String refreshToken = jwtUtil.generateRefreshToken(userDetails.getUsername(), userDetails.getAuthorities());
+            // Fetch UUID from Account
+            Account account = accountService.findByEmail(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // ✅ Generate tokens with uuid included
+            String accessToken = jwtUtil.generateAccessToken(
+                    account.getUuid(),
+                    userDetails.getUsername(),
+                    userDetails.getAuthorities()
+            );
+            String refreshToken = jwtUtil.generateRefreshToken(
+                    account.getUuid(),
+                    userDetails.getUsername(),
+                    userDetails.getAuthorities()
+            );
 
             // Set refresh token as HttpOnly cookie
             ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", refreshToken)
@@ -69,10 +81,6 @@ public class AuthController {
                     .build();
 
             response.addHeader("Set-Cookie", refreshCookie.toString());
-
-            // Fetch UUID from Account
-            Account account = accountService.findByEmail(userDetails.getUsername())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
 
             // Send access token, email, and uuid in body
             ApiResponse<Map<String, String>> apiResponse = ApiResponse.success(
@@ -95,6 +103,7 @@ public class AuthController {
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED.value(), "Authentication failed"));
         }
     }
+
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<Map<String, String>>> register(
@@ -134,13 +143,16 @@ public class AuthController {
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED.value(), "Invalid or missing refresh token"));
         }
 
-        // Extract username + roles
-        String username = jwtUtil.getUsernameFromJwt(refreshToken);
+        // Extract claims from refresh token
         Claims claims = Jwts.parserBuilder()
-                .setSigningKey(jwtUtil.getKey())   // <-- JwtUtil must expose getKey()
+                .setSigningKey(jwtUtil.getKey())
                 .build()
                 .parseClaimsJws(refreshToken)
                 .getBody();
+
+        String username = claims.getSubject();
+        String uuidStr = claims.get("uuid", String.class);  // ✅ extract uuid
+        UUID uuid = UUID.fromString(uuidStr);
 
         @SuppressWarnings("unchecked")
         Collection<String> roles = (Collection<String>) claims.get("roles");
@@ -150,9 +162,9 @@ public class AuthController {
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
 
-        // Generate new tokens (ROTATION)
-        String newAccessToken = jwtUtil.generateAccessToken(username, authorities);
-        String newRefreshToken = jwtUtil.generateRefreshToken(username, authorities);
+        // ✅ Generate new tokens with uuid included
+        String newAccessToken = jwtUtil.generateAccessToken(uuid, username, authorities);
+        String newRefreshToken = jwtUtil.generateRefreshToken(uuid, username, authorities);
 
         // Replace old refresh token with new one
         ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", newRefreshToken)
@@ -173,4 +185,5 @@ public class AuthController {
 
         return ResponseEntity.ok(apiResponse);
     }
+
 }

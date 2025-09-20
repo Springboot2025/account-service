@@ -15,23 +15,23 @@ public class JwtUtil {
 
     private final String jwtSecret = "super_secure_secret_key_for_jwt_1234567890";
 
-    private final long accessTokenExpirationMs = 24 * 60 * 60 * 1000;             // 1 day
+    private final long accessTokenExpirationMs = 24 * 60 * 60 * 1000;       // 1 day
     private final long refreshTokenExpirationMs = 30L * 24 * 60 * 60 * 1000; // 30 days
 
     private final Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
 
-    // --- Generate Access Token (short-lived) ---
-    public String generateAccessToken(String username, Collection<? extends GrantedAuthority> authorities) {
-        return generateToken(username, authorities, accessTokenExpirationMs);
+    // --- Generate Access Token ---
+    public String generateAccessToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities) {
+        return generateToken(uuid, username, authorities, accessTokenExpirationMs);
     }
 
-    // --- Generate Refresh Token (long-lived) ---
-    public String generateRefreshToken(String username, Collection<? extends GrantedAuthority> authorities) {
-        return generateToken(username, authorities, refreshTokenExpirationMs);
+    // --- Generate Refresh Token ---
+    public String generateRefreshToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities) {
+        return generateToken(uuid, username, authorities, refreshTokenExpirationMs);
     }
 
-    // --- Core token generator ---
-    private String generateToken(String username, Collection<? extends GrantedAuthority> authorities, long expirationMs) {
+    // --- Core token generator (now includes uuid) ---
+    private String generateToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, long expirationMs) {
         Set<String> roles = authorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toSet());
@@ -40,7 +40,8 @@ public class JwtUtil {
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
-                .setSubject(username)
+                .setSubject(username)                   // email as subject
+                .claim("uuid", uuid.toString())         // ✅ add uuid claim
                 .claim("roles", roles)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
@@ -48,19 +49,30 @@ public class JwtUtil {
                 .compact();
     }
 
-    // --- Extract username ---
+    // --- Extract username (email) ---
     public String getUsernameFromJwt(String token) {
         return parseClaims(token).getSubject();
     }
 
-    // --- Extract roles ---
+    // --- Extract uuid ---
+    public UUID getUuidFromJwt(String token) {
+        String uuidStr = parseClaims(token).get("uuid", String.class);
+        return uuidStr != null ? UUID.fromString(uuidStr) : null;
+    }
+
+    // --- Extract roles as GrantedAuthorities ---
     @SuppressWarnings("unchecked")
     public Collection<? extends GrantedAuthority> getRolesFromJwt(String token) {
-        Claims claims = parseClaims(token);
-        List<String> roles = claims.get("roles", List.class);
-        return roles.stream()
-                .map(SimpleGrantedAuthority::new)
-                .collect(Collectors.toList());
+        List<String> roles = parseClaims(token).get("roles", List.class);
+        return roles != null
+                ? roles.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList())
+                : Collections.emptyList();
+    }
+
+    // --- Extract raw role names (for JwtAuthorizationFilter) ---
+    @SuppressWarnings("unchecked")
+    public Collection<String> getRoleNamesFromJwt(String token) {
+        return parseClaims(token).get("roles", List.class);
     }
 
     // --- Validate token ---
@@ -85,5 +97,4 @@ public class JwtUtil {
     public Key getKey() {
         return this.key;
     }
-
 }

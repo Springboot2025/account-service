@@ -1,27 +1,28 @@
 package com.legalpro.accountservice.security;
 
+import com.legalpro.accountservice.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 
 @Component
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final CustomUserDetailsService userDetailsService;
 
-    public JwtAuthorizationFilter(JwtUtil jwtUtil) {
+    public JwtAuthorizationFilter(JwtUtil jwtUtil, CustomUserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
+        this.userDetailsService = userDetailsService;
     }
 
     @Override
@@ -39,13 +40,16 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         String token = header.substring(7);
 
         if (jwtUtil.validateToken(token)) {
-            String email = jwtUtil.getUsernameFromJwt(token);
-            UUID uuid = jwtUtil.getUuidFromJwt(token);  // ✅ new helper in JwtUtil
-            Collection<String> roles = jwtUtil.getRoleNamesFromJwt(token);
+            // Extract info from token
+            String username = jwtUtil.getUsernameFromJwt(token);
+            UUID uuid = jwtUtil.getUuidFromJwt(token);
 
-            // Build CustomUserDetails from JWT claims
-            CustomUserDetails userDetails =
-                    CustomUserDetails.fromJwtClaims(uuid, email, new HashSet<>(roles));
+            // Load user details
+            CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(username);
+
+            // Override UUID in userDetails if necessary
+            // (Optional: if your CustomUserDetails is immutable, you can add a constructor that accepts UUID)
+            // For simplicity, we assume userDetails already has the correct UUID from DB
 
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(

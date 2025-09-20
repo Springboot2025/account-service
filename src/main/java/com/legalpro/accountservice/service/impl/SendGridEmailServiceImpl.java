@@ -20,8 +20,7 @@ public class SendGridEmailServiceImpl implements EmailService {
     private final String from = "no-reply@yourdomain.com"; // change as needed
 
     public SendGridEmailServiceImpl() {
-        // ⚠️ Hardcoded API key for testing only
-        String apiKey = "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";
+        String apiKey = System.getenv("SENDGRID_API_KEY");
         this.sendGridClient = new SendGrid(apiKey);
     }
 

@@ -7,22 +7,22 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    private final CustomUserDetailsService userDetailsService;
 
-    public JwtAuthorizationFilter(JwtUtil jwtUtil, CustomUserDetailsService userDetailsService) {
+    public JwtAuthorizationFilter(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
-        this.userDetailsService = userDetailsService;
     }
 
     @Override
@@ -40,23 +40,21 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         String token = header.substring(7);
 
         if (jwtUtil.validateToken(token)) {
-            // Extract info from token
             String username = jwtUtil.getUsernameFromJwt(token);
             UUID uuid = jwtUtil.getUuidFromJwt(token);
 
-            // Load user details
-            CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(username);
+            // Convert roles from GrantedAuthority to Set<String>
+            Set<String> roles = jwtUtil.getRolesFromJwt(token).stream()
+                    .map(auth -> auth.getAuthority())
+                    .collect(Collectors.toSet());
 
-            // Override UUID in userDetails if necessary
-            // (Optional: if your CustomUserDetails is immutable, you can add a constructor that accepts UUID)
-            // For simplicity, we assume userDetails already has the correct UUID from DB
+            // Reconstruct CustomUserDetails from JWT claims
+            CustomUserDetails userDetails = CustomUserDetails.fromJwtClaims(uuid, username, roles);
 
+            // Create Authentication token
             UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
+                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
             SecurityContextHolder.getContext().setAuthentication(auth);
         }

@@ -15,6 +15,10 @@ import java.util.UUID;
                 @UniqueConstraint(
                         name = "uq_client_lawyer_file",
                         columnNames = {"client_uuid", "lawyer_uuid", "file_name", "deleted_at"}
+                ),
+                @UniqueConstraint(
+                        name = "uq_client_document_type",
+                        columnNames = {"client_uuid", "document_type", "deleted_at"} // ✅ one document type per client
                 )
         }
 )
@@ -43,6 +47,9 @@ public class ClientDocument {
 
     @Column(name = "file_url", nullable = false, columnDefinition = "TEXT")
     private String fileUrl;
+
+    @Column(name = "document_type", nullable = false, length = 100)
+    private String documentType; // ✅ new field
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

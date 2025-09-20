@@ -19,4 +19,8 @@ public interface ClientDocumentRepository extends JpaRepository<ClientDocument, 
 
     // Fetch single active doc
     Optional<ClientDocument> findByIdAndDeletedAtIsNull(Long id);
+
+    boolean existsByClientUuidAndDocumentType(UUID clientUuid, String documentType);
+
+    Optional<ClientDocument> findByClientUuidAndDocumentType(UUID clientUuid, String documentType);
 }

@@ -26,7 +26,13 @@ public class ClientDocumentService {
         this.storage = StorageOptions.getDefaultInstance().getService();
     }
 
-    public ClientDocument uploadDocument(UUID clientUuid, UUID lawyerUuid, MultipartFile file) throws IOException {
+    // --- Upload document with type ---
+    public ClientDocument uploadDocument(UUID clientUuid, UUID lawyerUuid, String documentType, MultipartFile file) throws IOException {
+        // Check if client already has a document of this type
+        if (existsByClientAndDocumentType(clientUuid, documentType)) {
+            throw new RuntimeException("Client already has a document of type: " + documentType);
+        }
+
         // Generate unique filename
         String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
 
@@ -34,13 +40,13 @@ public class ClientDocumentService {
         BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
                 .setContentType(file.getContentType())
                 .build();
-
         storage.create(blobInfo, file.getBytes());
 
         // Save metadata in DB
         ClientDocument document = ClientDocument.builder()
                 .clientUuid(clientUuid)
                 .lawyerUuid(lawyerUuid) // may be null
+                .documentType(documentType) // ✅ new field
                 .fileName(file.getOriginalFilename())
                 .fileType(file.getContentType())
                 .fileUrl("gs://" + bucketName + "/" + objectName)
@@ -50,9 +56,12 @@ public class ClientDocumentService {
         return repository.save(document);
     }
 
+    // --- Check if client already has document type ---
+    public boolean existsByClientAndDocumentType(UUID clientUuid, String documentType) {
+        return repository.existsByClientUuidAndDocumentType(clientUuid, documentType);
+    }
 
     // --- Query methods ---
-
     public List<ClientDocument> getClientDocuments(UUID clientUuid) {
         return repository.findAllByClientUuidAndDeletedAtIsNull(clientUuid);
     }

@@ -30,6 +30,7 @@ public class ClientDocumentController {
     public ResponseEntity<ApiResponse<ClientDocument>> uploadDocument(
             @RequestParam("clientUuid") UUID clientUuid,
             @RequestParam(value = "lawyerUuid", required = false) UUID lawyerUuid,
+            @RequestParam("documentType") String documentType,
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) throws IOException {
@@ -39,13 +40,20 @@ public class ClientDocumentController {
                     .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only upload your own documents"));
         }
 
-        ClientDocument saved = clientDocumentService.uploadDocument(clientUuid, lawyerUuid, file);
+        // Check if client already has a document of this type
+        boolean exists = clientDocumentService.existsByClientAndDocumentType(clientUuid, documentType);
+        if (exists) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(),
+                            "You have already uploaded a document of type: " + documentType));
+        }
+
+        // Upload the document
+        ClientDocument saved = clientDocumentService.uploadDocument(clientUuid, lawyerUuid, documentType, file);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), "Document uploaded successfully", saved));
     }
-
-
 
     @GetMapping("/{uuid}/documents")
     public ResponseEntity<ApiResponse<List<ClientDocument>>> getClientDocuments(

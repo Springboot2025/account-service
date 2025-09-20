@@ -20,7 +20,7 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        // Wrap request/response to allow multiple reads
+
         ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request);
         ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
 
@@ -29,7 +29,7 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         } finally {
             logRequest(wrappedRequest);
             logResponse(wrappedResponse);
-            wrappedResponse.copyBodyToResponse(); // important!
+            wrappedResponse.copyBodyToResponse(); // Important to actually send response
         }
     }
 
@@ -39,17 +39,23 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         msg.append("\n--- Incoming Request ---\n");
         msg.append(request.getMethod()).append(" ").append(request.getRequestURI()).append("\n");
 
-        Collections.list(request.getHeaderNames()).forEach(header ->
-                msg.append(header).append(": ").append(request.getHeader(header)).append("\n")
-        );
+        Collections.list(request.getHeaderNames())
+                .forEach(header -> msg.append(header).append(": ").append(request.getHeader(header)).append("\n"));
 
-        if (!request.getContentType().contains("multipart/form-data")) {
-            String body = new String(request.getContentAsByteArray(), StandardCharsets.UTF_8);
-            if (!body.isBlank()) {
+        String contentType = request.getContentType();
+        if (contentType == null) contentType = "";
+
+        // Only log textual bodies
+        if (contentType.startsWith("application/json") || contentType.startsWith("text/")) {
+            byte[] buf = request.getContentAsByteArray();
+            if (buf.length > 0) {
+                String body = new String(buf, StandardCharsets.UTF_8);
                 msg.append("Body: ").append(body).append("\n");
             }
-        } else {
+        } else if (contentType.contains("multipart/form-data")) {
             msg.append("Multipart request: skipping raw body logging\n");
+        } else if (!contentType.isEmpty()) {
+            msg.append("Non-text request body skipped: Content-Type=").append(contentType).append("\n");
         }
 
         System.out.println(msg);
@@ -61,13 +67,18 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         msg.append("\n--- Outgoing Response ---\n");
         msg.append("Status: ").append(response.getStatus()).append("\n");
 
-        response.getHeaderNames().forEach(header ->
-                msg.append(header).append(": ").append(response.getHeader(header)).append("\n")
-        );
+        response.getHeaderNames()
+                .forEach(header -> msg.append(header).append(": ").append(response.getHeader(header)).append("\n"));
 
-        String body = new String(response.getContentAsByteArray(), StandardCharsets.UTF_8);
-        if (!body.isBlank()) {
+        String contentType = response.getContentType();
+        if (contentType == null) contentType = "";
+
+        byte[] buf = response.getContentAsByteArray();
+        if (buf.length > 0 && (contentType.startsWith("application/json") || contentType.startsWith("text/"))) {
+            String body = new String(buf, StandardCharsets.UTF_8);
             msg.append("Body: ").append(body).append("\n");
+        } else if (!contentType.isEmpty()) {
+            msg.append("Non-text response body skipped: Content-Type=").append(contentType).append("\n");
         }
 
         System.out.println(msg);

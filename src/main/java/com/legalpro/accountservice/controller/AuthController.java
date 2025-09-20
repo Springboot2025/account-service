@@ -7,6 +7,7 @@ import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.security.JwtUtil;
 import com.legalpro.accountservice.service.AccountService;
+import com.legalpro.accountservice.service.EmailService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import jakarta.servlet.http.HttpServletResponse;
@@ -31,13 +32,16 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final AccountService accountService;
+    private final EmailService emailService;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtUtil jwtUtil,
-                          AccountService accountService) {
+                          AccountService accountService,
+                          EmailService emailService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.accountService = accountService;
+        this.emailService = emailService;
     }
 
     @PostMapping("/login")
@@ -109,29 +113,39 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Map<String, String>>> register(
             @Valid @RequestBody RegisterRequest request) {
         try {
+            // 1. Register user (without activating)
             Account account = accountService.register(request);
 
+            // 2. Use the existing verification token
+            UUID token = account.getVerificationToken();
+
+            // 3. Build verification link
+            String verificationLink = "https://account-service-510757107204.us-central1.run.app/api/auth/verify?token=" + token;
+
+            // 4. Send email
+            String body = "Hi " + account.getFirstName() + ",<br/>" +
+                    "Please verify your account by clicking the link below:<br/>" +
+                    "<a href=\"" + verificationLink + "\">Verify Account</a>";
+            emailService.sendEmail(account.getEmail(), "Verify your account", body);
+
+            // 5. Return response
             ApiResponse<Map<String, String>> response =
                     ApiResponse.success(
                             HttpStatus.CREATED.value(),
-                            "User registered successfully",
-                            Map.of(
-                                    "email", account.getEmail(),
-                                    "uuid", account.getUuid().toString()
-                            )
+                            "User registered successfully. Verification email sent.",
+                            Map.of("email", account.getEmail(), "uuid", account.getUuid().toString())
                     );
 
-            return ResponseEntity.status(HttpStatus.CREATED.value()).body(response);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
         } catch (RuntimeException e) {
             ApiResponse<Map<String, String>> response =
-                    ApiResponse.error(
-                            HttpStatus.BAD_REQUEST.value(),
-                            e.getMessage()
-                    );
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST.value()).body(response);
+                    ApiResponse.error(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
     }
+
+
 
     @GetMapping("/refresh")
     public ResponseEntity<ApiResponse<Map<String, String>>> refreshToken(
@@ -184,6 +198,20 @@ public class AuthController {
         );
 
         return ResponseEntity.ok(apiResponse);
+    }
+
+    @GetMapping("/verify")
+    public ResponseEntity<ApiResponse<String>> verifyAccount(@RequestParam("token") UUID token) {
+        boolean verified = accountService.verifyAccount(token);
+
+        if (verified) {
+            return ResponseEntity.ok(
+                    ApiResponse.success(200, "Account verified successfully", null)
+            );
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(400, "Invalid or expired verification token"));
+        }
     }
 
 }

@@ -20,40 +20,50 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     public AccountService(AccountRepository accountRepository,
                           RoleRepository roleRepository,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          EmailService emailService) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
     }
 
     public Account register(RegisterRequest request) {
+        // 1. Validate if email already exists
         if (accountRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email is already in use");
+            throw new RuntimeException("Email already registered");
         }
 
-        String accountType = request.getAccountType() != null ? request.getAccountType() : "Client";
-        Role role = roleRepository.findByName(accountType)
-                .orElseThrow(() -> new RuntimeException("Role not found: " + accountType));
-
+        // 2. Create Account entity
         Account account = Account.builder()
-                .uuid(UUID.randomUUID())
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .mobile(request.getMobile())
-                .gender(request.getGender())
-                .address(request.getAddress())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .roles(Set.of(role))
+                .password(null) // password will be set later via verification link
+                .isVerified(false)
+                .isActive(false)
+                .verificationToken(UUID.randomUUID()) // unique token for email verification
                 .build();
 
-        return accountRepository.save(account);
+        accountRepository.save(account);
+
+        // 3. Send verification email
+        String verificationUrl = "https://account-service-510757107204.us-central1.run.app/api/auth/verify?token="
+                + account.getVerificationToken();
+
+        String bodyHtml = "<p>Hello " + account.getFirstName() + ",</p>"
+                + "<p>Please verify your email by clicking the link below:</p>"
+                + "<a href=\"" + verificationUrl + "\">Verify Email</a>";
+
+        emailService.sendEmail(account.getEmail(), "Verify your LegalPro account", bodyHtml);
+
+        return account;
     }
+
 
     // --- NEW METHODS FOR CLIENT PATCH ---
     public Optional<Account> findByUuid(UUID uuid) {
@@ -95,5 +105,20 @@ public class AccountService {
     public Optional<Account> findByEmail(String email) {
         return accountRepository.findByEmail(email);
     }
+
+    public boolean verifyAccount(UUID token) {
+        Optional<Account> accountOpt = accountRepository.findByVerificationToken(token);
+        if (accountOpt.isEmpty()) {
+            return false;
+        }
+
+        Account account = accountOpt.get();
+        account.setVerified(true);
+        account.setActive(true);
+        account.setVerificationToken(null); // token can be one-time use
+        accountRepository.save(account);
+        return true;
+    }
+
 
 }

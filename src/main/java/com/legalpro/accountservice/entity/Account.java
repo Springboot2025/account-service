@@ -37,7 +37,7 @@ public class Account {
 
     private String address;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String password;
 
     @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
@@ -48,6 +48,15 @@ public class Account {
 
     @Column(name = "removed_at")
     private LocalDateTime removedAt;
+
+    @Column(name = "is_verified", nullable = false)
+    private boolean isVerified = false;
+
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = false;
+
+    @Column(name = "verification_token")
+    private UUID verificationToken;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

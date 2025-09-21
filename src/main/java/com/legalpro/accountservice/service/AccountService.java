@@ -38,7 +38,12 @@ public class AccountService {
             throw new RuntimeException("Email already registered");
         }
 
-        // 2. Create Account entity (skip password)
+        // 2. Resolve role (default = Client)
+        String accountType = request.getAccountType() != null ? request.getAccountType() : "Client";
+        Role role = roleRepository.findByName(accountType)
+                .orElseThrow(() -> new RuntimeException("Role not found: " + accountType));
+
+        // 3. Create Account entity (skip password)
         Account account = Account.builder()
                 .uuid(UUID.randomUUID())                 // account primary key
                 .firstName(request.getFirstName())
@@ -50,6 +55,9 @@ public class AccountService {
                 .isVerified(false)
                 .isActive(false)
                 .verificationToken(UUID.randomUUID())   // email verification token
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .roles(Set.of(role))
                 .build();
 
         accountRepository.save(account);

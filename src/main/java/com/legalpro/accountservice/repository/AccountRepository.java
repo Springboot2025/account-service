@@ -19,4 +19,5 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     Optional<Account> findByUuid(UUID uuid);
 
     Optional<Account> findByVerificationToken(UUID token);
+
 }

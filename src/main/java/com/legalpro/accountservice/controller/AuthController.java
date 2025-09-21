@@ -116,18 +116,6 @@ public class AuthController {
             // 1. Register user (without activating)
             Account account = accountService.register(request);
 
-            // 2. Use the existing verification token
-            UUID token = account.getVerificationToken();
-
-            // 3. Build verification link
-            String verificationLink = "https://account-service-510757107204.us-central1.run.app/api/auth/verify?token=" + token;
-
-            // 4. Send email
-            String body = "Hi " + account.getFirstName() + ",<br/>" +
-                    "Please verify your account by clicking the link below:<br/>" +
-                    "<a href=\"" + verificationLink + "\">Verify Account</a>";
-            emailService.sendEmail(account.getEmail(), "Verify your account", body);
-
             // 5. Return response
             ApiResponse<Map<String, String>> response =
                     ApiResponse.success(
@@ -201,16 +189,37 @@ public class AuthController {
     }
 
     @GetMapping("/verify")
-    public ResponseEntity<ApiResponse<String>> verifyAccount(@RequestParam("token") UUID token) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> verifyAccount(@RequestParam("token") UUID token) {
         boolean verified = accountService.verifyAccount(token);
 
         if (verified) {
+            Account account = accountService.findByVerificationToken(token).orElseThrow();
             return ResponseEntity.ok(
-                    ApiResponse.success(200, "Account verified successfully", null)
+                    ApiResponse.success(
+                            200,
+                            "Account verified successfully",
+                            Map.of("uuid", account.getUuid().toString())
+                    )
             );
         } else {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error(400, "Invalid or expired verification token"));
+        }
+    }
+
+    @PostMapping("/set-password")
+    public ResponseEntity<ApiResponse<String>> setPassword(
+            @RequestParam("uuid") UUID uuid,
+            @RequestBody Map<String, String> body
+    ) {
+        String password = body.get("password");
+
+        try {
+            accountService.setPassword(uuid, password);
+            return ResponseEntity.ok(ApiResponse.success(200, "Password set successfully", null));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(400, e.getMessage()));
         }
     }
 

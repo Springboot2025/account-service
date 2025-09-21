@@ -124,5 +124,21 @@ public class AccountService {
         return true;
     }
 
+    public Optional<Account> findByVerificationToken(UUID token) {
+        return accountRepository.findByVerificationToken(token);
+    }
+
+    public void setPassword(UUID uuid, String rawPassword) {
+        Account account = accountRepository.findByUuid(uuid)
+                .orElseThrow(() -> new RuntimeException("Invalid account UUID"));
+
+        if (!account.isVerified()) {
+            throw new RuntimeException("Account is not verified yet");
+        }
+
+        account.setPassword(passwordEncoder.encode(rawPassword));
+        account.setUpdatedAt(LocalDateTime.now());
+        accountRepository.save(account);
+    }
 
 }

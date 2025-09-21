@@ -1,6 +1,3 @@
-server:
-  port: ${PORT:8080}
-
 spring:
   datasource:
     url: jdbc:postgresql:///legalpro?cloudSqlInstance=halogen-episode-470910-h9:us-central1:legalpro-postgres&socketFactory=com.google.cloud.sql.postgres.SocketFactory

@@ -17,7 +17,7 @@ import java.io.IOException;
 public class SendGridEmailServiceImpl implements EmailService {
 
     private final SendGrid sendGridClient;
-    private final String from = "no-reply@yourdomain.com"; // change as needed
+    private final String from = "legalpro42@gmail.com"; // change as needed
 
     public SendGridEmailServiceImpl() {
         String apiKey = System.getenv("SENDGRID_API_KEY");

@@ -59,10 +59,10 @@ public class AccountService {
                 + account.getVerificationToken();
 
         String bodyHtml = "<p>Hello " + account.getFirstName() + ",</p>"
-                + "<p>Please verify your email by clicking the link below:</p>"
-                + "<a href=\"" + verificationUrl + "\">Verify Email</a>";
+                + "<p>Thanks for signing up to Boss Law Online Services. Click the link below to verify your email address.</p>"
+                + "<a href=\"" + verificationUrl + "\">Click here to verify your email address.</a>";
 
-        emailService.sendEmail(account.getEmail(), "Verify your LegalPro account", bodyHtml);
+        emailService.sendEmail(account.getEmail(), "Boss Law Verification", bodyHtml);
 
         return account;
     }

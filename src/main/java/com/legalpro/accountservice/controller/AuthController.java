@@ -190,10 +190,10 @@ public class AuthController {
 
     @GetMapping("/verify")
     public ResponseEntity<ApiResponse<Map<String, String>>> verifyAccount(@RequestParam("token") UUID token) {
-        boolean verified = accountService.verifyAccount(token);
+        Optional<Account> accountOpt = accountService.verifyAccount(token);
 
-        if (verified) {
-            Account account = accountService.findByVerificationToken(token).orElseThrow();
+        if (accountOpt.isPresent()) {
+            Account account = accountOpt.get();
             return ResponseEntity.ok(
                     ApiResponse.success(
                             200,

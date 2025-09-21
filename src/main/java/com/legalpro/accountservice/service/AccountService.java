@@ -110,19 +110,21 @@ public class AccountService {
         return accountRepository.findByEmail(email);
     }
 
-    public boolean verifyAccount(UUID token) {
+    public Optional<Account> verifyAccount(UUID token) {
         Optional<Account> accountOpt = accountRepository.findByVerificationToken(token);
         if (accountOpt.isEmpty()) {
-            return false;
+            return Optional.empty();
         }
 
         Account account = accountOpt.get();
         account.setVerified(true);
         account.setActive(true);
-        account.setVerificationToken(null); // token can be one-time use
+        account.setVerificationToken(null); // one-time use
         accountRepository.save(account);
-        return true;
+
+        return Optional.of(account);
     }
+
 
     public Optional<Account> findByVerificationToken(UUID token) {
         return accountRepository.findByVerificationToken(token);

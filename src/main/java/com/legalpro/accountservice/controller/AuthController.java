@@ -208,11 +208,16 @@ public class AuthController {
     }
 
     @PostMapping("/set-password")
-    public ResponseEntity<ApiResponse<String>> setPassword(
-            @RequestParam("uuid") UUID uuid,
-            @RequestBody Map<String, String> body
-    ) {
+    public ResponseEntity<ApiResponse<String>> setPassword(@RequestBody Map<String, String> body) {
         String password = body.get("password");
+        String uuidStr = body.get("uuid");
+
+        if (uuidStr == null || password == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(400, "UUID and password are required"));
+        }
+
+        UUID uuid = UUID.fromString(uuidStr);
 
         try {
             accountService.setPassword(uuid, password);
@@ -222,5 +227,6 @@ public class AuthController {
                     .body(ApiResponse.error(400, e.getMessage()));
         }
     }
+
 
 }

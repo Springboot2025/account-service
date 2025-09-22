@@ -63,7 +63,7 @@ public class AccountService {
         accountRepository.save(account);
 
         // 3. Send verification email
-        String verificationUrl = "https://account-service-510757107204.us-central1.run.app/api/auth/verify?token="
+        String verificationUrl = "https://lawproject-nu.vercel.app/set-password?token="
                 + account.getVerificationToken();
 
         String bodyHtml = "<p>Hello " + account.getFirstName() + ",</p>"

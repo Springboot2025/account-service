@@ -114,18 +114,29 @@ public class AccountService {
             throw new RuntimeException("You can only update your own profile");
         }
 
-        // update only client-specific fields
-        account.setFirstName(dto.getFirstName());
-        account.setLastName(dto.getLastName());
-        account.setGender(dto.getGender());
-        account.setDateOfBirth(dto.getDateOfBirth());
-        account.setMobile(dto.getMobile());
-        account.setAddress(dto.getAddress());
+        if (dto.getFirstName() != null) account.setFirstName(dto.getFirstName());
+        if (dto.getLastName() != null) account.setLastName(dto.getLastName());
+        if (dto.getGender() != null) account.setGender(dto.getGender());
+        if (dto.getDateOfBirth() != null) account.setDateOfBirth(dto.getDateOfBirth());
+
+        // update email only if provided and different
+        if (dto.getEmail() != null && !dto.getEmail().equals(account.getEmail())) {
+            if (accountRepository.existsByEmail(dto.getEmail())) {
+                throw new RuntimeException("Email already in use");
+            }
+            account.setEmail(dto.getEmail());
+        }
+
+        if (dto.getMobile() != null) account.setMobile(dto.getMobile());
+        if (dto.getAddress() != null) account.setAddress(dto.getAddress());
+
+        // booleans: only update if explicitly set in request
         account.setTerms(dto.isTerms());
         account.setNewsletter(dto.isNewsletter());
 
         return accountRepository.save(account);
     }
+
 
     // --- Update Lawyer Account ---
     public Account updateAccount(UUID uuid, LawyerDto dto, UUID requesterUuid) {

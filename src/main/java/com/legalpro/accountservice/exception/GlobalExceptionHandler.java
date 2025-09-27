@@ -92,8 +92,19 @@ public class GlobalExceptionHandler {
     // Handle DB constraint errors (duplicate entries, etc.)
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<?>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
-        String message = "Duplicate entry: An answer already exists for this client and question type.";
+        String rootCause = ex.getRootCause() != null ? ex.getRootCause().getMessage() : ex.getMessage();
+        String message;
+
+        if (rootCause != null && rootCause.contains("client_answers")) {
+            message = "Duplicate entry: An answer already exists for this client and question type.";
+        } else if (rootCause != null && rootCause.contains("accounts")) {
+            message = "Duplicate entry: Account already exists with provided details.";
+        } else {
+            message = "Database constraint violation: " + rootCause;
+        }
+
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error(HttpStatus.CONFLICT.value(), message));
     }
+
 }

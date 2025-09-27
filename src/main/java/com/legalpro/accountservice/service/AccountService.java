@@ -147,23 +147,34 @@ public class AccountService {
             throw new RuntimeException("You can only update your own profile");
         }
 
-        // update only lawyer-specific fields
-        account.setFirstName(dto.getFirstName());
-        account.setLastName(dto.getLastName());
-        account.setGender(dto.getGender());
-        account.setDateOfBirth(dto.getDateOfBirth());
-        account.setMobile(dto.getMobile());
-        account.setAddress(dto.getAddress());
-        account.setOrganization(dto.getOrganization());
-        account.setExperience(dto.getExperience());
-        account.setOfficeAddress(dto.getOfficeAddress());
-        account.setTeamSize(dto.getTeamSize());
-        account.setLanguages(dto.getLanguages());
+        if (dto.getFirstName() != null) account.setFirstName(dto.getFirstName());
+        if (dto.getLastName() != null) account.setLastName(dto.getLastName());
+        if (dto.getGender() != null) account.setGender(dto.getGender());
+        if (dto.getDateOfBirth() != null) account.setDateOfBirth(dto.getDateOfBirth());
+
+        // update email only if provided and different
+        if (dto.getEmail() != null && !dto.getEmail().equals(account.getEmail())) {
+            if (accountRepository.existsByEmail(dto.getEmail())) {
+                throw new RuntimeException("Email already in use");
+            }
+            account.setEmail(dto.getEmail());
+        }
+
+        if (dto.getMobile() != null) account.setMobile(dto.getMobile());
+        if (dto.getAddress() != null) account.setAddress(dto.getAddress());
+        if (dto.getOrganization() != null) account.setOrganization(dto.getOrganization());
+        if (dto.getExperience() != null) account.setExperience(dto.getExperience());
+        if (dto.getOfficeAddress() != null) account.setOfficeAddress(dto.getOfficeAddress());
+        if (dto.getTeamSize() != null) account.setTeamSize(dto.getTeamSize());
+        if (dto.getLanguages() != null) account.setLanguages(dto.getLanguages());
+
+        // booleans — update directly (defaults should be handled at entity level)
         account.setTerms(dto.isTerms());
         account.setNewsletter(dto.isNewsletter());
 
         return accountRepository.save(account);
     }
+
 
     public Optional<Account> findByEmail(String email) {
         return accountRepository.findByEmail(email);

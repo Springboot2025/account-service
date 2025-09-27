@@ -119,7 +119,6 @@ public class AccountService {
         account.setLastName(dto.getLastName());
         account.setGender(dto.getGender());
         account.setDateOfBirth(dto.getDateOfBirth());
-        account.setEmail(dto.getEmail());
         account.setMobile(dto.getMobile());
         account.setAddress(dto.getAddress());
         account.setTerms(dto.isTerms());
@@ -142,7 +141,6 @@ public class AccountService {
         account.setLastName(dto.getLastName());
         account.setGender(dto.getGender());
         account.setDateOfBirth(dto.getDateOfBirth());
-        account.setEmail(dto.getEmail());
         account.setMobile(dto.getMobile());
         account.setAddress(dto.getAddress());
         account.setOrganization(dto.getOrganization());

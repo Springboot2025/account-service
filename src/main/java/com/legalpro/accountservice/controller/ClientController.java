@@ -1,12 +1,13 @@
 package com.legalpro.accountservice.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.ClientAnswerRequest;
+import com.legalpro.accountservice.dto.ClientDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.ClientAnswer;
 import com.legalpro.accountservice.entity.QuestionType;
+import com.legalpro.accountservice.mapper.AccountMapper;
 import com.legalpro.accountservice.repository.ClientAnswerRepository;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.AccountService;
@@ -17,7 +18,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,7 +31,8 @@ public class ClientController {
     private final ClientAnswerRepository clientAnswerRepository;
 
     public ClientController(AccountService accountService,
-                            ClientAnswerRepository clientAnswerRepository, ClientAnswerService clientAnswerService) {
+                            ClientAnswerRepository clientAnswerRepository,
+                            ClientAnswerService clientAnswerService) {
         this.accountService = accountService;
         this.clientAnswerRepository = clientAnswerRepository;
         this.clientAnswerService = clientAnswerService;
@@ -45,12 +46,12 @@ public class ClientController {
     }
 
     @PatchMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<AccountDto>> updateClient(
+    public ResponseEntity<ApiResponse<ClientDto>> updateClient(
             @PathVariable UUID uuid,
-            @RequestBody AccountDto dto,
+            @RequestBody ClientDto dto,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        // Ownership check at controller level
+        // Ownership check
         if (!uuid.equals(userDetails.getUuid())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only update your own profile"));
@@ -58,23 +59,13 @@ public class ClientController {
 
         Account updated = accountService.updateAccount(uuid, dto, userDetails.getUuid());
 
-        AccountDto responseDto = AccountDto.builder()
-                .id(updated.getId())
-                .uuid(updated.getUuid())
-                .firstName(updated.getFirstName())
-                .lastName(updated.getLastName())
-                .gender(updated.getGender())
-                .email(updated.getEmail())
-                .mobile(updated.getMobile())
-                .address(updated.getAddress())
-                .build();
+        ClientDto responseDto = AccountMapper.toClientDto(updated);
 
         return ResponseEntity.ok(ApiResponse.success(200, "Updated successfully", responseDto));
     }
 
-
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<AccountDto>> getClient(
+    public ResponseEntity<ApiResponse<ClientDto>> getClient(
             @PathVariable UUID uuid,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
@@ -86,16 +77,7 @@ public class ClientController {
 
         return accountService.findByUuid(uuid)
                 .map(account -> {
-                    AccountDto dto = AccountDto.builder()
-                            .id(account.getId())
-                            .uuid(account.getUuid())
-                            .firstName(account.getFirstName())
-                            .lastName(account.getLastName())
-                            .gender(account.getGender())
-                            .email(account.getEmail())
-                            .mobile(account.getMobile())
-                            .address(account.getAddress())
-                            .build();
+                    ClientDto dto = AccountMapper.toClientDto(account);
 
                     return ResponseEntity.ok(ApiResponse.success(200, "Client fetched successfully", dto));
                 })
@@ -110,13 +92,11 @@ public class ClientController {
             @RequestBody ClientAnswerRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        // Ownership check
         if (!request.getClientUuid().equals(userDetails.getUuid())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only save your own answers"));
         }
 
-        // Convert Map -> JsonNode before saving
         JsonNode jsonAnswers = clientAnswerService.convertToJsonNode(request.getAnswers());
 
         ClientAnswer answer = ClientAnswer.builder()
@@ -131,23 +111,18 @@ public class ClientController {
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), "Answers saved successfully", saved));
     }
 
-
-
-
     @GetMapping("/{uuid}/answers")
     public ResponseEntity<ApiResponse<?>> getAnswers(
             @PathVariable UUID uuid,
             @RequestParam(required = false) String questionType,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        // Ownership check
         if (!uuid.equals(userDetails.getUuid())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only fetch your own answers"));
         }
 
         if (questionType != null) {
-            // Convert String → Enum
             QuestionType type;
             try {
                 type = QuestionType.valueOf(
@@ -160,18 +135,17 @@ public class ClientController {
 
             return clientAnswerService.findByClientAndType(uuid, type)
                     .<ResponseEntity<ApiResponse<?>>>map(answer ->
-                            ResponseEntity.ok((ApiResponse<?>) ApiResponse.success(200, "Answer fetched successfully", answer))
+                            ResponseEntity.ok(ApiResponse.success(200, "Answer fetched successfully", answer))
                     )
                     .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                             .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "No answer found for this type")));
         } else {
-            // Fetch all answers for client
             var answers = clientAnswerService.findAllByClient(uuid);
             if (answers.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "No answers found"));
             }
-            return ResponseEntity.ok((ApiResponse<?>) ApiResponse.success(200, "Answers fetched successfully", answers));
+            return ResponseEntity.ok(ApiResponse.success(200, "Answers fetched successfully", answers));
         }
     }
 
@@ -180,7 +154,6 @@ public class ClientController {
             @RequestBody ClientAnswerRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        // Ownership check
         if (!request.getClientUuid().equals(userDetails.getUuid())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only update your own answers"));
@@ -199,6 +172,4 @@ public class ClientController {
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "No record found to update")));
     }
-
-
 }

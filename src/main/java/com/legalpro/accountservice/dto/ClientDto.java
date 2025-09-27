@@ -8,25 +8,16 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AccountDto {
+public class ClientDto {
     private Long id;
     private UUID uuid;
     private String firstName;
     private String lastName;
     private String gender;
+    private LocalDate dateOfBirth;
     private String email;
     private String mobile;
     private String address;
-
-    // New fields
-    private LocalDate dateOfBirth;
     private boolean terms;
     private boolean newsletter;
-
-    // Lawyer-only fields
-    private String organization;
-    private String experience;
-    private String officeAddress;
-    private String teamSize;
-    private String languages;
 }

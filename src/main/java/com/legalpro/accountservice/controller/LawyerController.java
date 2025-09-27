@@ -1,8 +1,9 @@
 package com.legalpro.accountservice.controller;
 
-import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.ApiResponse;
+import com.legalpro.accountservice.dto.LawyerDto;
 import com.legalpro.accountservice.entity.Account;
+import com.legalpro.accountservice.mapper.AccountMapper;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.AccountService;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import java.util.UUID;
 @RequestMapping("/api/lawyer")
 @PreAuthorize("hasRole('Lawyer')")
 public class LawyerController {
+
     private final AccountService accountService;
 
     public LawyerController(AccountService accountService) {
@@ -28,31 +30,29 @@ public class LawyerController {
         return "Hello Lawyer!";
     }
 
-    // Add Lawyer-specific APIs here
+    // --- Update Lawyer Profile ---
     @PatchMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<AccountDto>> updateLawyer(
+    public ResponseEntity<ApiResponse<LawyerDto>> updateLawyer(
             @PathVariable UUID uuid,
-            @RequestBody AccountDto dto,
+            @RequestBody LawyerDto dto,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
+        // Ownership check
+        if (!uuid.equals(userDetails.getUuid())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only update your own profile"));
+        }
+
         Account updated = accountService.updateAccount(uuid, dto, userDetails.getUuid());
 
-        AccountDto responseDto = AccountDto.builder()
-                .id(updated.getId())
-                .uuid(updated.getUuid())
-                .firstName(updated.getFirstName())
-                .lastName(updated.getLastName())
-                .gender(updated.getGender())
-                .email(updated.getEmail())
-                .mobile(updated.getMobile())
-                .address(updated.getAddress())
-                .build();
+        LawyerDto responseDto = AccountMapper.toLawyerDto(updated);
 
         return ResponseEntity.ok(ApiResponse.success(200, "Updated successfully", responseDto));
     }
 
+    // --- Get Lawyer Profile ---
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<AccountDto>> getClient(
+    public ResponseEntity<ApiResponse<LawyerDto>> getLawyer(
             @PathVariable UUID uuid,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
@@ -64,21 +64,11 @@ public class LawyerController {
 
         return accountService.findByUuid(uuid)
                 .map(account -> {
-                    AccountDto dto = AccountDto.builder()
-                            .id(account.getId())
-                            .uuid(account.getUuid())
-                            .firstName(account.getFirstName())
-                            .lastName(account.getLastName())
-                            .gender(account.getGender())
-                            .email(account.getEmail())
-                            .mobile(account.getMobile())
-                            .address(account.getAddress())
-                            .build();
+                    LawyerDto dto = AccountMapper.toLawyerDto(account);
 
                     return ResponseEntity.ok(ApiResponse.success(200, "Lawyer fetched successfully", dto));
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "Lawyer not found")));
     }
-
 }

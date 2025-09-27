@@ -1,6 +1,8 @@
 package com.legalpro.accountservice.service;
 
 import com.legalpro.accountservice.dto.AccountDto;
+import com.legalpro.accountservice.dto.ClientDto;
+import com.legalpro.accountservice.dto.LawyerDto;
 import com.legalpro.accountservice.dto.RegisterRequest;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Role;
@@ -43,39 +45,51 @@ public class AccountService {
         Role role = roleRepository.findByName(accountType)
                 .orElseThrow(() -> new RuntimeException("Role not found: " + accountType));
 
-        // 3. Create Account entity (skip password)
-        Account account = Account.builder()
-                .uuid(UUID.randomUUID())                 // account primary key
+        // 3. Build Account entity with common fields
+        Account.AccountBuilder accountBuilder = Account.builder()
+                .uuid(UUID.randomUUID())
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .email(request.getEmail())
                 .mobile(request.getMobile())
                 .gender(request.getGender())
                 .address(request.getAddress())
+                .dateOfBirth(request.getDob())
+                .terms(request.isTerms())
+                .newsletter(request.isNewsletter())
                 .isVerified(false)
                 .isActive(false)
-                .verificationToken(UUID.randomUUID())   // email verification token
+                .verificationToken(UUID.randomUUID())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
-                .roles(Set.of(role))
-                .build();
+                .roles(Set.of(role));
 
+        // 4. Add lawyer-specific fields if accountType == Lawyer
+        if ("Lawyer".equalsIgnoreCase(accountType)) {
+            accountBuilder
+                    .organization(request.getOrganization())
+                    .experience(request.getExperience())
+                    .officeAddress(request.getOfficeAddress())
+                    .teamSize(request.getTeamSize())
+                    .languages(request.getLanguages());
+        }
+
+        Account account = accountBuilder.build();
         accountRepository.save(account);
 
-        // 3. Send verification email
+        // 5. Send verification email
         String verificationUrl = "https://lawproject-nu.vercel.app/set-password?token="
                 + account.getVerificationToken();
 
         String bodyHtml = "<p>Hello " + account.getFirstName() + ",</p>"
-                + "<p>Thanks for signing up to Boss Law Online Services. Click the link below to verify your email address.</p>"
+                + "<p>Thanks for signing up to Boss Law Online Services. "
+                + "Click the link below to verify your email address.</p>"
                 + "<a href=\"" + verificationUrl + "\">Click here to verify your email address.</a>";
 
         emailService.sendEmail(account.getEmail(), "Boss Law Verification", bodyHtml);
 
         return account;
     }
-
-
 
     // --- NEW METHODS FOR CLIENT PATCH ---
     public Optional<Account> findByUuid(UUID uuid) {
@@ -92,26 +106,54 @@ public class AccountService {
         return accountRepository.existsByEmail(email);
     }
 
-    public Account updateAccount(UUID uuid, AccountDto dto, UUID requesterUuid) {
-        // Ownership check
+    public Account updateAccount(UUID uuid, ClientDto dto, UUID requesterUuid) {
+        Account account = accountRepository.findByUuid(uuid)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+
         if (!uuid.equals(requesterUuid)) {
             throw new RuntimeException("You can only update your own profile");
         }
 
-        Account account = findByUuid(uuid)
+        // update only client-specific fields
+        account.setFirstName(dto.getFirstName());
+        account.setLastName(dto.getLastName());
+        account.setGender(dto.getGender());
+        account.setDateOfBirth(dto.getDateOfBirth());
+        account.setEmail(dto.getEmail());
+        account.setMobile(dto.getMobile());
+        account.setAddress(dto.getAddress());
+        account.setTerms(dto.isTerms());
+        account.setNewsletter(dto.isNewsletter());
+
+        return accountRepository.save(account);
+    }
+
+    // --- Update Lawyer Account ---
+    public Account updateAccount(UUID uuid, LawyerDto dto, UUID requesterUuid) {
+        Account account = accountRepository.findByUuid(uuid)
                 .orElseThrow(() -> new RuntimeException("Account not found"));
 
-        if (dto.getEmail() != null && !dto.getEmail().equals(account.getEmail())) {
-            if (existsByEmail(dto.getEmail())) {
-                throw new RuntimeException("Email is already in use");
-            }
-            account.setEmail(dto.getEmail());
+        if (!uuid.equals(requesterUuid)) {
+            throw new RuntimeException("You can only update your own profile");
         }
 
-        if (dto.getMobile() != null) account.setMobile(dto.getMobile());
-        if (dto.getAddress() != null) account.setAddress(dto.getAddress());
+        // update only lawyer-specific fields
+        account.setFirstName(dto.getFirstName());
+        account.setLastName(dto.getLastName());
+        account.setGender(dto.getGender());
+        account.setDateOfBirth(dto.getDateOfBirth());
+        account.setEmail(dto.getEmail());
+        account.setMobile(dto.getMobile());
+        account.setAddress(dto.getAddress());
+        account.setOrganization(dto.getOrganization());
+        account.setExperience(dto.getExperience());
+        account.setOfficeAddress(dto.getOfficeAddress());
+        account.setTeamSize(dto.getTeamSize());
+        account.setLanguages(dto.getLanguages());
+        account.setTerms(dto.isTerms());
+        account.setNewsletter(dto.isNewsletter());
 
-        return save(account);
+        return accountRepository.save(account);
     }
 
     public Optional<Account> findByEmail(String email) {

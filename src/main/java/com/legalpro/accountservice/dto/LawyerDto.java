@@ -2,29 +2,24 @@ package com.legalpro.accountservice.dto;
 
 import lombok.*;
 import java.time.LocalDate;
+import java.util.UUID;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RegisterRequest {
-
+public class LawyerDto {
+    private Long id;
+    private UUID uuid;
     private String firstName;
     private String lastName;
-    private String email;
-    private String password;
-    private String mobile;
     private String gender;
+    private LocalDate dateOfBirth;
+    private String email;
+    private String mobile;
     private String address;
-    private String accountType;
-
-    // New fields
-    private LocalDate dob;
     private boolean terms;
     private boolean newsletter;
-
-    // Lawyer-only fields
     private String organization;
     private String experience;
     private String officeAddress;

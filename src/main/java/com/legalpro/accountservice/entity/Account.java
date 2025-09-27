@@ -2,6 +2,7 @@ package com.legalpro.accountservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
@@ -57,6 +58,30 @@ public class Account {
 
     @Column(name = "verification_token")
     private UUID verificationToken;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private boolean terms = false;
+
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private boolean newsletter = false;
+
+    @Column(length = 250)
+    private String organization;
+
+    @Column(length = 25)
+    private String experience;
+
+    @Column(name = "office_address", columnDefinition = "TEXT")
+    private String officeAddress;
+
+    @Column(name = "team_size", length = 50)
+    private String teamSize;
+
+    @Column(length = 250)
+    private String languages;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

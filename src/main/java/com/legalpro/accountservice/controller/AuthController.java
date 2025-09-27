@@ -198,7 +198,11 @@ public class AuthController {
                     ApiResponse.success(
                             200,
                             "Account verified successfully",
-                            Map.of("uuid", account.getUuid().toString())
+                            Map.of(
+                                    "uuid", account.getUuid().toString(),
+                                    "name", account.getFirstName() + " " + account.getLastName(),
+                                    "email", account.getEmail()
+                            )
                     )
             );
         } else {

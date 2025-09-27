@@ -127,7 +127,6 @@ public class AccountService {
         Account account = accountOpt.get();
         account.setVerified(true);
         account.setActive(true);
-        account.setVerificationToken(null); // one-time use
         accountRepository.save(account);
 
         return Optional.of(account);
@@ -148,6 +147,7 @@ public class AccountService {
 
         account.setPassword(passwordEncoder.encode(rawPassword));
         account.setUpdatedAt(LocalDateTime.now());
+        account.setVerificationToken(null);
         accountRepository.save(account);
     }
 

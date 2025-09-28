@@ -2,7 +2,6 @@ package com.legalpro.accountservice.service;
 
 import com.legalpro.accountservice.entity.ClientDocument;
 import com.legalpro.accountservice.repository.ClientDocumentRepository;
-import com.legalpro.accountservice.util.GcsSignedUrlUtil;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -21,14 +20,11 @@ import java.util.UUID;
 public class ClientDocumentService {
 
     private final ClientDocumentRepository repository;
-    private final GcsSignedUrlUtil signedUrlUtil;
     private final Storage storage;
     private final String bucketName = "legalpro-client-docs";
 
-    public ClientDocumentService(ClientDocumentRepository repository,
-                                 GcsSignedUrlUtil signedUrlUtil) {
+    public ClientDocumentService(ClientDocumentRepository repository) {
         this.repository = repository;
-        this.signedUrlUtil = signedUrlUtil;
         this.storage = StorageOptions.getDefaultInstance().getService();
     }
 
@@ -59,7 +55,7 @@ public class ClientDocumentService {
                     .documentType(documentType)
                     .fileName(file.getOriginalFilename())
                     .fileType(file.getContentType())
-                    .fileUrl("gs://" + bucketName + "/" + objectName) // store gs:// path
+                    .fileUrl("gs://" + bucketName + "/" + objectName) // stored in DB
                     .createdAt(LocalDateTime.now())
                     .build();
 
@@ -74,57 +70,42 @@ public class ClientDocumentService {
         return repository.existsByClientUuidAndDocumentType(clientUuid, documentType);
     }
 
-    // --- Get documents for client (signed URLs) ---
+    // --- Get documents for client (public-style URLs) ---
     public List<ClientDocument> getClientDocuments(UUID clientUuid) {
         List<ClientDocument> docs = repository.findAllByClientUuidAndDeletedAtIsNull(clientUuid);
 
         docs.forEach(doc -> {
             if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
-                try {
-                    String objectPath = extractObjectPath(doc.getFileUrl(), bucketName);
-                    String signedUrl = signedUrlUtil.generateSignedUrl(bucketName, objectPath);
-                    doc.setFileUrl(signedUrl);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                String objectPath = extractObjectPath(doc.getFileUrl(), bucketName);
+                doc.setFileUrl(toPublicUrl(bucketName, objectPath));
             }
         });
 
         return docs;
     }
 
-    // --- Get documents for lawyer (signed URLs) ---
+    // --- Get documents for lawyer (public-style URLs) ---
     public List<ClientDocument> getClientDocumentsForLawyer(UUID clientUuid, UUID lawyerUuid) {
         List<ClientDocument> docs = repository.findAllByClientUuidAndLawyerUuidAndDeletedAtIsNull(clientUuid, lawyerUuid);
 
         docs.forEach(doc -> {
             if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
-                try {
-                    String objectPath = extractObjectPath(doc.getFileUrl(), bucketName);
-                    String signedUrl = signedUrlUtil.generateSignedUrl(bucketName, objectPath);
-                    doc.setFileUrl(signedUrl);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                String objectPath = extractObjectPath(doc.getFileUrl(), bucketName);
+                doc.setFileUrl(toPublicUrl(bucketName, objectPath));
             }
         });
 
         return docs;
     }
 
-    // --- Get single document (signed URL) ---
+    // --- Get single document (public-style URL) ---
     public Optional<ClientDocument> getDocument(Long id) {
         Optional<ClientDocument> opt = repository.findByIdAndDeletedAtIsNull(id);
 
         opt.ifPresent(doc -> {
             if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
-                try {
-                    String objectPath = extractObjectPath(doc.getFileUrl(), bucketName);
-                    String signedUrl = signedUrlUtil.generateSignedUrl(bucketName, objectPath);
-                    doc.setFileUrl(signedUrl);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                String objectPath = extractObjectPath(doc.getFileUrl(), bucketName);
+                doc.setFileUrl(toPublicUrl(bucketName, objectPath));
             }
         });
 
@@ -138,12 +119,16 @@ public class ClientDocumentService {
         });
     }
 
-    // --- Helper to get object path from gs:// URL ---
+    // --- Helpers ---
     private String extractObjectPath(String gsUrl, String bucket) {
         String prefix = "gs://" + bucket + "/";
         if (gsUrl.startsWith(prefix)) {
             return gsUrl.substring(prefix.length());
         }
         return gsUrl.replaceFirst("^gs://[^/]+/", "");
+    }
+
+    private String toPublicUrl(String bucket, String object) {
+        return "https://storage.googleapis.com/" + bucket + "/" + object;
     }
 }

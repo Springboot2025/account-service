@@ -20,4 +20,8 @@ public class ClientDto {
     private String address;
     private boolean terms;
     private boolean newsletter;
+    private String addressDetails;
+    private String contactInformation;
+    private String emergencyContact;
+
 }

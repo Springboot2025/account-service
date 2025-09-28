@@ -83,6 +83,15 @@ public class Account {
     @Column(length = 250)
     private String languages;
 
+    @Column(name = "address_details", columnDefinition = "jsonb")
+    private String addressDetails;
+
+    @Column(name = "contact_information", columnDefinition = "jsonb")
+    private String contactInformation;
+
+    @Column(name = "emergency_contact", columnDefinition = "jsonb")
+    private String emergencyContact;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "account_roles",

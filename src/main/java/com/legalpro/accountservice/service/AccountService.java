@@ -134,6 +134,10 @@ public class AccountService {
         account.setTerms(dto.isTerms());
         account.setNewsletter(dto.isNewsletter());
 
+        if (dto.getAddressDetails() != null) account.setAddressDetails(dto.getAddressDetails());
+        if (dto.getContactInformation() != null) account.setContactInformation(dto.getContactInformation());
+        if (dto.getEmergencyContact() != null) account.setEmergencyContact(dto.getEmergencyContact());
+
         return accountRepository.save(account);
     }
 

@@ -1,9 +1,11 @@
 package com.legalpro.accountservice.entity;
 
+import com.legalpro.accountservice.util.JpaJsonConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -84,13 +86,17 @@ public class Account {
     private String languages;
 
     @Column(name = "address_details", columnDefinition = "jsonb")
-    private String addressDetails;
+    @Convert(converter = JpaJsonConverter.class)
+    private Map<String, Object> addressDetails;
 
     @Column(name = "contact_information", columnDefinition = "jsonb")
-    private String contactInformation;
+    @Convert(converter = JpaJsonConverter.class)
+    private Map<String, Object> contactInformation;
 
     @Column(name = "emergency_contact", columnDefinition = "jsonb")
-    private String emergencyContact;
+    @Convert(converter = JpaJsonConverter.class)
+    private Map<String, Object> emergencyContact;
+
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

@@ -3,11 +3,11 @@ package com.legalpro.accountservice.entity;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.time.LocalDateTime;
-
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "client_answers")
@@ -22,14 +22,15 @@ public class ClientAnswer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JdbcTypeCode(SqlTypes.UUID) // ✅ Hibernate knows it's a UUID
     @Column(name = "client_uuid", nullable = false)
-    private java.util.UUID clientUuid;
+    private UUID clientUuid;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "question_type", nullable = false, length = 10)
+    @Column(name = "question_type", nullable = false, length = 50)
     private QuestionType questionType;
 
-    @JdbcTypeCode(SqlTypes.JSON)  // ✅ Hibernate knows it's JSON now
+    @JdbcTypeCode(SqlTypes.JSON) // ✅ Hibernate knows it's JSON
     @Column(name = "answers", columnDefinition = "jsonb", nullable = false)
     private JsonNode answers;
 
@@ -44,8 +45,9 @@ public class ClientAnswer {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 
     @PreUpdate
@@ -53,4 +55,3 @@ public class ClientAnswer {
         this.updatedAt = LocalDateTime.now();
     }
 }
-

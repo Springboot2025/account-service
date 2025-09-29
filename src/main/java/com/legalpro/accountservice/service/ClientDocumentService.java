@@ -21,7 +21,7 @@ public class ClientDocumentService {
 
     private final ClientDocumentRepository repository;
     private final Storage storage;
-    private final String bucketName = "legalpro-client-docs"; // GCS bucket name
+    private final String bucketName = "legalpro-client-docs";
 
     public ClientDocumentService(ClientDocumentRepository repository) {
         this.repository = repository;
@@ -37,28 +37,25 @@ public class ClientDocumentService {
             String documentType = documentTypes.get(i);
             MultipartFile file = files.get(i);
 
-            // Check if client already has a document of this type
             if (existsByClientAndDocumentType(clientUuid, documentType)) {
                 throw new RuntimeException("Client already has a document of type: " + documentType);
             }
 
-            // Generate unique filename
             String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
 
-            // Upload to GCS
             BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
                     .setContentType(file.getContentType())
                     .build();
+
             storage.create(blobInfo, file.getBytes());
 
-            // Save metadata in DB
             ClientDocument document = ClientDocument.builder()
                     .clientUuid(clientUuid)
                     .lawyerUuid(lawyerUuid)
                     .documentType(documentType)
                     .fileName(file.getOriginalFilename())
                     .fileType(file.getContentType())
-                    .fileUrl("gs://" + bucketName + "/" + objectName)
+                    .fileUrl("gs://" + bucketName + "/" + objectName) // stored in DB
                     .createdAt(LocalDateTime.now())
                     .build();
 
@@ -68,23 +65,51 @@ public class ClientDocumentService {
         return savedDocuments;
     }
 
-
-    // --- Check if client already has document type ---
+    // --- Check if document exists ---
     public boolean existsByClientAndDocumentType(UUID clientUuid, String documentType) {
         return repository.existsByClientUuidAndDocumentType(clientUuid, documentType);
     }
 
-    // --- Query methods ---
+    // --- Get documents for client (public-style URLs) ---
     public List<ClientDocument> getClientDocuments(UUID clientUuid) {
-        return repository.findAllByClientUuidAndDeletedAtIsNull(clientUuid);
+        List<ClientDocument> docs = repository.findAllByClientUuidAndDeletedAtIsNull(clientUuid);
+
+        docs.forEach(doc -> {
+            if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
+                String objectPath = extractObjectPath(doc.getFileUrl(), bucketName);
+                doc.setFileUrl(toPublicUrl(bucketName, objectPath));
+            }
+        });
+
+        return docs;
     }
 
+    // --- Get documents for lawyer (public-style URLs) ---
     public List<ClientDocument> getClientDocumentsForLawyer(UUID clientUuid, UUID lawyerUuid) {
-        return repository.findAllByClientUuidAndLawyerUuidAndDeletedAtIsNull(clientUuid, lawyerUuid);
+        List<ClientDocument> docs = repository.findAllByClientUuidAndLawyerUuidAndDeletedAtIsNull(clientUuid, lawyerUuid);
+
+        docs.forEach(doc -> {
+            if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
+                String objectPath = extractObjectPath(doc.getFileUrl(), bucketName);
+                doc.setFileUrl(toPublicUrl(bucketName, objectPath));
+            }
+        });
+
+        return docs;
     }
 
+    // --- Get single document (public-style URL) ---
     public Optional<ClientDocument> getDocument(Long id) {
-        return repository.findByIdAndDeletedAtIsNull(id);
+        Optional<ClientDocument> opt = repository.findByIdAndDeletedAtIsNull(id);
+
+        opt.ifPresent(doc -> {
+            if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
+                String objectPath = extractObjectPath(doc.getFileUrl(), bucketName);
+                doc.setFileUrl(toPublicUrl(bucketName, objectPath));
+            }
+        });
+
+        return opt;
     }
 
     public void softDeleteDocument(Long id) {
@@ -92,5 +117,18 @@ public class ClientDocumentService {
             doc.setDeletedAt(LocalDateTime.now());
             repository.save(doc);
         });
+    }
+
+    // --- Helpers ---
+    private String extractObjectPath(String gsUrl, String bucket) {
+        String prefix = "gs://" + bucket + "/";
+        if (gsUrl.startsWith(prefix)) {
+            return gsUrl.substring(prefix.length());
+        }
+        return gsUrl.replaceFirst("^gs://[^/]+/", "");
+    }
+
+    private String toPublicUrl(String bucket, String object) {
+        return "https://storage.googleapis.com/" + bucket + "/" + object;
     }
 }

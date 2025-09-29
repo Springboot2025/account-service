@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,7 +20,7 @@ import java.util.UUID;
                 ),
                 @UniqueConstraint(
                         name = "uq_client_document_type",
-                        columnNames = {"client_uuid", "document_type", "deleted_at"} // ✅ one document type per client
+                        columnNames = {"client_uuid", "document_type", "deleted_at"}
                 )
         }
 )
@@ -33,10 +35,12 @@ public class ClientDocument {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JdbcTypeCode(SqlTypes.UUID) // ✅ correct UUID mapping
     @Column(name = "client_uuid", nullable = false)
     private UUID clientUuid;
 
-    @Column(name = "lawyer_uuid", nullable = true)
+    @JdbcTypeCode(SqlTypes.UUID) // ✅ ensure Hibernate doesn’t treat as Object
+    @Column(name = "lawyer_uuid")
     private UUID lawyerUuid;
 
     @Column(name = "file_name", nullable = false, length = 255)
@@ -49,7 +53,7 @@ public class ClientDocument {
     private String fileUrl;
 
     @Column(name = "document_type", nullable = false, length = 100)
-    private String documentType; // ✅ new field
+    private String documentType;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

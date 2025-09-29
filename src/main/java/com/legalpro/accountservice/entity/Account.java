@@ -1,9 +1,14 @@
 package com.legalpro.accountservice.entity;
 
+import com.legalpro.accountservice.util.JpaJsonConverter;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.JdbcTypeCode;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -18,10 +23,18 @@ public class Account {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // matches BIGSERIAL
+    private Long id;
 
-    @Column(nullable = false, unique = true)
-    private UUID uuid = UUID.randomUUID();
+    @Column(nullable = false, unique = true, updatable = false)
+    @JdbcTypeCode(SqlTypes.UUID)
+    private UUID uuid;
+
+    @PrePersist
+    public void prePersist() {
+        if (uuid == null) {
+            uuid = UUID.randomUUID();
+        }
+    }
 
     @Column(name = "first_name", nullable = false)
     private String firstName;
@@ -57,6 +70,7 @@ public class Account {
     private boolean isActive = false;
 
     @Column(name = "verification_token")
+    @JdbcTypeCode(SqlTypes.UUID)
     private UUID verificationToken;
 
     @Column(name = "date_of_birth")
@@ -82,6 +96,18 @@ public class Account {
 
     @Column(length = 250)
     private String languages;
+
+    @Column(name = "address_details", columnDefinition = "jsonb")
+    @Convert(converter = JpaJsonConverter.class)
+    private Map<String, Object> addressDetails;
+
+    @Column(name = "contact_information", columnDefinition = "jsonb")
+    @Convert(converter = JpaJsonConverter.class)
+    private Map<String, Object> contactInformation;
+
+    @Column(name = "emergency_contact", columnDefinition = "jsonb")
+    @Convert(converter = JpaJsonConverter.class)
+    private Map<String, Object> emergencyContact;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

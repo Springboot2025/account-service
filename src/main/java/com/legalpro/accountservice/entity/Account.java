@@ -22,7 +22,7 @@ public class Account {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // matches BIGSERIAL
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, columnDefinition = "UUID")
     private UUID uuid = UUID.randomUUID();
 
     @Column(name = "first_name", nullable = false)

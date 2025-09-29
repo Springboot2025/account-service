@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql:///legalpro?cloudSqlInstance=${CLOUD_SQL_CONNECTION}&socketFactory=com.google.cloud.sql.postgres.SocketFactory
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: jdbc:postgresql:///legalpro?cloudSqlInstance=halogen-episode-470910-h9:us-central1:legalpro-postgres&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+    username: legalpro
+    password: legalPro42#
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -18,7 +18,7 @@ spring:
     locations: classpath:db/migration
 
 jwt:
-  secret: ${JWT_SECRET:legalPro42}
+  secret: legalPro42
   expirationMs: 86400000
 
 logging:

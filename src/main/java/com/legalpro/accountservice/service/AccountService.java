@@ -15,8 +15,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 @Service
 public class AccountService {
 
@@ -24,8 +23,6 @@ public class AccountService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
-    private static final Logger logger = LoggerFactory.getLogger(AccountService.class);
-
 
     public AccountService(AccountRepository accountRepository,
                           RoleRepository roleRepository,
@@ -45,14 +42,6 @@ public class AccountService {
 
         // 2. Resolve role (default = Client)
         String accountType = request.getAccountType() != null ? request.getAccountType() : "Client";
-        logger.info("Account type from request: {}", accountType);
-
-        Optional<Role> optionalRole = roleRepository.findByName(accountType);
-        if (optionalRole.isEmpty()) {
-            logger.error("Role not found in DB for accountType: {}", accountType);
-        } else {
-            logger.info("Found role: {}", optionalRole.get().getName());
-        }
         Role role = roleRepository.findByName(accountType)
                 .orElseThrow(() -> new RuntimeException("Role not found: " + accountType));
 

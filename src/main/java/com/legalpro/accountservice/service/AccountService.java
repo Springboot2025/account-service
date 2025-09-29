@@ -42,7 +42,7 @@ public class AccountService {
 
         // 2. Resolve role (default = Client)
         String accountType = request.getAccountType() != null ? request.getAccountType() : "Client";
-        Role role = roleRepository.findByName(accountType)
+        Role role = roleRepository.findByNameIgnoreCase(accountType.trim())
                 .orElseThrow(() -> new RuntimeException("Role not found: " + accountType));
 
         // 3. Build Account entity with common fields

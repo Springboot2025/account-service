@@ -8,11 +8,11 @@ services:
     container_name: account-service
     ports:
       - "8080:8080"
-    env_file:
-      - .env
-    environment:
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
-      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: none
-      SPRING_FLYWAY_ENABLED: "true"
+    #env_file:
+    #  - .env
+    #environment:
+    #  SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+    #  SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+    #  SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+    #  SPRING_JPA_HIBERNATE_DDL_AUTO: none
+    #  SPRING_FLYWAY_ENABLED: "true"

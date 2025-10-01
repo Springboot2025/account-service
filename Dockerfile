@@ -1,4 +1,6 @@
+# ======================
 # Step 1: Build with Maven
+# ======================
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 
@@ -16,23 +18,22 @@ RUN ./mvnw dependency:go-offline -B
 COPY src ./src
 RUN ./mvnw clean package -DskipTests
 
-# Step 2: Run with JRE slim
+# ======================
+# Step 2: Run with JRE
+# ======================
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# Copy jar from build stage as root
+# Copy jar from build stage
 COPY --from=build /app/target/*.jar app.jar
-
-# Make jar executable (still root)
-RUN chmod +x app.jar
 
 # Add non-root user
 RUN useradd -m spring
-
-# Switch to non-root user
 USER spring
 
-# No need for EXPOSE; Cloud Run uses $PORT automatically
+# Environment variables
+ENV PORT=8080
+ENV JAVA_OPTS="-Dserver.port=${PORT} -Dserver.address=0.0.0.0"
 
 # Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

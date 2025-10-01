@@ -9,7 +9,7 @@ COPY mvnw pom.xml ./
 # Make mvnw executable
 RUN chmod +x mvnw
 
-# Download dependencies
+# Download dependencies offline
 RUN ./mvnw dependency:go-offline -B
 
 # Copy source code and build jar
@@ -20,15 +20,15 @@ RUN ./mvnw clean package -DskipTests
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# Add a non-root user
+# Add non-root user
 RUN useradd -m spring
 USER spring
 
-# Copy the jar from build stage
+# Copy jar from build stage
 COPY --from=build /app/target/*.jar app.jar
+RUN chmod +x app.jar
 
-# Expose port
-EXPOSE 8080
+# No need for EXPOSE — Cloud Run maps PORT automatically
 
-# Run the application
+# Run application
 ENTRYPOINT ["java", "-jar", "app.jar"]

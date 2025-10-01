@@ -16,19 +16,23 @@ RUN ./mvnw dependency:go-offline -B
 COPY src ./src
 RUN ./mvnw clean package -DskipTests
 
-# Step 2: Run with JRE slim, non-root user
+# Step 2: Run with JRE slim
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# Add non-root user
-RUN useradd -m spring
-USER spring
-
-# Copy jar from build stage
+# Copy jar from build stage as root
 COPY --from=build /app/target/*.jar app.jar
+
+# Make jar executable (still root)
 RUN chmod +x app.jar
 
-# No need for EXPOSE — Cloud Run maps PORT automatically
+# Add non-root user
+RUN useradd -m spring
 
-# Run application
+# Switch to non-root user
+USER spring
+
+# No need for EXPOSE; Cloud Run uses $PORT automatically
+
+# Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]

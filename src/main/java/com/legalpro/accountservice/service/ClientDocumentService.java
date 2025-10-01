@@ -22,6 +22,7 @@ public class ClientDocumentService {
     private final ClientDocumentRepository repository;
     private final Storage storage;
     private final String bucketName = "legalpro-client-docs"; // GCS bucket name
+    private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
     public ClientDocumentService(ClientDocumentRepository repository) {
         this.repository = repository;
@@ -76,7 +77,17 @@ public class ClientDocumentService {
 
     // --- Query methods ---
     public List<ClientDocument> getClientDocuments(UUID clientUuid) {
-        return repository.findAllByClientUuidAndDeletedAtIsNull(clientUuid);
+        List<ClientDocument> docs = repository.findAllByClientUuidAndDeletedAtIsNull(clientUuid);
+
+        for (ClientDocument doc : docs) {
+            String fileUrl = doc.getFileUrl();
+            if (fileUrl != null && fileUrl.startsWith("gs://")) {
+                String withoutScheme = fileUrl.substring("gs://".length()); 
+                doc.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
+            }
+        }
+
+        return docs;
     }
 
     public List<ClientDocument> getClientDocumentsForLawyer(UUID clientUuid, UUID lawyerUuid) {

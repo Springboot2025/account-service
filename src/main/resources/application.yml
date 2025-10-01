@@ -22,5 +22,6 @@ logging:
   level:
     org.springframework.web.multipart: DEBUG
     org.apache.catalina.core: DEBUG
-  file:
-    name: /logs/app.log
+
+server:
+  port: ${PORT:8080}

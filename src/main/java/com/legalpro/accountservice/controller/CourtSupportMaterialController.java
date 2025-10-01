@@ -31,10 +31,10 @@ public class CourtSupportMaterialController {
 
     // --- Upload court support materials ---
     @PostMapping("/support-materials")
-    public ResponseEntity<ApiResponse<List<CourtSupportMaterial>>> uploadMaterials(
+    public ResponseEntity<ApiResponse<CourtSupportMaterial>> uploadMaterial(
             @RequestParam("clientUuid") UUID clientUuid,
-            @RequestParam("descriptions") List<String> descriptions, // each description is a JSON string
-            @RequestParam("files") List<MultipartFile> files,
+            @RequestParam("description") String description, // single JSON string
+            @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) throws IOException {
 
@@ -44,23 +44,15 @@ public class CourtSupportMaterialController {
                     .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only upload your own materials"));
         }
 
-        if (files.size() != descriptions.size()) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), "Each file must have a description JSON"));
-        }
+        // Convert JSON string to Map
+        Map<String, Object> parsedDescription = objectMapper.readValue(description, new TypeReference<>() {});
 
-        // Convert JSON strings to Map<String,Object>
-        List<Map<String, Object>> parsedDescriptions = new ArrayList<>();
-        for (String desc : descriptions) {
-            Map<String, Object> jsonMap = objectMapper.readValue(desc, new TypeReference<>() {});
-            parsedDescriptions.add(jsonMap);
-        }
-
-        List<CourtSupportMaterial> saved = service.uploadMaterials(clientUuid, parsedDescriptions, files);
+        CourtSupportMaterial saved = service.uploadMaterial(clientUuid, parsedDescription, file);
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Materials uploaded successfully", saved));
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Material uploaded successfully", saved));
     }
+
 
     // --- Get all materials for a client ---
     @GetMapping("/{uuid}/support-materials")

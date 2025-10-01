@@ -18,7 +18,7 @@ public class CourtSupportMaterialService {
 
     private final CourtSupportMaterialRepository repository;
     private final Storage storage;
-    private final String bucketName = "legalpro-court-support"; // ✅ dedicated bucket
+    private final String bucketName = "legalpro-client-docs"; // ✅ dedicated bucket
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
     public CourtSupportMaterialService(CourtSupportMaterialRepository repository) {
@@ -98,4 +98,36 @@ public class CourtSupportMaterialService {
             repository.save(material);
         });
     }
+
+    // --- Upload a single file with description ---
+    @Transactional
+    public CourtSupportMaterial uploadMaterial(UUID clientUuid, Map<String, Object> description, MultipartFile file) throws IOException {
+
+        // Optional: check if client already has file with same name
+        if (repository.existsByClientUuidAndFileName(clientUuid, file.getOriginalFilename())) {
+            throw new RuntimeException("Client already has a file with name: " + file.getOriginalFilename());
+        }
+
+        // Generate unique GCS object name
+        String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
+
+        // Upload file to GCS
+        BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
+                .setContentType(file.getContentType())
+                .build();
+        storage.create(blobInfo, file.getBytes());
+
+        // Save metadata in DB
+        CourtSupportMaterial material = CourtSupportMaterial.builder()
+                .clientUuid(clientUuid)
+                .fileName(file.getOriginalFilename())
+                .fileType(file.getContentType())
+                .fileUrl("gs://" + bucketName + "/" + objectName)
+                .description(description)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return repository.save(material);
+    }
+
 }

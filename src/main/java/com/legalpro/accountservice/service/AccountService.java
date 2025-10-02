@@ -213,4 +213,32 @@ public class AccountService {
         accountRepository.save(account);
     }
 
+    public void sendForgotPasswordEmail(String email) {
+        Account account = accountRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+
+        UUID token = UUID.randomUUID();
+        account.setForgotPasswordToken(token);
+        account.setUpdatedAt(LocalDateTime.now());
+        accountRepository.save(account);
+
+        String resetUrl = "https://lawproject-nu.vercel.app/reset-password?token=" + token;
+
+        String bodyHtml = "<p>Hello " + account.getFirstName() + ",</p>"
+                + "<p>You requested to reset your password. Click below:</p>"
+                + "<a href=\"" + resetUrl + "\">Reset Password</a>";
+
+        emailService.sendEmail(account.getEmail(), "Password Reset Request", bodyHtml);
+    }
+
+    public void resetPassword(UUID token, String newPassword) {
+        Account account = accountRepository.findByForgotPasswordToken(token)
+                .orElseThrow(() -> new RuntimeException("Invalid or expired reset token"));
+
+        account.setPassword(passwordEncoder.encode(newPassword));
+        account.setForgotPasswordToken(null);
+        account.setUpdatedAt(LocalDateTime.now());
+        accountRepository.save(account);
+    }
+
 }

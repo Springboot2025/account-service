@@ -232,5 +232,40 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<String>> forgotPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(400, "Email is required"));
+        }
+
+        try {
+            accountService.sendForgotPasswordEmail(email);
+            return ResponseEntity.ok(ApiResponse.success(200, "Password reset email sent", null));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<String>> resetPassword(@RequestBody Map<String, String> body) {
+        String tokenStr = body.get("token");
+        String newPassword = body.get("password");
+
+        if (tokenStr == null || newPassword == null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(400, "Token and new password are required"));
+        }
+
+        try {
+            accountService.resetPassword(UUID.fromString(tokenStr), newPassword);
+            return ResponseEntity.ok(ApiResponse.success(200, "Password reset successfully", null));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
 
 }

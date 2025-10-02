@@ -83,6 +83,9 @@ public class Account {
     @Column(length = 250)
     private String languages;
 
+    @Column(name = "forgot_password_token")
+    private UUID forgotPasswordToken;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "account_roles",

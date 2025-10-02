@@ -1,7 +1,11 @@
 package com.legalpro.accountservice.entity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -85,6 +89,18 @@ public class Account {
 
     @Column(name = "forgot_password_token")
     private UUID forgotPasswordToken;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "address_details", columnDefinition = "jsonb", nullable = true)
+    private JsonNode addressDetails;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "contact_information", columnDefinition = "jsonb", nullable = true)
+    private JsonNode contactInformation;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "emergency_contact", columnDefinition = "jsonb", nullable = true)
+    private JsonNode emergencyContact;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

@@ -1,5 +1,7 @@
 package com.legalpro.accountservice.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.ClientDto;
 import com.legalpro.accountservice.dto.LawyerDto;
@@ -23,15 +25,18 @@ public class AccountService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final ObjectMapper objectMapper;
 
     public AccountService(AccountRepository accountRepository,
                           RoleRepository roleRepository,
                           PasswordEncoder passwordEncoder,
-                          EmailService emailService) {
+                          EmailService emailService,
+                          ObjectMapper objectMapper) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
+        this.objectMapper = objectMapper;
     }
 
     public Account register(RegisterRequest request) {
@@ -129,6 +134,19 @@ public class AccountService {
 
         if (dto.getMobile() != null) account.setMobile(dto.getMobile());
         if (dto.getAddress() != null) account.setAddress(dto.getAddress());
+
+        if (dto.getAddressDetails() != null) {
+            JsonNode addressDetails = objectMapper.convertValue(dto.getAddressDetails(), JsonNode.class);
+            account.setAddressDetails(addressDetails);
+        }
+        if (dto.getContactInformation() != null) {
+            JsonNode contactInformation = objectMapper.convertValue(dto.getContactInformation(), JsonNode.class);
+            account.setContactInformation(contactInformation);
+        }
+        if (dto.getEmergencyContact() != null) {
+            JsonNode emergencyContact = objectMapper.convertValue(dto.getEmergencyContact(), JsonNode.class);
+            account.setEmergencyContact(emergencyContact);
+        }
 
         // booleans: only update if explicitly set in request
         account.setTerms(dto.isTerms());

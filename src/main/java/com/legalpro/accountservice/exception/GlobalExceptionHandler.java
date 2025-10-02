@@ -15,9 +15,13 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Pattern CONSTRAINT_PATTERN = Pattern.compile("constraint\\s+\"([^\"]+)\"", Pattern.CASE_INSENSITIVE);
 
     // Handle @Valid validation errors
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -93,18 +97,37 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<?>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         String rootCause = ex.getRootCause() != null ? ex.getRootCause().getMessage() : ex.getMessage();
+        String constraintName = extractConstraintName(rootCause);
         String message;
 
-        if (rootCause != null && rootCause.contains("client_answers")) {
-            message = "Duplicate entry: An answer already exists for this client and question type.";
-        } else if (rootCause != null && rootCause.contains("accounts")) {
-            message = "Duplicate entry: Account already exists with provided details.";
+        if (constraintName != null) {
+            switch (constraintName) {
+                case "uq_client_file":
+                    message = "Duplicate entry: This client already has a file with the same name.";
+                    break;
+                case "uq_accounts_email":
+                    message = "Duplicate entry: An account with this email already exists.";
+                    break;
+                case "accounts_pkey":
+                    message = "Duplicate entry: Account with this ID already exists.";
+                    break;
+                case "client_answers_unique":
+                    message = "Duplicate entry: An answer already exists for this client and question type.";
+                    break;
+                default:
+                    message = "Database constraint violation: " + constraintName;
+            }
         } else {
-            message = "Database constraint violation: " + rootCause;
+            message = "Database error: " + rootCause;
         }
 
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error(HttpStatus.CONFLICT.value(), message));
     }
 
+    private String extractConstraintName(String rootCause) {
+        if (rootCause == null) return null;
+        Matcher matcher = CONSTRAINT_PATTERN.matcher(rootCause);
+        return matcher.find() ? matcher.group(1) : null;
+    }
 }

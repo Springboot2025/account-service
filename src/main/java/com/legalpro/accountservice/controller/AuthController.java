@@ -10,6 +10,7 @@ import com.legalpro.accountservice.service.AccountService;
 import com.legalpro.accountservice.service.EmailService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -47,6 +48,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Map<String, String>>> login(
             @Valid @RequestBody LoginRequest loginRequest,
+            HttpServletRequest request,
             HttpServletResponse response
     ) {
         try {
@@ -75,12 +77,15 @@ public class AuthController {
                     userDetails.getAuthorities()
             );
 
+            // ✅ Allow local dev without HTTPS
+            boolean isLocalhost = "localhost".equalsIgnoreCase(request.getServerName());
+
             // Set refresh token as HttpOnly cookie
             ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", refreshToken)
                     .httpOnly(true)
-                    .secure(true)   // set false for local dev without HTTPS
+                    .secure(!isLocalhost)   // ✅ secure=false on localhost
                     .path("/")
-                    .sameSite("Strict")
+                    .sameSite("None")       // ✅ must be None for cross-origin cookies
                     .maxAge(30L * 24 * 60 * 60) // 30 days
                     .build();
 
@@ -138,6 +143,7 @@ public class AuthController {
     @GetMapping("/refresh")
     public ResponseEntity<ApiResponse<Map<String, String>>> refreshToken(
             @CookieValue(value = "refreshToken", required = false) String refreshToken,
+            HttpServletRequest request,
             HttpServletResponse response
     ) {
         if (refreshToken == null || !jwtUtil.validateToken(refreshToken)) {
@@ -168,13 +174,16 @@ public class AuthController {
         String newAccessToken = jwtUtil.generateAccessToken(uuid, username, authorities);
         String newRefreshToken = jwtUtil.generateRefreshToken(uuid, username, authorities);
 
+        // ✅ Allow local dev without HTTPS
+        boolean isLocalhost = "localhost".equalsIgnoreCase(request.getServerName());
+
         // Replace old refresh token with new one
         ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", newRefreshToken)
                 .httpOnly(true)
-                .secure(true)
+                .secure(!isLocalhost)   // ✅ secure=false on localhost
                 .path("/")
-                .sameSite("Strict")
-                .maxAge(30L * 24 * 60 * 60)
+                .sameSite("None")       // ✅ must be None for cross-origin cookies
+                .maxAge(7L * 24 * 60 * 60)
                 .build();
 
         response.addHeader("Set-Cookie", refreshCookie.toString());

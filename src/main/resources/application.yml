@@ -28,3 +28,4 @@ logging:
 
 server:
   port: ${PORT:8080}  # Use Cloud Run injected port
+  address: 0.0.0.0

@@ -6,6 +6,7 @@ import com.legalpro.accountservice.dto.RegisterRequest;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.security.JwtUtil;
+import com.legalpro.accountservice.security.TokenBlacklistService;
 import com.legalpro.accountservice.service.AccountService;
 import com.legalpro.accountservice.service.EmailService;
 import io.jsonwebtoken.Claims;
@@ -34,15 +35,19 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final AccountService accountService;
     private final EmailService emailService;
+    private final TokenBlacklistService tokenBlacklistService;
+
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtUtil jwtUtil,
                           AccountService accountService,
-                          EmailService emailService) {
+                          EmailService emailService,
+                          TokenBlacklistService tokenBlacklistService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.accountService = accountService;
         this.emailService = emailService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @PostMapping("/login")
@@ -276,5 +281,39 @@ public class AuthController {
                     .body(ApiResponse.error(400, e.getMessage()));
         }
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<String>> logout(
+            @RequestHeader(name = "Authorization", required = false) String authHeader,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        // Clear refresh token cookie for client
+        boolean isLocalhost = "localhost".equalsIgnoreCase(request.getServerName());
+        ResponseCookie deleteCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(!isLocalhost)
+                .path("/")
+                .sameSite("None")
+                .maxAge(0)
+                .build();
+        response.addHeader("Set-Cookie", deleteCookie.toString());
+
+        // Blacklist the access token if present so it becomes unusable immediately
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            try {
+                if (jwtUtil.validateToken(token)) {
+                    Date expiry = jwtUtil.getExpiration(token);
+                    tokenBlacklistService.blacklistToken(token, expiry);
+                }
+            } catch (Exception e) {
+                // If token is invalid already, we just continue — cookie is still cleared
+            }
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Logout successful", null));
+    }
+
 
 }

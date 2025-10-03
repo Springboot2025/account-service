@@ -97,4 +97,24 @@ public class JwtUtil {
     public Key getKey() {
         return this.key;
     }
+
+    private Claims extractAllClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    public Date getExpiration(String token) {
+        return extractAllClaims(token).getExpiration();
+    }
+
+    public String extractUsername(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
+    public String extractJti(String token) {
+        return extractAllClaims(token).getId();
+    }
 }

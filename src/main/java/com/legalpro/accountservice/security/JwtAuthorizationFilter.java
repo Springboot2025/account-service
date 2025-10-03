@@ -20,9 +20,11 @@ import java.util.stream.Collectors;
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public JwtAuthorizationFilter(JwtUtil jwtUtil) {
+    public JwtAuthorizationFilter(JwtUtil jwtUtil, TokenBlacklistService tokenBlacklistService) {
         this.jwtUtil = jwtUtil;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -38,6 +40,14 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         }
 
         String token = header.substring(7);
+
+        // ✅ Block requests with blacklisted tokens
+        if (tokenBlacklistService.isBlacklisted(token)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"status\":401,\"message\":\"Token has been revoked. Please log in again.\"}");
+            return;
+        }
 
         if (jwtUtil.validateToken(token)) {
             String username = jwtUtil.getUsernameFromJwt(token);

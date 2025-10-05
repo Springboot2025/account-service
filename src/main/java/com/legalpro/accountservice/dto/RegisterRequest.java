@@ -2,6 +2,7 @@ package com.legalpro.accountservice.dto;
 
 import lombok.*;
 import java.time.LocalDate;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -23,6 +24,10 @@ public class RegisterRequest {
     private LocalDate dob;
     private boolean terms;
     private boolean newsletter;
+
+    private Map<String, Object> addressDetails;
+    private Map<String, Object> contactInformation;
+    private Map<String, Object> emergencyContact;
 
     // Lawyer-only fields
     private String organization;

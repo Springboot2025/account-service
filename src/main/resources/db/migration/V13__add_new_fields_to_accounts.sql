@@ -1,0 +1,9 @@
+ALTER TABLE accounts
+ADD COLUMN personal_details JSONB NULL,
+ADD COLUMN preferences JSONB NULL,
+ADD COLUMN professional_details JSONB NULL;
+
+ALTER TABLE accounts ALTER COLUMN first_name DROP NOT NULL;
+ALTER TABLE accounts ALTER COLUMN terms DROP NOT NULL;
+ALTER TABLE accounts ALTER COLUMN newsletter DROP NOT NULL;
+ALTER TABLE accounts ALTER COLUMN last_name DROP NOT NULL;

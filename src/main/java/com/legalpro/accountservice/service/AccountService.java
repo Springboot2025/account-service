@@ -53,15 +53,7 @@ public class AccountService {
         // 3. Build Account entity with common fields
         Account.AccountBuilder accountBuilder = Account.builder()
                 .uuid(UUID.randomUUID())
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
                 .email(request.getEmail())
-                .mobile(request.getMobile())
-                .gender(request.getGender())
-                .address(request.getAddress())
-                .dateOfBirth(request.getDob())
-                .terms(request.isTerms())
-                .newsletter(request.isNewsletter())
                 .isVerified(false)
                 .isActive(false)
                 .verificationToken(UUID.randomUUID())
@@ -69,24 +61,31 @@ public class AccountService {
                 .updatedAt(LocalDateTime.now())
                 .roles(Set.of(role));
 
-        if (request.getAddressDetails() != null) {
-            accountBuilder.addressDetails(objectMapper.convertValue(request.getAddressDetails(), JsonNode.class));
+        if (request.getPersonalDetails() != null) {
+            accountBuilder.personalDetails(objectMapper.convertValue(request.getPersonalDetails(), JsonNode.class));
         }
+
         if (request.getContactInformation() != null) {
             accountBuilder.contactInformation(objectMapper.convertValue(request.getContactInformation(), JsonNode.class));
         }
+
+        if (request.getAddressDetails() != null) {
+            accountBuilder.addressDetails(objectMapper.convertValue(request.getAddressDetails(), JsonNode.class));
+        }
+
+        if (request.getPreferences() != null) {
+            accountBuilder.preferences(objectMapper.convertValue(request.getPreferences(), JsonNode.class));
+        }
+
         if (request.getEmergencyContact() != null) {
             accountBuilder.emergencyContact(objectMapper.convertValue(request.getEmergencyContact(), JsonNode.class));
         }
 
         // 4. Add lawyer-specific fields if accountType == Lawyer
         if ("Lawyer".equalsIgnoreCase(accountType)) {
-            accountBuilder
-                    .organization(request.getOrganization())
-                    .experience(request.getExperience())
-                    .officeAddress(request.getOfficeAddress())
-                    .teamSize(request.getTeamSize())
-                    .languages(request.getLanguages());
+            if (request.getProfessionalDetails() != null) {
+                accountBuilder.emergencyContact(objectMapper.convertValue(request.getProfessionalDetails(), JsonNode.class));
+            }
         }
 
         Account account = accountBuilder.build();
@@ -96,7 +95,7 @@ public class AccountService {
         String verificationUrl = "https://lawproject-nu.vercel.app/set-password?token="
                 + account.getVerificationToken();
 
-        String bodyHtml = "<p>Hello " + account.getFirstName() + ",</p>"
+        String bodyHtml = "<p>Hello " + account.getEmail() + ",</p>"
                 + "<p>Thanks for signing up to Boss Law Online Services. "
                 + "Click the link below to verify your email address.</p>"
                 + "<a href=\"" + verificationUrl + "\">Click here to verify your email address.</a>";
@@ -129,11 +128,6 @@ public class AccountService {
             throw new RuntimeException("You can only update your own profile");
         }
 
-        if (dto.getFirstName() != null) account.setFirstName(dto.getFirstName());
-        if (dto.getLastName() != null) account.setLastName(dto.getLastName());
-        if (dto.getGender() != null) account.setGender(dto.getGender());
-        if (dto.getDateOfBirth() != null) account.setDateOfBirth(dto.getDateOfBirth());
-
         // update email only if provided and different
         if (dto.getEmail() != null && !dto.getEmail().equals(account.getEmail())) {
             if (accountRepository.existsByEmail(dto.getEmail())) {
@@ -142,25 +136,30 @@ public class AccountService {
             account.setEmail(dto.getEmail());
         }
 
-        if (dto.getMobile() != null) account.setMobile(dto.getMobile());
-        if (dto.getAddress() != null) account.setAddress(dto.getAddress());
+        if (dto.getPersonalDetails() != null) {
+            JsonNode personalDetails = objectMapper.convertValue(dto.getPersonalDetails(), JsonNode.class);
+            account.setPersonalDetails(personalDetails);
+        }
+
+        if (dto.getContactInformation() != null) {
+            JsonNode contactInformation = objectMapper.convertValue(dto.getContactInformation(), JsonNode.class);
+            account.setContactInformation(contactInformation);
+        }
 
         if (dto.getAddressDetails() != null) {
             JsonNode addressDetails = objectMapper.convertValue(dto.getAddressDetails(), JsonNode.class);
             account.setAddressDetails(addressDetails);
         }
-        if (dto.getContactInformation() != null) {
-            JsonNode contactInformation = objectMapper.convertValue(dto.getContactInformation(), JsonNode.class);
-            account.setContactInformation(contactInformation);
+
+        if (dto.getPreferences() != null) {
+            JsonNode preferences = objectMapper.convertValue(dto.getPreferences(), JsonNode.class);
+            account.setPreferences(preferences);
         }
+
         if (dto.getEmergencyContact() != null) {
             JsonNode emergencyContact = objectMapper.convertValue(dto.getEmergencyContact(), JsonNode.class);
             account.setEmergencyContact(emergencyContact);
         }
-
-        // booleans: only update if explicitly set in request
-        account.setTerms(dto.isTerms());
-        account.setNewsletter(dto.isNewsletter());
 
         return accountRepository.save(account);
     }
@@ -175,11 +174,6 @@ public class AccountService {
             throw new RuntimeException("You can only update your own profile");
         }
 
-        if (dto.getFirstName() != null) account.setFirstName(dto.getFirstName());
-        if (dto.getLastName() != null) account.setLastName(dto.getLastName());
-        if (dto.getGender() != null) account.setGender(dto.getGender());
-        if (dto.getDateOfBirth() != null) account.setDateOfBirth(dto.getDateOfBirth());
-
         // update email only if provided and different
         if (dto.getEmail() != null && !dto.getEmail().equals(account.getEmail())) {
             if (accountRepository.existsByEmail(dto.getEmail())) {
@@ -188,21 +182,33 @@ public class AccountService {
             account.setEmail(dto.getEmail());
         }
 
-        if (dto.getMobile() != null) account.setMobile(dto.getMobile());
-        if (dto.getAddress() != null) account.setAddress(dto.getAddress());
-        if (dto.getOrganization() != null) account.setOrganization(dto.getOrganization());
-        if (dto.getExperience() != null) account.setExperience(dto.getExperience());
-        if (dto.getOfficeAddress() != null) account.setOfficeAddress(dto.getOfficeAddress());
-        if (dto.getTeamSize() != null) account.setTeamSize(dto.getTeamSize());
-        if (dto.getLanguages() != null) account.setLanguages(dto.getLanguages());
+        if (dto.getPersonalDetails() != null) {
+            JsonNode personalDetails = objectMapper.convertValue(dto.getPersonalDetails(), JsonNode.class);
+            account.setPersonalDetails(personalDetails);
+        }
 
-        // booleans — update directly (defaults should be handled at entity level)
-        account.setTerms(dto.isTerms());
-        account.setNewsletter(dto.isNewsletter());
+        if (dto.getContactInformation() != null) {
+            JsonNode contactInformation = objectMapper.convertValue(dto.getContactInformation(), JsonNode.class);
+            account.setContactInformation(contactInformation);
+        }
+
+        if (dto.getAddressDetails() != null) {
+            JsonNode addressDetails = objectMapper.convertValue(dto.getAddressDetails(), JsonNode.class);
+            account.setAddressDetails(addressDetails);
+        }
+
+        if (dto.getPreferences() != null) {
+            JsonNode preferences = objectMapper.convertValue(dto.getPreferences(), JsonNode.class);
+            account.setPreferences(preferences);
+        }
+
+        if (dto.getProfessionalDetails() != null) {
+            JsonNode professionalDetails = objectMapper.convertValue(dto.getProfessionalDetails(), JsonNode.class);
+            account.setEmergencyContact(professionalDetails);
+        }
 
         return accountRepository.save(account);
     }
-
 
     public Optional<Account> findByEmail(String email) {
         return accountRepository.findByEmail(email);
@@ -252,7 +258,7 @@ public class AccountService {
 
         String resetUrl = "https://lawproject-nu.vercel.app/reset-password?token=" + token;
 
-        String bodyHtml = "<p>Hello " + account.getFirstName() + ",</p>"
+        String bodyHtml = "<p>Hello " + account.getEmail() + ",</p>"
                 + "<p>You requested to reset your password. Click below:</p>"
                 + "<a href=\"" + resetUrl + "\">Reset Password</a>";
 

@@ -19,7 +19,6 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class Account {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // matches BIGSERIAL
@@ -27,20 +26,8 @@ public class Account {
     @Column(nullable = false, unique = true)
     private UUID uuid = UUID.randomUUID();
 
-    @Column(name = "first_name", nullable = false)
-    private String firstName;
-
-    @Column(name = "last_name", nullable = false)
-    private String lastName;
-
-    private String gender;
-
     @Column(nullable = false, unique = true)
     private String email;
-
-    private String mobile;
-
-    private String address;
 
     @Column(nullable = true)
     private String password;
@@ -63,44 +50,32 @@ public class Account {
     @Column(name = "verification_token")
     private UUID verificationToken;
 
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
-
-    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
-    private boolean terms = false;
-
-    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
-    private boolean newsletter = false;
-
-    @Column(length = 250)
-    private String organization;
-
-    @Column(length = 25)
-    private String experience;
-
-    @Column(name = "office_address", columnDefinition = "TEXT")
-    private String officeAddress;
-
-    @Column(name = "team_size", length = 50)
-    private String teamSize;
-
-    @Column(length = 250)
-    private String languages;
-
     @Column(name = "forgot_password_token")
     private UUID forgotPasswordToken;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "address_details", columnDefinition = "jsonb", nullable = true)
-    private JsonNode addressDetails;
+    @Column(name = "personal_details", columnDefinition = "jsonb", nullable = true)
+    private JsonNode personalDetails;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "contact_information", columnDefinition = "jsonb", nullable = true)
     private JsonNode contactInformation;
 
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "address_details", columnDefinition = "jsonb", nullable = true)
+    private JsonNode addressDetails;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "preferences", columnDefinition = "jsonb", nullable = true)
+    private JsonNode preferences;
+
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "emergency_contact", columnDefinition = "jsonb", nullable = true)
     private JsonNode emergencyContact;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "professional_details", columnDefinition = "jsonb", nullable = true)
+    private JsonNode professionalDetails;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

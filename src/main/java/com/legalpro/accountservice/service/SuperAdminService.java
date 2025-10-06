@@ -40,12 +40,7 @@ public class SuperAdminService {
         return AccountDto.builder()
                 .id(account.getId())
                 .uuid(account.getUuid())   // ✅ UUID directly
-                .firstName(account.getFirstName())
-                .lastName(account.getLastName())
                 .email(account.getEmail())
-                .gender(account.getGender())
-                .mobile(account.getMobile())
-                .address(account.getAddress())
                 .build();
     }
 }

@@ -214,7 +214,6 @@ public class AuthController {
                             "Account verified successfully",
                             Map.of(
                                     "uuid", account.getUuid().toString(),
-                                    "name", account.getFirstName() + " " + account.getLastName(),
                                     "email", account.getEmail()
                             )
                     )

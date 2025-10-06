@@ -12,16 +12,10 @@ import java.util.UUID;
 public class ClientDto {
     private Long id;
     private UUID uuid;
-    private String firstName;
-    private String lastName;
-    private String gender;
-    private LocalDate dateOfBirth;
     private String email;
-    private String mobile;
-    private String address;
-    private boolean terms;
-    private boolean newsletter;
-    private Map<String, Object> addressDetails;
+    private Map<String, Object> personalDetails;
     private Map<String, Object> contactInformation;
+    private Map<String, Object> addressDetails;
+    private Map<String, Object> preferences;
     private Map<String, Object> emergencyContact;
 }

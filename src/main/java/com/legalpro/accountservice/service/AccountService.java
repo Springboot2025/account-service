@@ -84,7 +84,7 @@ public class AccountService {
         // 4. Add lawyer-specific fields if accountType == Lawyer
         if ("Lawyer".equalsIgnoreCase(accountType)) {
             if (request.getProfessionalDetails() != null) {
-                accountBuilder.emergencyContact(objectMapper.convertValue(request.getProfessionalDetails(), JsonNode.class));
+                accountBuilder.professionalDetails(objectMapper.convertValue(request.getProfessionalDetails(), JsonNode.class));
             }
         }
 

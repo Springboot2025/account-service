@@ -204,7 +204,7 @@ public class AccountService {
 
         if (dto.getProfessionalDetails() != null) {
             JsonNode professionalDetails = objectMapper.convertValue(dto.getProfessionalDetails(), JsonNode.class);
-            account.setEmergencyContact(professionalDetails);
+            account.setProfessionalDetails(professionalDetails);
         }
 
         return accountRepository.save(account);

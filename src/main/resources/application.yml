@@ -5,7 +5,7 @@ spring:
     password: legalPro42#
     driver-class-name: org.postgresql.Driver
     hikari:
-      initialization-fail-timeout: 0  # Start immediately even if DB not ready
+      initialization-fail-timeout: 0
 
   jpa:
     hibernate:
@@ -27,5 +27,5 @@ logging:
     org.apache.catalina.core: DEBUG
 
 server:
-  port: ${PORT:8080}  # Use Cloud Run injected port
+  port: ${PORT:8080}
   address: 0.0.0.0

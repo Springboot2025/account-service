@@ -21,12 +21,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 import java.util.UUID;
 
-@CrossOrigin(
-        origins = {"http://localhost:3000", "https://lawproject-nu.vercel.app"},
-        allowedHeaders = "*",
-        methods = {RequestMethod.GET, RequestMethod.PATCH, RequestMethod.POST, RequestMethod.OPTIONS},
-        allowCredentials = "true"
-)
 @RestController
 @RequestMapping("/api/client")
 @PreAuthorize("hasRole('Client')")

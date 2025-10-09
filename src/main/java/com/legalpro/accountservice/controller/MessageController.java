@@ -1,6 +1,7 @@
 package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.MessageDto;
+import com.legalpro.accountservice.dto.MessageRequestDto;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.MessageService;
 import com.legalpro.accountservice.dto.ApiResponse;
@@ -23,18 +24,21 @@ public class MessageController {
     private final MessageService messageService;
 
     // === Send message ===
-    @PostMapping("/{receiverUuid}")
+    @PostMapping
     public ResponseEntity<ApiResponse<MessageDto>> sendMessage(
-            @PathVariable UUID receiverUuid,
-            @RequestBody String content,
+            @RequestBody MessageRequestDto request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        MessageDto message = messageService.sendMessage(userDetails.getUuid(), receiverUuid, content);
+        MessageDto message = messageService.sendMessage(
+                userDetails.getUuid(),
+                request.getReceiverUuid(),
+                request.getContent()
+        );
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(message));
     }
 
-    // === Get conversation with another user ===
+    // === Get conversation ===
     @GetMapping("/conversation/{otherUuid}")
     public ResponseEntity<ApiResponse<List<MessageDto>>> getConversation(
             @PathVariable UUID otherUuid,
@@ -44,7 +48,7 @@ public class MessageController {
         return ResponseEntity.ok(ApiResponse.success(conversation));
     }
 
-    // === Get unread message count ===
+    // === Unread count ===
     @GetMapping("/unread/count")
     public ResponseEntity<ApiResponse<Long>> getUnreadCount(
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -53,7 +57,7 @@ public class MessageController {
         return ResponseEntity.ok(ApiResponse.success(count));
     }
 
-    // === Mark conversation as read ===
+    // === Mark as read ===
     @PatchMapping("/mark-read/{otherUuid}")
     public ResponseEntity<ApiResponse<Void>> markAsRead(
             @PathVariable UUID otherUuid,

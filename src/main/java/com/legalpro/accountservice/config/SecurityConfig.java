@@ -4,6 +4,7 @@ import com.legalpro.accountservice.security.JwtAuthorizationFilter;
 import com.legalpro.accountservice.service.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -34,20 +35,19 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
+        http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> {}) // Enables CORS using corsConfigurationSource()
+                .cors(cors -> {}) // picks up corsConfigurationSource()
                 .authorizeHttpRequests(auth -> auth
+                        // ✅ Allow preflight OPTIONS requests
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**", "/api/address/**").permitAll()
-                        .requestMatchers(
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class)
-                .build();
+                .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
     }
 
     @Bean
@@ -71,15 +71,19 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // ✅ Explicitly allow only FE origins (wildcard * won’t work with allowCredentials=true)
+        // ✅ Explicitly allow FE origins
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:3000",
                 "https://lawproject-nu.vercel.app"
         ));
+        // ✅ Allowed HTTP methods
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*")); // allow all headers
+        // ✅ Allowed headers
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
+        // ✅ Exposed headers
         configuration.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
-        configuration.setAllowCredentials(true); // ✅ must be true for cookies
+        // ✅ Allow credentials (cookies)
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

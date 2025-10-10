@@ -77,6 +77,18 @@ public class Account {
     @Column(name = "professional_details", columnDefinition = "jsonb", nullable = true)
     private JsonNode professionalDetails;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "education_qualification", columnDefinition = "jsonb", nullable = true)
+    private JsonNode educationQualification;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "experience_staff", columnDefinition = "jsonb", nullable = true)
+    private JsonNode experienceStaff;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "awards_appreciations", columnDefinition = "jsonb", nullable = true)
+    private JsonNode awardsAppreciations;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "account_roles",

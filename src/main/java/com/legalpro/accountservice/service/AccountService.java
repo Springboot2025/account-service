@@ -86,6 +86,18 @@ public class AccountService {
             if (request.getProfessionalDetails() != null) {
                 accountBuilder.professionalDetails(objectMapper.convertValue(request.getProfessionalDetails(), JsonNode.class));
             }
+
+            if (request.getEducationQualification() != null) {
+                accountBuilder.educationQualification(objectMapper.convertValue(request.getEducationQualification(), JsonNode.class));
+            }
+
+            if (request.getExperienceStaff() != null) {
+                accountBuilder.experienceStaff(objectMapper.convertValue(request.getExperienceStaff(), JsonNode.class));
+            }
+
+            if (request.getAwardsAppreciations() != null) {
+                accountBuilder.awardsAppreciations(objectMapper.convertValue(request.getAwardsAppreciations(), JsonNode.class));
+            }
         }
 
         Account account = accountBuilder.build();
@@ -205,6 +217,21 @@ public class AccountService {
         if (dto.getProfessionalDetails() != null) {
             JsonNode professionalDetails = objectMapper.convertValue(dto.getProfessionalDetails(), JsonNode.class);
             account.setProfessionalDetails(professionalDetails);
+        }
+
+        if (dto.getEducationQualification() != null) {
+            JsonNode educationQualification = objectMapper.convertValue(dto.getEducationQualification(), JsonNode.class);
+            account.setEducationQualification(educationQualification);
+        }
+
+        if (dto.getExperienceStaff() != null) {
+            JsonNode experienceStaff = objectMapper.convertValue(dto.getExperienceStaff(), JsonNode.class);
+            account.setExperienceStaff(experienceStaff);
+        }
+
+        if (dto.getAwardsAppreciations() != null) {
+            JsonNode awardsAppreciations = objectMapper.convertValue(dto.getAwardsAppreciations(), JsonNode.class);
+            account.setAwardsAppreciations(awardsAppreciations);
         }
 
         return accountRepository.save(account);

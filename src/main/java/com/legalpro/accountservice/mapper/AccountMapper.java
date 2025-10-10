@@ -40,7 +40,9 @@ public class AccountMapper {
                 .addressDetails(toMap(account.getAddressDetails()))
                 .preferences(toMap(account.getPreferences()))
                 .professionalDetails(toMap(account.getProfessionalDetails()))
-
+                .educationQualification(toMap(account.getEducationQualification()))
+                .experienceStaff(toMap(account.getExperienceStaff()))
+                .awardsAppreciations(toMap(account.getAwardsAppreciations()))
                 .build();
     }
 

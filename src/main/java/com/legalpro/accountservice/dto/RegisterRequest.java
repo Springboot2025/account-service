@@ -19,4 +19,7 @@ public class RegisterRequest {
     private Map<String, Object> preferences;
     private Map<String, Object> emergencyContact;
     private Map<String, Object> professionalDetails;
+    private Map<String, Object> educationQualification;
+    private Map<String, Object> experienceStaff;
+    private Map<String, Object> awardsAppreciations;
 }

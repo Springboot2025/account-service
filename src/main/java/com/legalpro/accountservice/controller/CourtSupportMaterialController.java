@@ -69,4 +69,31 @@ public class CourtSupportMaterialController {
         List<CourtSupportMaterial> materials = service.getMaterials(uuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Materials fetched successfully", materials));
     }
+
+    // --- Delete (soft delete) a support material ---
+    @DeleteMapping("/support-materials/{materialId}")
+    public ResponseEntity<ApiResponse<String>> deleteSupportMaterial(
+            @PathVariable Long materialId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        var optionalMaterial = service.getMaterial(materialId);
+        if (optionalMaterial.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "Support material not found"));
+        }
+
+        var material = optionalMaterial.get();
+
+        // Ownership check
+        if (!material.getClientUuid().equals(userDetails.getUuid())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only delete your own materials"));
+        }
+
+        // Perform soft delete
+        service.softDeleteMaterial(materialId);
+
+        return ResponseEntity.ok(ApiResponse.success(200, "Support material deleted successfully", null));
+    }
+
 }

@@ -68,4 +68,31 @@ public class ClientDocumentController {
         List<ClientDocument> docs = clientDocumentService.getClientDocuments(uuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
     }
+
+    @DeleteMapping("/documents/{documentId}")
+    public ResponseEntity<ApiResponse<String>> deleteDocument(
+            @PathVariable Long documentId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        // Fetch document
+        var optionalDoc = clientDocumentService.getDocument(documentId);
+        if (optionalDoc.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "Document not found"));
+        }
+
+        var document = optionalDoc.get();
+
+        // Ownership check
+        if (!document.getClientUuid().equals(userDetails.getUuid())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only delete your own documents"));
+        }
+
+        // Soft delete
+        clientDocumentService.softDeleteDocument(documentId);
+
+        return ResponseEntity.ok(ApiResponse.success(200, "Document deleted successfully", null));
+    }
+
 }

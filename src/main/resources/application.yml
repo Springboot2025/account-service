@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql:///legalpro?cloudSqlInstance=halogen-episode-470910-h9:us-central1:legalpro-postgres&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+    url: jdbc:postgresql:///legalpro?cloudSqlInstance=ecstatic-seeker-474703-d4:us-central1:legalpro-postgres&socketFactory=com.google.cloud.sql.postgres.SocketFactory
     username: legalpro
     password: legalPro42#
     driver-class-name: org.postgresql.Driver

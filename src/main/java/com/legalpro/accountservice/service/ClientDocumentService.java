@@ -104,4 +104,9 @@ public class ClientDocumentService {
             repository.save(doc);
         });
     }
+
+    public List<ClientDocument> getClientDocumentsByType(UUID clientUuid, String documentType) {
+        return repository.findByClientUuidAndDocumentType(clientUuid, documentType);
+    }
+
 }

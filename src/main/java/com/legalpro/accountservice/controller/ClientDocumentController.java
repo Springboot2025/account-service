@@ -95,4 +95,18 @@ public class ClientDocumentController {
         return ResponseEntity.ok(ApiResponse.success(200, "Document deleted successfully", null));
     }
 
+    @GetMapping("/{uuid}/documents/by-type")
+    public ResponseEntity<ApiResponse<List<ClientDocument>>> getClientDocumentsByType(
+            @PathVariable UUID uuid,
+            @RequestParam("documentType") String documentType,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        if (!uuid.equals(userDetails.getUuid())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "You can only view your own documents"));
+        }
+
+        List<ClientDocument> docs = clientDocumentService.getClientDocumentsByType(uuid, documentType);
+        return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
+    }
 }

@@ -22,5 +22,5 @@ public interface ClientDocumentRepository extends JpaRepository<ClientDocument, 
 
     boolean existsByClientUuidAndDocumentType(UUID clientUuid, String documentType);
 
-    Optional<ClientDocument> findByClientUuidAndDocumentType(UUID clientUuid, String documentType);
+    List<ClientDocument> findByClientUuidAndDocumentType(UUID clientUuid, String documentType);
 }

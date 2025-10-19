@@ -35,4 +35,16 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     """)
     List<Object[]> countCasesGroupedByStatus(UUID lawyerUuid);
 
+    List<LegalCase> findAllByLawyerUuidAndCaseType_NameIgnoreCase(UUID lawyerUuid, String typeName);
+
+    @Query("""
+    SELECT t.name, COUNT(c)
+    FROM CaseType t
+    LEFT JOIN LegalCase c
+      ON c.caseType = t AND c.lawyerUuid = :lawyerUuid
+    GROUP BY t.name
+    ORDER BY t.name
+    """)
+    List<Object[]> countCasesGroupedByType(UUID lawyerUuid);
+
 }

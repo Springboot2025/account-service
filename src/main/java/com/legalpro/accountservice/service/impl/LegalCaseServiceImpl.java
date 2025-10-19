@@ -131,16 +131,42 @@ public class LegalCaseServiceImpl implements LegalCaseService {
     }
 
     @Override
-    public Map<String, Long> getCaseSummary(UUID lawyerUuid) {
-        List<Object[]> counts = legalCaseRepository.countCasesGroupedByStatus(lawyerUuid);
-
-        return counts.stream()
+    public Map<String, Object> getCaseSummary(UUID lawyerUuid) {
+        // --- Case counts by Status ---
+        List<Object[]> statusCounts = legalCaseRepository.countCasesGroupedByStatus(lawyerUuid);
+        Map<String, Long> byStatus = statusCounts.stream()
                 .collect(Collectors.toMap(
                         row -> (String) row[0],
                         row -> (Long) row[1],
-                        (a, b) -> a, // in case of duplicates
-                        LinkedHashMap::new // preserve order
+                        (a, b) -> a,
+                        LinkedHashMap::new
                 ));
+
+        // --- Case counts by Type ---
+        List<Object[]> typeCounts = legalCaseRepository.countCasesGroupedByType(lawyerUuid);
+        Map<String, Long> byType = typeCounts.stream()
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> (Long) row[1],
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+
+        // --- Combine ---
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("byStatus", byStatus);
+        summary.put("byType", byType);
+
+        return summary;
+    }
+
+
+    @Override
+    public List<LegalCaseDto> getCasesByType(UUID lawyerUuid, String typeName) {
+        return legalCaseRepository.findAllByLawyerUuidAndCaseType_NameIgnoreCase(lawyerUuid, typeName)
+                .stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
     }
 
 }

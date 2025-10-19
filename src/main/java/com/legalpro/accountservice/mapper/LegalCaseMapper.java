@@ -21,6 +21,8 @@ public class LegalCaseMapper {
                 .followUp(entity.getFollowUp())
                 .statusId(entity.getStatus() != null ? entity.getStatus().getId() : null)
                 .statusName(entity.getStatus() != null ? entity.getStatus().getName() : null)
+                .caseTypeId(entity.getCaseType() != null ? entity.getCaseType().getId() : null)
+                .caseTypeName(entity.getCaseType() != null ? entity.getCaseType().getName() : null)
                 .clientUuid(entity.getClientUuid())
                 .lawyerUuid(entity.getLawyerUuid())
                 .createdAt(entity.getCreatedAt())

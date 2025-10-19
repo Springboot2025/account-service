@@ -50,4 +50,11 @@ public class LegalCase {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;
+
+    // inside LegalCase.java
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "case_type_id")
+    private CaseType caseType;
+
 }

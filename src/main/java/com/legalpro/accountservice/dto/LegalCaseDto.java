@@ -23,6 +23,10 @@ public class LegalCaseDto {
 
     private Long statusId;
     private String statusName;
+
+    private Long caseTypeId;
+    private String caseTypeName;
+
     private UUID clientUuid;
     private UUID lawyerUuid;
 

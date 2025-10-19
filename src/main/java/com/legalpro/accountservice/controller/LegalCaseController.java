@@ -116,11 +116,26 @@ public class LegalCaseController {
 
     // --- NEW: Get Case Summary by Status ---
     @GetMapping("/summary")
-    public ResponseEntity<ApiResponse<Map<String, Long>>> getCaseSummary(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getCaseSummary(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        Map<String, Long> summary = legalCaseService.getCaseSummary(lawyerUuid);
+        Map<String, Object> summary = legalCaseService.getCaseSummary(lawyerUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Case summary fetched successfully", summary));
     }
+
+
+    // inside LegalCaseController.java
+
+    // --- Get Cases by Type ---
+    @GetMapping("/type/{typeName}")
+    public ResponseEntity<ApiResponse<List<LegalCaseDto>>> getCasesByType(
+            @PathVariable String typeName,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+        List<LegalCaseDto> cases = legalCaseService.getCasesByType(lawyerUuid, typeName);
+        return ResponseEntity.ok(ApiResponse.success(200, "Cases fetched successfully", cases));
+    }
+
 }

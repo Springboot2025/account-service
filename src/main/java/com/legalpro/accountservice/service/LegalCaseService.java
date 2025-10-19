@@ -3,6 +3,7 @@ package com.legalpro.accountservice.service;
 import com.legalpro.accountservice.dto.LegalCaseDto;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public interface LegalCaseService {
@@ -16,4 +17,9 @@ public interface LegalCaseService {
     List<LegalCaseDto> getCasesForLawyer(UUID lawyerUuid);
 
     void deleteCase(UUID caseUuid, UUID lawyerUuid);
+
+    List<LegalCaseDto> getCasesByStatus(UUID lawyerUuid, String statusName);
+
+    Map<String, Long> getCaseSummary(UUID lawyerUuid);
+
 }

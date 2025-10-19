@@ -12,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -100,5 +101,26 @@ public class LegalCaseController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), e.getMessage()));
         }
+    }
+
+    // --- NEW: Get Cases by Status ---
+    @GetMapping("/status/{statusName}")
+    public ResponseEntity<ApiResponse<List<LegalCaseDto>>> getCasesByStatus(
+            @PathVariable String statusName,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+        List<LegalCaseDto> cases = legalCaseService.getCasesByStatus(lawyerUuid, statusName);
+        return ResponseEntity.ok(ApiResponse.success(200, "Cases fetched successfully", cases));
+    }
+
+    // --- NEW: Get Case Summary by Status ---
+    @GetMapping("/summary")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getCaseSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+        Map<String, Long> summary = legalCaseService.getCaseSummary(lawyerUuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "Case summary fetched successfully", summary));
     }
 }

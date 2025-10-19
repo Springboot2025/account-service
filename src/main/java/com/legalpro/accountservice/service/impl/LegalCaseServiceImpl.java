@@ -14,8 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.LinkedHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -119,4 +121,36 @@ public class LegalCaseServiceImpl implements LegalCaseService {
         legalCase.setDeletedAt(LocalDateTime.now());
         legalCaseRepository.save(legalCase);
     }
+
+    @Override
+    public List<LegalCaseDto> getCasesByStatus(UUID lawyerUuid, String statusName) {
+        return legalCaseRepository.findAllByLawyerUuidAndStatusNameIgnoreCase(lawyerUuid, statusName)
+                .stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Map<String, Long> getCaseSummary(UUID lawyerUuid) {
+        // Count all cases grouped by status
+        List<Object[]> counts = legalCaseRepository.countCasesGroupedByStatus(lawyerUuid);
+        return counts.stream().collect(Collectors.toMap(
+                row -> (String) row[0],   // status name
+                row -> (Long) row[1]      // count
+        ));
+    }
+
+    @Override
+    public Map<String, Long> getCaseSummary(UUID lawyerUuid) {
+        List<Object[]> counts = legalCaseRepository.countCasesGroupedByStatus(lawyerUuid);
+
+        return counts.stream()
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> (Long) row[1],
+                        (a, b) -> a, // in case of duplicates
+                        LinkedHashMap::new // preserve order
+                ));
+    }
+
 }

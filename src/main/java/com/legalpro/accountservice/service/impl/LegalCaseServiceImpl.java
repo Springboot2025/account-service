@@ -2,9 +2,11 @@ package com.legalpro.accountservice.service.impl;
 
 import com.legalpro.accountservice.dto.LegalCaseDto;
 import com.legalpro.accountservice.entity.CaseStatus;
+import com.legalpro.accountservice.entity.CaseType;
 import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.mapper.LegalCaseMapper;
 import com.legalpro.accountservice.repository.CaseStatusRepository;
+import com.legalpro.accountservice.repository.CaseTypeRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.service.LegalCaseService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ public class LegalCaseServiceImpl implements LegalCaseService {
 
     private final LegalCaseRepository legalCaseRepository;
     private final CaseStatusRepository caseStatusRepository;
+    private final CaseTypeRepository caseTypeRepository;
     private final LegalCaseMapper mapper;
 
     // --- Helper: Generate case number ---
@@ -42,12 +45,19 @@ public class LegalCaseServiceImpl implements LegalCaseService {
         CaseStatus status = caseStatusRepository.findByName("New")
                 .orElseThrow(() -> new IllegalStateException("CaseStatus 'New' not found"));
 
+        CaseType caseType = null;
+        if (dto.getCaseTypeId() != null) {
+            caseType = caseTypeRepository.findById(dto.getCaseTypeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid caseTypeId"));
+        }
+
         LegalCase legalCase = LegalCase.builder()
                 .uuid(UUID.randomUUID())
                 .caseNumber(caseNumber)
                 .lawyerUuid(lawyerUuid)
                 .clientUuid(dto.getClientUuid())
                 .status(status)
+                .caseType(caseType)
                 .listing(dto.getListing())
                 .courtDate(dto.getCourtDate())
                 .availableTrustFunds(dto.getAvailableTrustFunds() != null ? dto.getAvailableTrustFunds() : BigDecimal.ZERO)

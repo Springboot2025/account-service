@@ -132,16 +132,6 @@ public class LegalCaseServiceImpl implements LegalCaseService {
 
     @Override
     public Map<String, Long> getCaseSummary(UUID lawyerUuid) {
-        // Count all cases grouped by status
-        List<Object[]> counts = legalCaseRepository.countCasesGroupedByStatus(lawyerUuid);
-        return counts.stream().collect(Collectors.toMap(
-                row -> (String) row[0],   // status name
-                row -> (Long) row[1]      // count
-        ));
-    }
-
-    @Override
-    public Map<String, Long> getCaseSummary(UUID lawyerUuid) {
         List<Object[]> counts = legalCaseRepository.countCasesGroupedByStatus(lawyerUuid);
 
         return counts.stream()

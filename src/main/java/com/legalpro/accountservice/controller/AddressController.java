@@ -5,6 +5,7 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -25,7 +26,11 @@ public class AddressController {
         headers.set("X-Goog-Api-Key", googleApiKey);
         headers.set("X-Goog-FieldMask", "suggestions.placePrediction.placeId,suggestions.placePrediction.text.text");
 
-        Map<String, Object> requestBody = Map.of("input", input);
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("input", input);
+        requestBody.put("regionCode", "AU");
+        requestBody.put("languageCode", "en-AU");
+
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);

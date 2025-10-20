@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS device_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    user_uuid UUID NOT NULL,
+    device_id VARCHAR(255) NOT NULL UNIQUE,
+    fcm_token VARCHAR(500) NOT NULL UNIQUE,
+    platform VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
+);

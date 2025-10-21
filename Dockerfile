@@ -27,6 +27,9 @@ WORKDIR /app
 # Copy jar from build stage
 COPY --from=build /app/target/*.jar app.jar
 
+# ✅ Copy Firebase key (make sure file exists locally)
+COPY src/main/resources/firebase-service-account.json /app/firebase-service-account.json
+
 # Add non-root user
 RUN useradd -m spring
 USER spring

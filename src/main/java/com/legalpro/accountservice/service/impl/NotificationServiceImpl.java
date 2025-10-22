@@ -14,7 +14,7 @@ import java.util.Map;
 public class NotificationServiceImpl implements NotificationService {
 
     @Override
-    public void sendNotification(String token, String title, String body) {
+    public String sendNotification(String token, String title, String body) {
         try {
             Message message = Message.builder()
                     .setToken(token)
@@ -26,13 +26,15 @@ public class NotificationServiceImpl implements NotificationService {
 
             String response = FirebaseMessaging.getInstance().send(message);
             log.info("✅ Notification sent successfully: {}", response);
+            return "✅ Sent successfully: " + response;
         } catch (Exception e) {
             log.error("❌ Failed to send notification to token {}: {}", token, e.getMessage());
+            return "❌ Failed for token: " + token + " → " + e.getMessage();
         }
     }
 
     @Override
-    public void sendNotificationWithData(String token, String title, String body, Map<String, String> data) {
+    public String sendNotificationWithData(String token, String title, String body, Map<String, String> data) {
         try {
             Message message = Message.builder()
                     .setToken(token)
@@ -45,8 +47,10 @@ public class NotificationServiceImpl implements NotificationService {
 
             String response = FirebaseMessaging.getInstance().send(message);
             log.info("✅ Notification with data sent successfully: {}", response);
+            return "✅ Sent successfully: " + response;
         } catch (Exception e) {
             log.error("❌ Failed to send notification with data: {}", e.getMessage());
+            return "❌ Failed for token → " + e.getMessage();
         }
     }
 }

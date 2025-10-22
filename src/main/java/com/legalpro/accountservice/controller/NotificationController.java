@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -22,38 +23,40 @@ public class NotificationController {
 
     // --- Send plain notification to one user (all devices) ---
     @PostMapping("/send/{userUuid}")
-    public ResponseEntity<ApiResponse<String>> sendNotification(
+    public ResponseEntity<ApiResponse<List<String>>> sendNotification(
             @PathVariable UUID userUuid,
             @RequestParam String title,
             @RequestParam String body
     ) {
         var tokens = deviceTokenService.getTokensForUser(userUuid);
-        tokens.forEach(token ->
-                notificationService.sendNotification(token.getFcmToken(), title, body)
-        );
+        List<String> results = tokens.stream()
+                .map(token -> notificationService.sendNotification(token.getFcmToken(), title, body))
+                .toList();
+
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
-                "Notifications sent successfully",
-                null
+                "Notification results",
+                results
         ));
     }
 
-    // --- Send notification with data payload ---
     @PostMapping("/send-data/{userUuid}")
-    public ResponseEntity<ApiResponse<String>> sendNotificationWithData(
+    public ResponseEntity<ApiResponse<List<String>>> sendNotificationWithData(
             @PathVariable UUID userUuid,
             @RequestParam String title,
             @RequestParam String body,
             @RequestBody Map<String, String> data
     ) {
         var tokens = deviceTokenService.getTokensForUser(userUuid);
-        tokens.forEach(token ->
-                notificationService.sendNotificationWithData(token.getFcmToken(), title, body, data)
-        );
+        List<String> results = tokens.stream()
+                .map(token -> notificationService.sendNotificationWithData(token.getFcmToken(), title, body, data))
+                .toList();
+
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
-                "Notifications with data sent successfully",
-                null
+                "Notification results",
+                results
         ));
     }
+
 }

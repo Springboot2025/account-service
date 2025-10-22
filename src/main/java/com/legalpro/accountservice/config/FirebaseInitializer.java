@@ -15,16 +15,13 @@ public class FirebaseInitializer {
     @PostConstruct
     public void initialize() throws IOException {
         if (FirebaseApp.getApps().isEmpty()) {
-            try (InputStream serviceAccount =
-                         getClass().getResourceAsStream("/firebase-service-account.json")) {
+            FirebaseOptions options = FirebaseOptions.builder()
+                    .setCredentials(GoogleCredentials.getApplicationDefault())
+                    .build();
 
-                FirebaseOptions options = FirebaseOptions.builder()
-                        .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                        .build();
-
-                FirebaseApp.initializeApp(options);
-                System.out.println("✅ Firebase initialized successfully");
-            }
+            FirebaseApp.initializeApp(options);
+            System.out.println("✅ Firebase initialized successfully (ADC)");
         }
     }
 }
+

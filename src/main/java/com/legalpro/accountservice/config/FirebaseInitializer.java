@@ -3,11 +3,10 @@ package com.legalpro.accountservice.config;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
-import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
-import java.io.InputStream;
 
 @Component
 public class FirebaseInitializer {
@@ -17,11 +16,11 @@ public class FirebaseInitializer {
         if (FirebaseApp.getApps().isEmpty()) {
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.getApplicationDefault())
+                    .setProjectId("ecstatic-seeker-474703-d4") // ✅ Explicit project ID
                     .build();
 
             FirebaseApp.initializeApp(options);
-            System.out.println("✅ Firebase initialized successfully (ADC)");
+            System.out.println("✅ Firebase initialized successfully (ADC + Project ID)");
         }
     }
 }
-

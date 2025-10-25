@@ -22,4 +22,6 @@ public class LawyerDto {
     private Map<String, Object> educationQualification;
     private Map<String, Object> experienceStaff;
     private Map<String, Object> awardsAppreciations;
+    private boolean isCompany;
+    private UUID companyUuid;
 }

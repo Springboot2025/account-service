@@ -8,15 +8,19 @@ import com.legalpro.accountservice.dto.LawyerDto;
 import com.legalpro.accountservice.dto.RegisterRequest;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Role;
+import com.legalpro.accountservice.mapper.AccountMapper;
 import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.RoleRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class AccountService {
@@ -302,4 +306,12 @@ public class AccountService {
         accountRepository.save(account);
     }
 
+    @Transactional(readOnly = true)
+    public List<LawyerDto> getCompanyMembers(UUID companyUuid) {
+        List<Account> members = accountRepository.findByCompanyUuid(companyUuid);
+
+        return members.stream()
+                .map(AccountMapper::toLawyerDto)
+                .collect(Collectors.toList());
+    }
 }

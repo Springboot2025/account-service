@@ -22,4 +22,8 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
     Optional<Account> findByVerificationToken(UUID token);
     Optional<Account> findByForgotPasswordToken(UUID token);
 
+    List<Account> findByCompanyUuid(UUID companyUuid);
+
+    // Get all accounts that are companies
+    List<Account> findByIsCompanyTrue();
 }

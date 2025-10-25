@@ -53,6 +53,12 @@ public class Account {
     @Column(name = "forgot_password_token")
     private UUID forgotPasswordToken;
 
+    @Column(name = "is_company", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private boolean isCompany = false;
+
+    @Column(name = "company_uuid", nullable = true)
+    private UUID companyUuid;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "personal_details", columnDefinition = "jsonb", nullable = true)
     private JsonNode personalDetails;

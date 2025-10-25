@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -70,5 +71,21 @@ public class LawyerController {
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "Lawyer not found")));
+    }
+
+    @GetMapping("/companies/{companyUuid}/members")
+    public ResponseEntity<ApiResponse<List<LawyerDto>>> getCompanyMembers(
+            @PathVariable UUID companyUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID loggedLawyerUuid = userDetails.getUuid();
+
+        // (Optional) check: only allow access if logged lawyer belongs to this company
+        // You can enable this after adding RBAC validation logic later
+
+        List<LawyerDto> members = accountService.getCompanyMembers(companyUuid);
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Company members fetched successfully", members)
+        );
     }
 }

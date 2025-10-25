@@ -43,6 +43,8 @@ public class AccountMapper {
                 .educationQualification(toMap(account.getEducationQualification()))
                 .experienceStaff(toMap(account.getExperienceStaff()))
                 .awardsAppreciations(toMap(account.getAwardsAppreciations()))
+                .isCompany(account.isCompany())
+                .companyUuid(account.getCompanyUuid())
                 .build();
     }
 

@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    active: dev
   datasource:
     url: jdbc:postgresql:///legalpro?cloudSqlInstance=ecstatic-seeker-474703-d4:us-central1:legalpro-postgres&socketFactory=com.google.cloud.sql.postgres.SocketFactory
     username: legalpro
@@ -33,3 +35,12 @@ server:
 google:
   api:
     key: AIzaSyCd-N4mWAZ5qUixQKACUTogkYunUVYD-LE
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    persist-authorization: true
+    custom-js: /swagger-ui/custom-login.js
+

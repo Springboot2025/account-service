@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface MessageRepository extends JpaRepository<Message, Long> {
@@ -46,4 +47,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     // Count unread messages
     long countByReceiverUuidAndReadFalse(UUID receiverUuid);
+
+    Optional<Message> findTopBySenderUuidAndReceiverUuidOrReceiverUuidAndSenderUuidOrderByCreatedAtDesc(
+            UUID senderUuid1, UUID receiverUuid1, UUID senderUuid2, UUID receiverUuid2
+    );
 }

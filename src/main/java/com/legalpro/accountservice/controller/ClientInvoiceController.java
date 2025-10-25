@@ -1,13 +1,17 @@
 package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ClientInvoiceDto;
+import com.legalpro.accountservice.dto.ApiResponse;
+import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.ClientInvoiceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,82 +24,70 @@ public class ClientInvoiceController {
 
     private final ClientInvoiceService clientInvoiceService;
 
-    /**
-     * Helper to extract the current lawyer's UUID from the Principal.
-     * Adjust if your SecurityContext stores UUID differently.
-     */
-    private UUID getLoggedLawyerUuid(Principal principal) {
-        // Example: if principal.getName() contains UUID string
-        return UUID.fromString(principal.getName());
-    }
-
-    // ----------------------------------------------------------------------
-    // CREATE
-    // ----------------------------------------------------------------------
+    // --- Create Invoice ---
     @PostMapping
-    public ClientInvoiceDto createInvoice(@RequestBody ClientInvoiceDto dto, Principal principal) {
-        UUID lawyerUuid = getLoggedLawyerUuid(principal);
-        log.info("Creating invoice for case {} by lawyer {}", dto.getCaseUuid(), lawyerUuid);
-        return clientInvoiceService.createInvoice(dto, lawyerUuid);
+    public ResponseEntity<ApiResponse<ClientInvoiceDto>> createInvoice(
+            @RequestBody ClientInvoiceDto dto,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+        ClientInvoiceDto created = clientInvoiceService.createInvoice(dto, lawyerUuid);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(201, "Invoice created successfully", created));
     }
 
-    // ----------------------------------------------------------------------
-    // UPDATE
-    // ----------------------------------------------------------------------
+    // --- Update Invoice ---
     @PutMapping("/{invoiceUuid}")
-    public ClientInvoiceDto updateInvoice(
+    public ResponseEntity<ApiResponse<ClientInvoiceDto>> updateInvoice(
             @PathVariable UUID invoiceUuid,
             @RequestBody ClientInvoiceDto dto,
-            Principal principal
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        UUID lawyerUuid = getLoggedLawyerUuid(principal);
-        log.info("Updating invoice {} by lawyer {}", invoiceUuid, lawyerUuid);
-        return clientInvoiceService.updateInvoice(invoiceUuid, dto, lawyerUuid);
+        UUID lawyerUuid = userDetails.getUuid();
+        ClientInvoiceDto updated = clientInvoiceService.updateInvoice(invoiceUuid, dto, lawyerUuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "Invoice updated successfully", updated));
     }
 
-    // ----------------------------------------------------------------------
-    // GET SINGLE
-    // ----------------------------------------------------------------------
+    // --- Get Single Invoice ---
     @GetMapping("/{invoiceUuid}")
-    public ClientInvoiceDto getInvoice(
+    public ResponseEntity<ApiResponse<ClientInvoiceDto>> getInvoice(
             @PathVariable UUID invoiceUuid,
-            Principal principal
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        UUID lawyerUuid = getLoggedLawyerUuid(principal);
-        return clientInvoiceService.getInvoice(invoiceUuid, lawyerUuid);
+        UUID lawyerUuid = userDetails.getUuid();
+        ClientInvoiceDto invoice = clientInvoiceService.getInvoice(invoiceUuid, lawyerUuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "Invoice fetched successfully", invoice));
     }
 
-    // ----------------------------------------------------------------------
-    // GET ALL for logged-in lawyer
-    // ----------------------------------------------------------------------
+    // --- Get All Invoices for Lawyer ---
     @GetMapping
-    public List<ClientInvoiceDto> getInvoices(Principal principal) {
-        UUID lawyerUuid = getLoggedLawyerUuid(principal);
-        return clientInvoiceService.getInvoicesForLawyer(lawyerUuid);
+    public ResponseEntity<ApiResponse<List<ClientInvoiceDto>>> getInvoicesForLawyer(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+        List<ClientInvoiceDto> invoices = clientInvoiceService.getInvoicesForLawyer(lawyerUuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "Invoices fetched successfully", invoices));
     }
 
-    // ----------------------------------------------------------------------
-    // GET by status
-    // ----------------------------------------------------------------------
+    // --- Get Invoices by Status ---
     @GetMapping("/status/{status}")
-    public List<ClientInvoiceDto> getInvoicesByStatus(
+    public ResponseEntity<ApiResponse<List<ClientInvoiceDto>>> getInvoicesByStatus(
             @PathVariable String status,
-            Principal principal
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        UUID lawyerUuid = getLoggedLawyerUuid(principal);
-        return clientInvoiceService.getInvoicesByStatus(lawyerUuid, status);
+        UUID lawyerUuid = userDetails.getUuid();
+        List<ClientInvoiceDto> invoices = clientInvoiceService.getInvoicesByStatus(lawyerUuid, status);
+        return ResponseEntity.ok(ApiResponse.success(200, "Invoices filtered by status", invoices));
     }
 
-    // ----------------------------------------------------------------------
-    // DELETE (soft delete)
-    // ----------------------------------------------------------------------
+    // --- Soft Delete Invoice ---
     @DeleteMapping("/{invoiceUuid}")
-    public void deleteInvoice(
+    public ResponseEntity<ApiResponse<Void>> deleteInvoice(
             @PathVariable UUID invoiceUuid,
-            Principal principal
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        UUID lawyerUuid = getLoggedLawyerUuid(principal);
-        log.info("Deleting invoice {} by lawyer {}", invoiceUuid, lawyerUuid);
+        UUID lawyerUuid = userDetails.getUuid();
         clientInvoiceService.deleteInvoice(invoiceUuid, lawyerUuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "Invoice deleted successfully", null));
     }
 }

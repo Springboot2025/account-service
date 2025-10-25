@@ -47,4 +47,12 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     """)
     List<Object[]> countCasesGroupedByType(UUID lawyerUuid);
 
+    // ✅ NEW — avoids LazyInitializationException for status and caseType
+    @Query("""
+    SELECT c FROM LegalCase c
+    LEFT JOIN FETCH c.status
+    LEFT JOIN FETCH c.caseType
+    WHERE c.lawyerUuid = :lawyerUuid
+    """)
+    List<LegalCase> findAllByLawyerUuidWithStatus(UUID lawyerUuid);
 }

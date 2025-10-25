@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.*;
@@ -28,14 +29,14 @@ public class ContactServiceImpl implements ContactService {
     private final MessageRepository messageRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ContactSummaryDto> getContactsForLawyer(UUID lawyerUuid, String search, String filter, Pageable pageable) {
         log.info("🎯 Fetching contacts for lawyer={}, filter={}, search={}", lawyerUuid, filter, search);
 
-        // 1️⃣ Get all cases for this lawyer
-        List<LegalCase> cases = legalCaseRepository.findAllByLawyerUuid(lawyerUuid);
+        // ✅ Use fetch join to avoid lazy loading issues
+        List<LegalCase> cases = legalCaseRepository.findAllByLawyerUuidWithStatus(lawyerUuid);
         if (cases.isEmpty()) return Page.empty(pageable);
 
-        // 2️⃣ Fetch all client accounts involved in these cases
         Set<UUID> clientUuids = cases.stream()
                 .map(LegalCase::getClientUuid)
                 .collect(Collectors.toSet());
@@ -45,13 +46,11 @@ public class ContactServiceImpl implements ContactService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toMap(Account::getUuid, acc -> acc));
 
-        // 3️⃣ Build ContactSummaryDto list
         List<ContactSummaryDto> summaries = cases.stream()
                 .map(legalCase -> {
                     Account client = clients.get(legalCase.getClientUuid());
                     if (client == null) return null;
 
-                    // Last message between lawyer and client
                     Optional<Message> lastMessage = messageRepository
                             .findTopBySenderUuidAndReceiverUuidOrReceiverUuidAndSenderUuidOrderByCreatedAtDesc(
                                     lawyerUuid, client.getUuid(), lawyerUuid, client.getUuid()
@@ -74,7 +73,6 @@ public class ContactServiceImpl implements ContactService {
                 })
                 .filter(Objects::nonNull)
                 .filter(dto -> {
-                    // Apply text search on name, case number, or status
                     if (search != null && !search.isBlank()) {
                         String lower = search.toLowerCase();
                         return (dto.getContactName() != null && dto.getContactName().toLowerCase().contains(lower)) ||
@@ -85,15 +83,12 @@ public class ContactServiceImpl implements ContactService {
                 })
                 .collect(Collectors.toList());
 
-        // 4️⃣ Apply filter if needed (like "reminders" or "inactive")
         if (filter != null && !filter.isBlank()) {
             summaries = applyFilter(filter, summaries);
         }
 
-        // 5️⃣ Sorting (based on pageable sort)
         summaries = applySorting(summaries, pageable.getSort());
 
-        // 6️⃣ Manual pagination
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), summaries.size());
         List<ContactSummaryDto> pageContent = summaries.subList(Math.min(start, end), end);
@@ -101,7 +96,7 @@ public class ContactServiceImpl implements ContactService {
         return new PageImpl<>(pageContent, pageable, summaries.size());
     }
 
-    // --- Helpers ---
+    // --- 🔧 Helpers (same as before) ---
 
     private List<ContactSummaryDto> applyFilter(String filter, List<ContactSummaryDto> list) {
         switch (filter.toLowerCase()) {

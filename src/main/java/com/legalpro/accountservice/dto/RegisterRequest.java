@@ -25,4 +25,6 @@ public class RegisterRequest {
     private Map<String, Object> awardsAppreciations;
     private boolean isCompany;
     private UUID companyUuid;
+    private String companyName;
+    private String companyDescription;
 }

@@ -7,9 +7,11 @@ import com.legalpro.accountservice.dto.ClientDto;
 import com.legalpro.accountservice.dto.LawyerDto;
 import com.legalpro.accountservice.dto.RegisterRequest;
 import com.legalpro.accountservice.entity.Account;
+import com.legalpro.accountservice.entity.Company;
 import com.legalpro.accountservice.entity.Role;
 import com.legalpro.accountservice.mapper.AccountMapper;
 import com.legalpro.accountservice.repository.AccountRepository;
+import com.legalpro.accountservice.repository.CompanyRepository;
 import com.legalpro.accountservice.repository.RoleRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,17 +32,20 @@ public class AccountService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final ObjectMapper objectMapper;
+    private final CompanyRepository companyRepository;
 
     public AccountService(AccountRepository accountRepository,
                           RoleRepository roleRepository,
                           PasswordEncoder passwordEncoder,
                           EmailService emailService,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          CompanyRepository companyRepository) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.objectMapper = objectMapper;
+        this.companyRepository = companyRepository;
     }
 
     public Account register(RegisterRequest request) {
@@ -107,13 +112,28 @@ public class AccountService {
         // --- Handle company info for lawyers ---
         if ("Lawyer".equalsIgnoreCase(accountType)) {
             if (request.isCompany()) {
-                // Company lawyer → owns the company
-                UUID companyUuid = UUID.randomUUID();
+                if (request.getCompanyName() == null || request.getCompanyName().isBlank()) {
+                    throw new RuntimeException("Company name is required for company lawyers");
+                }
+
+                // 1️⃣ Create new company record
+                Company company = Company.builder()
+                        .uuid(UUID.randomUUID())
+                        .name(request.getCompanyName())
+                        .description(request.getCompanyDescription())
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .build();
+
+                companyRepository.save(company);
+
+                // 2️⃣ Assign to lawyer
                 accountBuilder
                         .isCompany(true)
-                        .uuid(companyUuid)
-                        .companyUuid(companyUuid);
-            } else if (request.getCompanyUuid() != null) {
+                        .uuid(UUID.randomUUID()) // lawyer’s own UUID
+                        .companyUuid(company.getUuid());
+            }
+            else if (request.getCompanyUuid() != null) {
                 // Member lawyer → belongs to an existing company
                 accountBuilder
                         .isCompany(false)

@@ -3,6 +3,7 @@ package com.legalpro.accountservice.dto;
 import lombok.*;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -22,4 +23,6 @@ public class RegisterRequest {
     private Map<String, Object> educationQualification;
     private Map<String, Object> experienceStaff;
     private Map<String, Object> awardsAppreciations;
+    private boolean isCompany;
+    private UUID companyUuid;
 }

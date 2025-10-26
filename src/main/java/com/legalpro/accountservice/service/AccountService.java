@@ -104,6 +104,33 @@ public class AccountService {
             }
         }
 
+        // --- Handle company info for lawyers ---
+        if ("Lawyer".equalsIgnoreCase(accountType)) {
+            if (request.isCompany()) {
+                // Company lawyer → owns the company
+                UUID companyUuid = UUID.randomUUID();
+                accountBuilder
+                        .isCompany(true)
+                        .uuid(companyUuid)
+                        .companyUuid(companyUuid);
+            } else if (request.getCompanyUuid() != null) {
+                // Member lawyer → belongs to an existing company
+                accountBuilder
+                        .isCompany(false)
+                        .companyUuid(request.getCompanyUuid());
+            } else {
+                // Independent lawyer → solo practitioner
+                accountBuilder
+                        .isCompany(false)
+                        .companyUuid(null);
+            }
+        } else {
+            // For non-lawyers (clients, etc.)
+            accountBuilder
+                    .isCompany(false)
+                    .companyUuid(null);
+        }
+
         Account account = accountBuilder.build();
         accountRepository.save(account);
 

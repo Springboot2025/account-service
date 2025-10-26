@@ -19,8 +19,9 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
 
     @Override
     public DeviceToken registerOrUpdate(UUID userUuid, String deviceId, String fcmToken, String platform) {
-        return deviceTokenRepository.findByDeviceId(deviceId)
+        return deviceTokenRepository.findByUserUuid(userUuid)
                 .map(existing -> {
+                    existing.setDeviceId(deviceId);
                     existing.setFcmToken(fcmToken);
                     existing.setPlatform(platform);
                     return deviceTokenRepository.save(existing);

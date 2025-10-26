@@ -12,4 +12,7 @@ import java.util.UUID;
 public interface DeviceTokenRepository extends JpaRepository<DeviceToken, Long> {
     Optional<DeviceToken> findByDeviceId(String deviceId);
     List<DeviceToken> findAllByUserUuid(UUID userUuid);
+
+    Optional<DeviceToken> findByUserUuid(UUID userUuid);
+
 }

@@ -27,6 +27,9 @@ public class NotificationServiceImpl implements NotificationService {
         String status;
         String errorMessage = null;
 
+        log.info("🚀 Sending notification: userUuid={}, title={}, tokenPrefix={}",
+                userUuid, title, token != null ? token.substring(0, Math.min(10, token.length())) : "null");
+
         try {
             Message message = Message.builder()
                     .setToken(token)
@@ -37,15 +40,15 @@ public class NotificationServiceImpl implements NotificationService {
                     .build();
 
             messageId = FirebaseMessaging.getInstance().send(message);
-            log.info("✅ Notification sent successfully to user {}: {}", userUuid, messageId);
             status = "SENT";
+            log.info("✅ Notification sent successfully: userUuid={}, messageId={}", userUuid, messageId);
         } catch (Exception e) {
-            log.error("❌ Failed to send notification to user {} (token={}): {}", userUuid, token, e.getMessage());
             status = "FAILED";
             errorMessage = e.getMessage();
+            log.error("❌ Failed to send notification: userUuid={}, token={}, error={}", userUuid, token, e.getMessage(), e);
         }
 
-        // Save notification log
+        // --- Save log in DB ---
         try {
             NotificationLogDto logDto = NotificationLogDto.builder()
                     .userUuid(userUuid)
@@ -59,9 +62,11 @@ public class NotificationServiceImpl implements NotificationService {
                     .sentAt(ZonedDateTime.now())
                     .build();
 
+            log.info("🟡 Attempting to save notification log: userUuid={}, status={}", userUuid, status);
             notificationLogService.saveLog(logDto);
+            log.info("📦 Notification log saved successfully: userUuid={}, status={}", userUuid, status);
         } catch (Exception ex) {
-            log.error("⚠️ Failed to persist notification log for user {}: {}", userUuid, ex.getMessage());
+            log.error("🔥 Failed to persist notification log in DB: userUuid={}, error={}", userUuid, ex.getMessage(), ex);
         }
 
         return status.equals("SENT")
@@ -75,6 +80,10 @@ public class NotificationServiceImpl implements NotificationService {
         String status;
         String errorMessage = null;
 
+        log.info("🚀 Sending data notification: userUuid={}, title={}, tokenPrefix={}, dataKeys={}",
+                userUuid, title, token != null ? token.substring(0, Math.min(10, token.length())) : "null",
+                data != null ? data.keySet() : "none");
+
         try {
             Message message = Message.builder()
                     .setToken(token)
@@ -86,15 +95,15 @@ public class NotificationServiceImpl implements NotificationService {
                     .build();
 
             messageId = FirebaseMessaging.getInstance().send(message);
-            log.info("✅ Notification with data sent successfully to user {}: {}", userUuid, messageId);
             status = "SENT";
+            log.info("✅ Notification with data sent: userUuid={}, messageId={}", userUuid, messageId);
         } catch (Exception e) {
-            log.error("❌ Failed to send notification with data to user {} (token={}): {}", userUuid, token, e.getMessage());
             status = "FAILED";
             errorMessage = e.getMessage();
+            log.error("❌ Failed to send notification with data: userUuid={}, token={}, error={}", userUuid, token, e.getMessage(), e);
         }
 
-        // Save notification log
+        // --- Save log in DB ---
         try {
             NotificationLogDto logDto = NotificationLogDto.builder()
                     .userUuid(userUuid)
@@ -108,9 +117,11 @@ public class NotificationServiceImpl implements NotificationService {
                     .sentAt(ZonedDateTime.now())
                     .build();
 
+            log.info("🟡 Attempting to save notification log with data: userUuid={}, status={}", userUuid, status);
             notificationLogService.saveLog(logDto);
+            log.info("📦 Notification log (with data) saved successfully: userUuid={}, status={}", userUuid, status);
         } catch (Exception ex) {
-            log.error("⚠️ Failed to persist notification log for user {}: {}", userUuid, ex.getMessage());
+            log.error("🔥 Failed to persist notification log (with data): userUuid={}, error={}", userUuid, ex.getMessage(), ex);
         }
 
         return status.equals("SENT")

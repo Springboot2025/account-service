@@ -30,7 +30,7 @@ public class NotificationController {
     ) {
         var tokens = deviceTokenService.getTokensForUser(userUuid);
         List<String> results = tokens.stream()
-                .map(token -> notificationService.sendNotification(token.getFcmToken(), title, body))
+                .map(token -> notificationService.sendNotification(userUuid, token.getFcmToken(), title, body))
                 .toList();
 
         return ResponseEntity.ok(ApiResponse.success(
@@ -49,7 +49,7 @@ public class NotificationController {
     ) {
         var tokens = deviceTokenService.getTokensForUser(userUuid);
         List<String> results = tokens.stream()
-                .map(token -> notificationService.sendNotificationWithData(token.getFcmToken(), title, body, data))
+                .map(token -> notificationService.sendNotificationWithData(userUuid, token.getFcmToken(), title, body, data))
                 .toList();
 
         return ResponseEntity.ok(ApiResponse.success(
@@ -58,5 +58,6 @@ public class NotificationController {
                 results
         ));
     }
+
 
 }

@@ -21,4 +21,5 @@ public class NotificationLogDto {
     private String status;
     private String errorMessage;
     private ZonedDateTime sentAt;
+    private boolean isRead;
 }

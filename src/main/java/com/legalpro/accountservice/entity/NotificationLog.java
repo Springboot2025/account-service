@@ -56,4 +56,8 @@ public class NotificationLog {
     @CreationTimestamp
     @Column(name = "sent_at", updatable = false)
     private ZonedDateTime sentAt;
+
+    @Column(name = "is_read", nullable = false)
+    private boolean isRead = false;
+
 }

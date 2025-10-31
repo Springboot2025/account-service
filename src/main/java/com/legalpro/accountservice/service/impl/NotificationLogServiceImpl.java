@@ -78,4 +78,29 @@ public class NotificationLogServiceImpl implements NotificationLogService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public void markAsRead(Long id) {
+        try {
+            repository.findById(id).ifPresent(logs -> {
+                logs.setRead(true);
+                repository.save(logs);
+                log.info("✅ Notification {} marked as read", id);
+            });
+        } catch (Exception e) {
+            log.error("❌ Failed to mark notification {} as read: {}", id, e.getMessage());
+        }
+    }
+
+    @Override
+    public void markAllAsRead(UUID userUuid) {
+        try {
+            var logs = repository.findByUserUuidOrderBySentAtDesc(userUuid);
+            logs.forEach(log -> log.setRead(true));
+            repository.saveAll(logs);
+            log.info("✅ All notifications for user {} marked as read", userUuid);
+        } catch (Exception e) {
+            log.error("❌ Failed to mark notifications as read for user {}: {}", userUuid, e.getMessage());
+        }
+    }
+
 }

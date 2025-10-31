@@ -10,12 +10,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-        import java.util.List;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/notifications/logs")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('Client','Lawyer','Admin')") // ✅ Applies to all endpoints in this controller
 public class NotificationLogController {
 
     private final NotificationLogService notificationLogService;
@@ -24,7 +25,6 @@ public class NotificationLogController {
      * Get all notifications sent to a user (most recent first)
      */
     @GetMapping("/{userUuid}")
-    @PreAuthorize("hasAnyRole('Client','Lawyer','Admin')")
     public ResponseEntity<ApiResponse<List<NotificationLogDto>>> getLogsForUser(
             @PathVariable UUID userUuid,
             @AuthenticationPrincipal Object userDetails // optional
@@ -40,6 +40,32 @@ public class NotificationLogController {
                 HttpStatus.OK.value(),
                 "Notification logs fetched successfully",
                 logs
+        ));
+    }
+
+    /**
+     * Mark a single notification as read
+     */
+    @PatchMapping("/{id}/read")
+    public ResponseEntity<ApiResponse<String>> markAsRead(@PathVariable Long id) {
+        notificationLogService.markAsRead(id);
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Notification marked as read",
+                "OK"
+        ));
+    }
+
+    /**
+     * Mark all notifications for a user as read
+     */
+    @PatchMapping("/{userUuid}/read-all")
+    public ResponseEntity<ApiResponse<String>> markAllAsRead(@PathVariable UUID userUuid) {
+        notificationLogService.markAllAsRead(userUuid);
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "All notifications marked as read",
+                "OK"
         ));
     }
 }

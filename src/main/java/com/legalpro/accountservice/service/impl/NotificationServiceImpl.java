@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -56,7 +57,8 @@ public class NotificationServiceImpl implements NotificationService {
                     .messageId(messageId)
                     .title(title)
                     .body(body)
-                    .payload(null)
+                    // ✅ Empty payload as Map (consistent with DTO type)
+                    .payload(new HashMap<>())
                     .status(status)
                     .errorMessage(errorMessage)
                     .sentAt(ZonedDateTime.now())
@@ -69,7 +71,7 @@ public class NotificationServiceImpl implements NotificationService {
             log.error("🔥 Failed to persist notification log in DB: userUuid={}, error={}", userUuid, ex.getMessage(), ex);
         }
 
-        return status.equals("SENT")
+        return "SENT".equals(status)
                 ? "✅ Sent successfully: " + messageId
                 : "❌ Failed for token: " + token + " → " + errorMessage;
     }
@@ -81,7 +83,8 @@ public class NotificationServiceImpl implements NotificationService {
         String errorMessage = null;
 
         log.info("🚀 Sending data notification: userUuid={}, title={}, tokenPrefix={}, dataKeys={}",
-                userUuid, title, token != null ? token.substring(0, Math.min(10, token.length())) : "null",
+                userUuid, title,
+                token != null ? token.substring(0, Math.min(10, token.length())) : "null",
                 data != null ? data.keySet() : "none");
 
         try {
@@ -105,13 +108,16 @@ public class NotificationServiceImpl implements NotificationService {
 
         // --- Save log in DB ---
         try {
+            // ✅ Convert Map<String, String> to Map<String, Object> safely
+            Map<String, Object> payloadMap = data != null ? new HashMap<>(data) : new HashMap<>();
+
             NotificationLogDto logDto = NotificationLogDto.builder()
                     .userUuid(userUuid)
                     .fcmToken(token)
                     .messageId(messageId)
                     .title(title)
                     .body(body)
-                    .payload(data != null ? data.toString() : null)
+                    .payload(payloadMap)  // ✅ type-safe
                     .status(status)
                     .errorMessage(errorMessage)
                     .sentAt(ZonedDateTime.now())
@@ -124,7 +130,7 @@ public class NotificationServiceImpl implements NotificationService {
             log.error("🔥 Failed to persist notification log (with data): userUuid={}, error={}", userUuid, ex.getMessage(), ex);
         }
 
-        return status.equals("SENT")
+        return "SENT".equals(status)
                 ? "✅ Sent successfully: " + messageId
                 : "❌ Failed for token: " + token + " → " + errorMessage;
     }

@@ -1,10 +1,15 @@
 package com.legalpro.accountservice.entity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.*;
         import lombok.*;
         import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.Type;
+import org.hibernate.type.SqlTypes;
 
 import java.time.ZonedDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -38,8 +43,9 @@ public class NotificationLog {
     @Column(name = "body")
     private String body;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload", columnDefinition = "jsonb")
-    private String payload; // store extra data as JSON string
+    private JsonNode payload; // store extra data as JSON string
 
     @Column(name = "status", nullable = false)
     private String status; // SENT or FAILED

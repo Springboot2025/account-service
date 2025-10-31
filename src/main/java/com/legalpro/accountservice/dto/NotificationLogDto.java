@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.ZonedDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -16,7 +17,7 @@ public class NotificationLogDto {
     private String messageId;
     private String title;
     private String body;
-    private String payload;
+    private Map<String, Object> payload;
     private String status;
     private String errorMessage;
     private ZonedDateTime sentAt;

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -118,4 +119,17 @@ public class ClientInvoiceServiceImpl implements ClientInvoiceService {
                 .map(mapper::toDto)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public void updateStripeSessionInfo(UUID invoiceUuid, UUID lawyerUuid, String stripeSessionId, String stripePaymentStatus) {
+        ClientInvoice invoice = invoiceRepository.findByUuidAndLawyerUuid(invoiceUuid, lawyerUuid)
+                .orElseThrow(() -> new RuntimeException("Invoice not found for lawyer"));
+
+        invoice.setStripeSessionId(stripeSessionId);
+        invoice.setStripePaymentStatus(stripePaymentStatus);
+        invoice.setUpdatedAt(OffsetDateTime.now().toLocalDateTime());
+        invoice.setLastActivity("Stripe payment session created");
+        invoiceRepository.save(invoice);
+    }
+
 }

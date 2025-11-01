@@ -22,4 +22,6 @@ public interface ClientInvoiceRepository extends JpaRepository<ClientInvoice, Lo
 
     // Filter invoices by lawyer and status
     List<ClientInvoice> findByLawyerUuidAndStatusIgnoreCase(UUID lawyerUuid, String status);
+
+    Optional<ClientInvoice> findByUuidAndLawyerUuid(UUID uuid, UUID lawyerUuid);
 }

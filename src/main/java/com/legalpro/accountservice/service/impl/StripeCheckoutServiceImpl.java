@@ -49,14 +49,22 @@ public class StripeCheckoutServiceImpl implements StripeCheckoutService {
                                 .build()
                 )
                 // ✅ Using your requested URLs:
-                .setSuccessUrl("https://your-frontend.com/payment-success?invoice=" + invoiceUuid)
-                .setCancelUrl("https://your-frontend.com/payment-cancelled?invoice=" + invoiceUuid)
+                .setSuccessUrl("https://https://lawproject-nu.vercel.app/payment-success?invoice=" + invoiceUuid)
+                .setCancelUrl("https://https://lawproject-nu.vercel.app/payment-cancelled?invoice=" + invoiceUuid)
                 .putMetadata("invoice_uuid", invoiceUuid.toString())
                 .putMetadata("lawyer_uuid", lawyerUuid.toString())
                 .build();
 
         // Create session via Stripe API
         Session session = Session.create(params);
+
+        // Persist session info to invoice
+        clientInvoiceService.updateStripeSessionInfo(
+                invoiceUuid,
+                lawyerUuid,
+                session.getId(),
+                "INITIATED"
+        );
 
         log.info("✅ Stripe Checkout session created for invoice {} | amount: {} AUD | URL: {}",
                 invoiceUuid, amountRequested, session.getUrl());

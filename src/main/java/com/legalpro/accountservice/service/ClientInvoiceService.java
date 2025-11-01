@@ -11,4 +11,6 @@ public interface ClientInvoiceService {
     List<ClientInvoiceDto> getInvoicesForLawyer(UUID lawyerUuid);
     void deleteInvoice(UUID invoiceUuid, UUID lawyerUuid);
     List<ClientInvoiceDto> getInvoicesByStatus(UUID lawyerUuid, String status);
+    void updateStripeSessionInfo(UUID invoiceUuid, UUID lawyerUuid, String stripeSessionId, String stripePaymentStatus);
+
 }

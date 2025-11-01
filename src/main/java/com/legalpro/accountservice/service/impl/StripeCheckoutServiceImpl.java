@@ -49,8 +49,8 @@ public class StripeCheckoutServiceImpl implements StripeCheckoutService {
                                 .build()
                 )
                 // ✅ Using your requested URLs:
-                .setSuccessUrl("https://https://lawproject-nu.vercel.app/payment-success?invoice=" + invoiceUuid)
-                .setCancelUrl("https://https://lawproject-nu.vercel.app/payment-cancelled?invoice=" + invoiceUuid)
+                .setSuccessUrl("https://lawproject-nu.vercel.app/payment-success?invoice=" + invoiceUuid)
+                .setCancelUrl("https://lawproject-nu.vercel.app/payment-cancelled?invoice=" + invoiceUuid)
                 .putMetadata("invoice_uuid", invoiceUuid.toString())
                 .putMetadata("lawyer_uuid", lawyerUuid.toString())
                 .build();

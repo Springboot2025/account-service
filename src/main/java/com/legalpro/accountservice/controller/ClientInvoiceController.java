@@ -4,6 +4,7 @@ import com.legalpro.accountservice.dto.ClientInvoiceDto;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.ClientInvoiceService;
+import com.legalpro.accountservice.service.StripeCheckoutService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -12,7 +13,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -23,6 +26,7 @@ import java.util.UUID;
 public class ClientInvoiceController {
 
     private final ClientInvoiceService clientInvoiceService;
+    private final StripeCheckoutService stripeCheckoutService;
 
     // --- Create Invoice ---
     @PostMapping
@@ -90,4 +94,29 @@ public class ClientInvoiceController {
         clientInvoiceService.deleteInvoice(invoiceUuid, lawyerUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Invoice deleted successfully", null));
     }
+
+    @PostMapping("/{invoiceUuid}/checkout-session")
+    public ResponseEntity<ApiResponse<Map<String, String>>> createStripeSession(
+            @PathVariable UUID invoiceUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        try {
+            ClientInvoiceDto invoice = clientInvoiceService.getInvoice(invoiceUuid, userDetails.getUuid());
+            String url = stripeCheckoutService.createCheckoutSession(
+                    invoiceUuid,
+                    userDetails.getUuid(),
+                    invoice.getAmountRequested()
+            );
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(200, "Stripe checkout session created", Map.of("checkoutUrl", url))
+            );
+        } catch (Exception e) {
+            log.error("Stripe session creation failed", e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error(500, "Stripe session creation failed: " + e.getMessage()));
+        }
+    }
+
+
 }

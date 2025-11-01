@@ -23,6 +23,8 @@ public class ClientInvoiceMapper {
                 .dueDate(entity.getDueDate())
                 .lastActivity(entity.getLastActivity())
                 .status(entity.getStatus())
+                .stripeSessionId(entity.getStripeSessionId())          // ✅ new
+                .stripePaymentStatus(entity.getStripePaymentStatus())  // ✅ new
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .deletedAt(entity.getDeletedAt())
@@ -46,6 +48,8 @@ public class ClientInvoiceMapper {
                 .dueDate(dto.getDueDate())
                 .lastActivity(dto.getLastActivity())
                 .status(dto.getStatus())
+                .stripeSessionId(dto.getStripeSessionId())            // ✅ new
+                .stripePaymentStatus(dto.getStripePaymentStatus())    // ✅ new
                 .createdAt(dto.getCreatedAt())
                 .updatedAt(dto.getUpdatedAt())
                 .deletedAt(dto.getDeletedAt());

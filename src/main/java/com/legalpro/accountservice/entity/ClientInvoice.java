@@ -44,6 +44,12 @@ public class ClientInvoice {
     @Column(name = "status", length = 50)
     private String status = "PENDING";
 
+    @Column(name = "stripe_session_id")
+    private String stripeSessionId;
+
+    @Column(name = "stripe_payment_status")
+    private String stripePaymentStatus;
+
     @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 

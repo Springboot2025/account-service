@@ -22,6 +22,9 @@ public class ClientInvoiceDto {
     private String lastActivity;
     private String status;
 
+    private String stripeSessionId;
+    private String stripePaymentStatus;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;

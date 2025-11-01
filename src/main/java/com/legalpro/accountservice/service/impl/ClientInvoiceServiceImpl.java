@@ -8,6 +8,7 @@ import com.legalpro.accountservice.repository.ClientInvoiceRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.service.ClientInvoiceService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -130,6 +132,28 @@ public class ClientInvoiceServiceImpl implements ClientInvoiceService {
         invoice.setUpdatedAt(OffsetDateTime.now().toLocalDateTime());
         invoice.setLastActivity("Stripe payment session created");
         invoiceRepository.save(invoice);
+    }
+
+    @Override
+    public void markInvoicePaid(String invoiceUuid, String stripeSessionId, String stripePaymentStatus, String activity) {
+        UUID uuid = UUID.fromString(invoiceUuid);
+        ClientInvoice invoice = invoiceRepository.findByUuid(uuid)
+                .orElseThrow(() -> new RuntimeException("Invoice not found for webhook"));
+
+        invoice.setStripeSessionId(stripeSessionId);
+        invoice.setStripePaymentStatus(stripePaymentStatus);
+        invoice.setStatus("PAID");
+        invoice.setLastActivity(activity);
+        invoice.setUpdatedAt(LocalDateTime.now());
+        invoiceRepository.save(invoice);
+
+        log.info("✅ Invoice {} marked as PAID (session {})", invoiceUuid, stripeSessionId);
+    }
+
+    @Override
+    public void markInvoiceFailedByIntent(String paymentIntentId) {
+        // Optional: if you later store PaymentIntent IDs
+        log.warn("Payment failed for intent {}", paymentIntentId);
     }
 
 }

@@ -12,5 +12,7 @@ public interface ClientInvoiceService {
     void deleteInvoice(UUID invoiceUuid, UUID lawyerUuid);
     List<ClientInvoiceDto> getInvoicesByStatus(UUID lawyerUuid, String status);
     void updateStripeSessionInfo(UUID invoiceUuid, UUID lawyerUuid, String stripeSessionId, String stripePaymentStatus);
+    void markInvoicePaid(String invoiceUuid, String stripeSessionId, String stripePaymentStatus, String activity);
+    void markInvoiceFailedByIntent(String paymentIntentId);
 
 }

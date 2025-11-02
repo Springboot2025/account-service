@@ -18,6 +18,9 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // matches BIGSERIAL
 
+    @Column(nullable = false, unique = true, updatable = false)
+    private UUID uuid;
+
     @Column(name = "sender_uuid", nullable = false)
     private UUID senderUuid;
 

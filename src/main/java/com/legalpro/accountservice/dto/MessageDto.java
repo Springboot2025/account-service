@@ -10,6 +10,7 @@ import java.util.UUID;
 @Builder
 public class MessageDto {
     private Long id;
+    private UUID uuid;
     private UUID senderUuid;
     private UUID receiverUuid;
     private String content;

@@ -51,4 +51,12 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     Optional<Message> findTopBySenderUuidAndReceiverUuidOrReceiverUuidAndSenderUuidOrderByCreatedAtDesc(
             UUID senderUuid1, UUID receiverUuid1, UUID senderUuid2, UUID receiverUuid2
     );
+
+    @Query("""
+    SELECT m FROM Message m
+    WHERE m.senderUuid = :userUuid OR m.receiverUuid = :userUuid
+    ORDER BY m.createdAt DESC
+""")
+    List<Message> findAllByUserUuid(@Param("userUuid") UUID userUuid);
+
 }

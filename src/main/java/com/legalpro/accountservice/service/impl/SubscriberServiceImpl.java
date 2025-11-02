@@ -5,7 +5,6 @@ import com.legalpro.accountservice.entity.Subscriber;
 import com.legalpro.accountservice.mapper.SubscriberMapper;
 import com.legalpro.accountservice.repository.SubscriberRepository;
 import com.legalpro.accountservice.service.SubscriberService;
-import com.legalpro.accountservice.util.EmailService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +22,6 @@ public class SubscriberServiceImpl implements SubscriberService {
 
     private final SubscriberRepository subscriberRepository;
     private final SubscriberMapper subscriberMapper;
-    private final EmailService emailService; // we’ll use SendGrid or Gmail API later
 
     @Override
     public SubscriberDto addSubscriber(String email) {

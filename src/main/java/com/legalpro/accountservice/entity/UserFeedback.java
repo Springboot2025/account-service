@@ -21,9 +21,7 @@ public class UserFeedback {
     private Long id;
 
     @Column(nullable = false, unique = true, updatable = false)
-    @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
-    private UUID uuid;
+    private UUID uuid = UUID.randomUUID();
 
     @Column(name = "user_uuid", nullable = false)
     private UUID userUuid;

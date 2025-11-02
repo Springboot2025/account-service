@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // ✅ Allow preflight OPTIONS requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/api/address/**", "/api/search/**", "/api/devices/**", "/api/notifications/**", "/api/ratings/**", "/api/companies/**", "/api/webhooks/**", "/api/feedback/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/address/**", "/api/search/**", "/api/devices/**", "/api/notifications/**", "/api/ratings/**", "/api/companies/**", "/api/webhooks/**", "/api/feedback/**", "/api/subscribers/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()
                 )

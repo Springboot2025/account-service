@@ -4,6 +4,7 @@ import com.legalpro.accountservice.dto.SubscriberDto;
 import com.legalpro.accountservice.entity.Subscriber;
 import com.legalpro.accountservice.mapper.SubscriberMapper;
 import com.legalpro.accountservice.repository.SubscriberRepository;
+import com.legalpro.accountservice.service.EmailService;
 import com.legalpro.accountservice.service.SubscriberService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class SubscriberServiceImpl implements SubscriberService {
 
     private final SubscriberRepository subscriberRepository;
     private final SubscriberMapper subscriberMapper;
+    private final EmailService emailService;
 
     @Override
     public SubscriberDto addSubscriber(String email) {
@@ -71,8 +73,22 @@ public class SubscriberServiceImpl implements SubscriberService {
                 .collect(Collectors.toList());
 
         for (Subscriber s : subscribers) {
-            log.info("Sending notification to {}", s.getEmail());
-            //emailService.sendEmail(s.getEmail(), subject, messageBody);
+            log.info("📧 Sending '{}' to {}", subject, s.getEmail());
+
+            String bodyHtml = """
+            <html>
+                <body>
+                    <p>%s</p>
+                    <br/>
+                    <p>Warm regards,</p>
+                    <p><b>Boss Law Team</b></p>
+                </body>
+            </html>
+            """.formatted(messageBody);
+
+            // ✅ Your existing service call
+            emailService.sendEmail(s.getEmail(), subject, bodyHtml);
         }
     }
+
 }

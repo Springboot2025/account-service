@@ -15,6 +15,8 @@ public class StripeConfig {
         }
         Stripe.apiKey = secretKey;
 
+        System.out.println(">> USING STRIPE KEY PREFIX: " + Stripe.apiKey.substring(0, 8));
+
         System.out.println("✅ Stripe configured successfully");
     }
 }

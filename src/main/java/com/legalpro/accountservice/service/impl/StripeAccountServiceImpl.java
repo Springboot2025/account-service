@@ -10,12 +10,11 @@ import com.stripe.model.Account;
 import com.stripe.model.AccountLink;
 import com.stripe.param.AccountCreateParams;
 import com.stripe.param.AccountLinkCreateParams;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
 import java.util.UUID;
 
 @Service
@@ -26,33 +25,50 @@ public class StripeAccountServiceImpl implements StripeAccountService {
     private final StripeAccountRepository stripeAccountRepository;
     private final StripeAccountMapper stripeAccountMapper;
 
-    @Value("${STRIPE_SECRET_KEY}")
-    private String stripeSecretKey;
-
     @PostConstruct
     public void init() {
-        Stripe.apiKey = stripeSecretKey;
+        String secretKey = System.getenv("STRIPE_SECRET_KEY");
+        if (secretKey == null || secretKey.isBlank()) {
+            throw new IllegalStateException("Missing STRIPE_SECRET_KEY environment variable");
+        }
+        Stripe.apiKey = secretKey;
+        System.out.println(">> USING STRIPE KEY PREFIX: " + Stripe.apiKey.substring(0, 8));
+        System.out.println("✅ Stripe configured successfully");
     }
 
     @Override
     public String createOrGetOnboardingLink(UUID lawyerUuid, String returnUrl, String refreshUrl) {
-
-        // Find existing Stripe account for this lawyer
-        StripeAccount sa = stripeAccountRepository.findByLawyerUuid(lawyerUuid)
-                .orElse(null);
-
+        StripeAccount sa = stripeAccountRepository.findByLawyerUuid(lawyerUuid).orElse(null);
         String accountId;
 
         try {
             if (sa == null) {
-                // Create new Stripe Express Account
-                Account account = Account.create(AccountCreateParams.builder()
-                        .setType(AccountCreateParams.Type.EXPRESS)
-                        .build());
+                log.info("✅ Creating new AU Stripe Express account for lawyer {}", lawyerUuid);
+
+                Account account = Account.create(
+                        AccountCreateParams.builder()
+                                .setType(AccountCreateParams.Type.EXPRESS)
+                                .setCountry("AU")
+                                .setBusinessType(AccountCreateParams.BusinessType.INDIVIDUAL)
+                                .setCapabilities(
+                                        AccountCreateParams.Capabilities.builder()
+                                                .setCardPayments(
+                                                        AccountCreateParams.Capabilities.CardPayments.builder()
+                                                                .setRequested(true)
+                                                                .build()
+                                                )
+                                                .setTransfers(
+                                                        AccountCreateParams.Capabilities.Transfers.builder()
+                                                                .setRequested(true)
+                                                                .build()
+                                                )
+                                                .build()
+                                )
+                                .build()
+                );
 
                 accountId = account.getId();
 
-                // Save in our DB
                 sa = stripeAccountRepository.save(
                         StripeAccount.builder()
                                 .lawyerUuid(lawyerUuid)
@@ -61,18 +77,18 @@ public class StripeAccountServiceImpl implements StripeAccountService {
                 );
 
                 log.info("✅ Created new Stripe connect account {} for Lawyer {}", accountId, lawyerUuid);
-
             } else {
                 accountId = sa.getStripeAccountId();
             }
 
-            // Create Stripe onboarding link
-            AccountLink link = AccountLink.create(AccountLinkCreateParams.builder()
-                    .setAccount(accountId)
-                    .setType(AccountLinkCreateParams.Type.ACCOUNT_ONBOARDING)
-                    .setReturnUrl(returnUrl)
-                    .setRefreshUrl(refreshUrl)
-                    .build());
+            AccountLink link = AccountLink.create(
+                    AccountLinkCreateParams.builder()
+                            .setAccount(accountId)
+                            .setType(AccountLinkCreateParams.Type.ACCOUNT_ONBOARDING)
+                            .setReturnUrl(returnUrl)
+                            .setRefreshUrl(refreshUrl)
+                            .build()
+            );
 
             return link.getUrl();
 
@@ -84,23 +100,15 @@ public class StripeAccountServiceImpl implements StripeAccountService {
 
     @Override
     public StripeAccountDto getStripeAccountStatus(UUID lawyerUuid) {
-        StripeAccount sa = stripeAccountRepository.findByLawyerUuid(lawyerUuid)
-                .orElse(null);
-
-        if (sa == null) {
-            return null; // no Stripe connection yet
-        }
+        StripeAccount sa = stripeAccountRepository.findByLawyerUuid(lawyerUuid).orElse(null);
+        if (sa == null) return null;
 
         try {
             Account account = Account.retrieve(sa.getStripeAccountId());
-
-            // Keep flags in sync (optional but recommended)
             sa.setChargesEnabled(Boolean.TRUE.equals(account.getChargesEnabled()));
             sa.setPayoutsEnabled(Boolean.TRUE.equals(account.getPayoutsEnabled()));
             stripeAccountRepository.save(sa);
-
             return stripeAccountMapper.toDto(sa);
-
         } catch (Exception e) {
             log.error("❌ Failed to fetch Stripe account status for lawyer {}", lawyerUuid, e);
             throw new RuntimeException("Stripe account status fetch failed", e);

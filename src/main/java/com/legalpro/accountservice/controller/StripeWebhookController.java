@@ -1,87 +1,53 @@
 package com.legalpro.accountservice.controller;
 
-import com.legalpro.accountservice.service.ClientInvoiceService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legalpro.accountservice.service.StripeWebhookService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
-import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.util.stream.Collectors;
 
-@Slf4j
 @RestController
-@RequestMapping("/api/webhooks/stripe")
+@RequestMapping("/api/stripe/webhook")
 @RequiredArgsConstructor
+@Slf4j
 public class StripeWebhookController {
 
-    private final ClientInvoiceService clientInvoiceService;
+    private final StripeWebhookService stripeWebhookService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @PostMapping
-    public ResponseEntity<String> handleStripeEvent(
-            @RequestBody String payload,
-            @RequestHeader("Stripe-Signature") String sigHeader) {
+    public ResponseEntity<String> handleWebhook(HttpServletRequest request) throws IOException {
 
+        String payload = request.getReader().lines().collect(Collectors.joining());
+        String sigHeader = request.getHeader("Stripe-Signature");
         String webhookSecret = System.getenv("STRIPE_WEBHOOK_SECRET");
-        if (webhookSecret == null || webhookSecret.isBlank()) {
-            log.error("❌ Missing STRIPE_WEBHOOK_SECRET env var");
-            return ResponseEntity.internalServerError().body("Webhook secret not configured");
-        }
 
-        Event event;
         try {
-            event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
-        } catch (SignatureVerificationException e) {
-            log.error("⚠️ Invalid Stripe signature: {}", e.getMessage());
+            Event event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
+
+            log.info("🔔 Received Stripe event: {}", event.getType());
+
+            // Delegate handling:
+            stripeWebhookService.handleEvent(event);
+
+            return ResponseEntity.ok("✅ Event processed");
+        }
+        catch (SignatureVerificationException e) {
+            log.error("❌ Invalid Stripe webhook signature", e);
             return ResponseEntity.status(400).body("Invalid signature");
-        } catch (Exception e) {
-            log.error("⚠️ Failed to parse Stripe event: {}", e.getMessage());
-            return ResponseEntity.status(400).body("Invalid payload");
         }
-
-        log.info("📩 Received Stripe event: {} ({})", event.getType(), event.getId());
-
-        try {
-            switch (event.getType()) {
-                case "checkout.session.completed" -> {
-                    Session session = (Session) event.getDataObjectDeserializer()
-                            .getObject()
-                            .orElse(null);
-                    if (session != null) {
-                        String invoiceUuid = session.getMetadata().get("invoice_uuid");
-                        log.info("✅ Checkout completed for invoice: {}", invoiceUuid);
-                        clientInvoiceService.markInvoicePaid(invoiceUuid,
-                                session.getId(),
-                                "SUCCEEDED",
-                                "Client payment received via Stripe");
-                    }
-                }
-
-                case "payment_intent.payment_failed" -> {
-                    com.stripe.model.PaymentIntent paymentIntent =
-                            (com.stripe.model.PaymentIntent) event.getDataObjectDeserializer()
-                                    .getObject()
-                                    .orElse(null);
-
-                    if (paymentIntent != null) {
-                        String paymentIntentId = paymentIntent.getId();
-                        log.warn("⚠️ Payment failed for intent {}", paymentIntentId);
-                        clientInvoiceService.markInvoiceFailedByIntent(paymentIntentId);
-                    } else {
-                        log.warn("⚠️ Received payment_intent.payment_failed but unable to deserialize object");
-                    }
-                }
-
-                default -> log.info("ℹ️ Ignoring unhandled event type: {}", event.getType());
-            }
-        } catch (Exception e) {
-            log.error("❌ Error processing Stripe event: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().body("Error processing event");
+        catch (Exception e) {
+            log.error("❌ Error while processing Stripe webhook", e);
+            return ResponseEntity.status(500).body("Webhook error");
         }
-
-        return ResponseEntity.ok("Event processed");
     }
 }

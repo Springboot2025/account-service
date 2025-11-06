@@ -1,9 +1,9 @@
 package com.legalpro.accountservice.controller;
 
-import com.legalpro.accountservice.dto.LawyerInvoiceDto;
+import com.legalpro.accountservice.dto.InvoiceDto;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.security.CustomUserDetails;
-import com.legalpro.accountservice.service.LawyerInvoiceService;
+import com.legalpro.accountservice.service.InvoiceService;
 import com.legalpro.accountservice.service.StripeCheckoutService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,62 +24,62 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class LawyerInvoiceController {
 
-    private final LawyerInvoiceService clientInvoiceService;
+    private final InvoiceService clientInvoiceService;
     private final StripeCheckoutService stripeCheckoutService;
 
     // --- Create Invoice ---
     @PostMapping
-    public ResponseEntity<ApiResponse<LawyerInvoiceDto>> createInvoice(
-            @RequestBody LawyerInvoiceDto dto,
+    public ResponseEntity<ApiResponse<InvoiceDto>> createInvoice(
+            @RequestBody InvoiceDto dto,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        LawyerInvoiceDto created = clientInvoiceService.createInvoice(dto, lawyerUuid);
+        InvoiceDto created = clientInvoiceService.createInvoice(dto, lawyerUuid);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(201, "Invoice created successfully", created));
     }
 
     // --- Update Invoice ---
     @PutMapping("/{invoiceUuid}")
-    public ResponseEntity<ApiResponse<LawyerInvoiceDto>> updateInvoice(
+    public ResponseEntity<ApiResponse<InvoiceDto>> updateInvoice(
             @PathVariable UUID invoiceUuid,
-            @RequestBody LawyerInvoiceDto dto,
+            @RequestBody InvoiceDto dto,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        LawyerInvoiceDto updated = clientInvoiceService.updateInvoice(invoiceUuid, dto, lawyerUuid);
+        InvoiceDto updated = clientInvoiceService.updateInvoice(invoiceUuid, dto, lawyerUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Invoice updated successfully", updated));
     }
 
     // --- Get Single Invoice ---
     @GetMapping("/{invoiceUuid}")
-    public ResponseEntity<ApiResponse<LawyerInvoiceDto>> getInvoice(
+    public ResponseEntity<ApiResponse<InvoiceDto>> getInvoice(
             @PathVariable UUID invoiceUuid,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        LawyerInvoiceDto invoice = clientInvoiceService.getInvoice(invoiceUuid, lawyerUuid);
+        InvoiceDto invoice = clientInvoiceService.getInvoice(invoiceUuid, lawyerUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Invoice fetched successfully", invoice));
     }
 
     // --- Get All Invoices for Lawyer ---
     @GetMapping
-    public ResponseEntity<ApiResponse<List<LawyerInvoiceDto>>> getInvoicesForLawyer(
+    public ResponseEntity<ApiResponse<List<InvoiceDto>>> getInvoicesForLawyer(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        List<LawyerInvoiceDto> invoices = clientInvoiceService.getInvoicesForLawyer(lawyerUuid);
+        List<InvoiceDto> invoices = clientInvoiceService.getInvoicesForLawyer(lawyerUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Invoices fetched successfully", invoices));
     }
 
     // --- Get Invoices by Status ---
     @GetMapping("/status/{status}")
-    public ResponseEntity<ApiResponse<List<LawyerInvoiceDto>>> getInvoicesByStatus(
+    public ResponseEntity<ApiResponse<List<InvoiceDto>>> getInvoicesByStatus(
             @PathVariable String status,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        List<LawyerInvoiceDto> invoices = clientInvoiceService.getInvoicesByStatus(lawyerUuid, status);
+        List<InvoiceDto> invoices = clientInvoiceService.getInvoicesByStatus(lawyerUuid, status);
         return ResponseEntity.ok(ApiResponse.success(200, "Invoices filtered by status", invoices));
     }
 
@@ -100,7 +100,7 @@ public class LawyerInvoiceController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         try {
-            LawyerInvoiceDto invoice = clientInvoiceService.getInvoice(invoiceUuid, userDetails.getUuid());
+            InvoiceDto invoice = clientInvoiceService.getInvoice(invoiceUuid, userDetails.getUuid());
             String url = stripeCheckoutService.createCheckoutSession(
                     invoiceUuid,
                     userDetails.getUuid(),

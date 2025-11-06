@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Data
 @Builder
-public class LawyerInvoiceDto {
+public class InvoiceDto {
     private Long id;
     private UUID uuid;
 

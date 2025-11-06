@@ -1,19 +1,19 @@
 package com.legalpro.accountservice.mapper;
 
-import com.legalpro.accountservice.dto.LawyerInvoiceDto;
-import com.legalpro.accountservice.entity.LawyerInvoice;
+import com.legalpro.accountservice.dto.InvoiceDto;
+import com.legalpro.accountservice.entity.Invoice;
 import org.springframework.stereotype.Component;
 
 @Component
-public class LawyerInvoiceMapper {
+public class InvoiceMapper {
 
     /**
      * Converts ClientInvoice entity to DTO.
      */
-    public LawyerInvoiceDto toDto(LawyerInvoice entity) {
+    public InvoiceDto toDto(Invoice entity) {
         if (entity == null) return null;
 
-        return LawyerInvoiceDto.builder()
+        return InvoiceDto.builder()
                 .id(entity.getId())
                 .uuid(entity.getUuid())
                 .caseUuid(entity.getCaseUuid())
@@ -35,10 +35,10 @@ public class LawyerInvoiceMapper {
      * Converts ClientInvoice DTO to entity.
      * Service layer should handle any case or lawyer lookups.
      */
-    public LawyerInvoice toEntity(LawyerInvoiceDto dto) {
+    public Invoice toEntity(InvoiceDto dto) {
         if (dto == null) return null;
 
-        LawyerInvoice.LawyerInvoiceBuilder builder = LawyerInvoice.builder()
+        Invoice.InvoiceBuilder builder = Invoice.builder()
                 .id(dto.getId())
                 .uuid(dto.getUuid())
                 .caseUuid(dto.getCaseUuid())

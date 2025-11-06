@@ -102,6 +102,14 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     @Override
+    public List<InvoiceDto> getInvoicesForClient(UUID clientUuid) {
+        return invoiceRepository.findByClientUuid(clientUuid)
+                .stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public void deleteInvoice(UUID invoiceUuid, UUID lawyerUuid) {
         Invoice invoice = invoiceRepository.findByUuid(invoiceUuid)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found"));

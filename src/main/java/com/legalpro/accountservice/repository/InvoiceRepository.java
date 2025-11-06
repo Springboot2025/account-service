@@ -17,6 +17,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     // All invoices for a specific lawyer (used in service)
     List<Invoice> findByLawyerUuid(UUID lawyerUuid);
 
+    List<Invoice> findByClientUuid(UUID clientUuid);
+
     // All invoices for a specific case
     List<Invoice> findByCaseUuid(UUID caseUuid);
 

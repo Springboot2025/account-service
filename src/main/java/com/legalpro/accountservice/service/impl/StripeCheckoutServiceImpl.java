@@ -1,7 +1,6 @@
 package com.legalpro.accountservice.service.impl;
 
-import com.legalpro.accountservice.dto.ClientInvoiceDto;
-import com.legalpro.accountservice.service.ClientInvoiceService;
+import com.legalpro.accountservice.service.LawyerInvoiceService;
 import com.legalpro.accountservice.service.StripeCheckoutService;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
@@ -17,7 +16,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class StripeCheckoutServiceImpl implements StripeCheckoutService {
 
-    private final ClientInvoiceService clientInvoiceService;
+    private final LawyerInvoiceService clientInvoiceService;
 
     @Override
     public String createCheckoutSession(UUID invoiceUuid, UUID lawyerUuid, BigDecimal amountRequested) throws Exception {

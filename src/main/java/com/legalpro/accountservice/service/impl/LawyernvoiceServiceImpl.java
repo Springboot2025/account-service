@@ -1,12 +1,12 @@
 package com.legalpro.accountservice.service.impl;
 
-import com.legalpro.accountservice.dto.ClientInvoiceDto;
-import com.legalpro.accountservice.entity.ClientInvoice;
+import com.legalpro.accountservice.dto.LawyerInvoiceDto;
+import com.legalpro.accountservice.entity.LawyerInvoice;
 import com.legalpro.accountservice.entity.LegalCase;
-import com.legalpro.accountservice.mapper.ClientInvoiceMapper;
-import com.legalpro.accountservice.repository.ClientInvoiceRepository;
+import com.legalpro.accountservice.mapper.LawyerInvoiceMapper;
+import com.legalpro.accountservice.repository.LawyerInvoiceRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
-import com.legalpro.accountservice.service.ClientInvoiceService;
+import com.legalpro.accountservice.service.LawyerInvoiceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,14 +23,14 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class ClientInvoiceServiceImpl implements ClientInvoiceService {
+public class LawyernvoiceServiceImpl implements LawyerInvoiceService {
 
-    private final ClientInvoiceRepository invoiceRepository;
+    private final LawyerInvoiceRepository invoiceRepository;
     private final LegalCaseRepository legalCaseRepository;
-    private final ClientInvoiceMapper mapper;
+    private final LawyerInvoiceMapper mapper;
 
     @Override
-    public ClientInvoiceDto createInvoice(ClientInvoiceDto dto, UUID lawyerUuid) {
+    public LawyerInvoiceDto createInvoice(LawyerInvoiceDto dto, UUID lawyerUuid) {
         // pull trust balance from linked case
         LegalCase legalCase = legalCaseRepository.findByUuid(dto.getCaseUuid())
                 .orElseThrow(() -> new IllegalArgumentException("Case not found"));
@@ -43,7 +43,7 @@ public class ClientInvoiceServiceImpl implements ClientInvoiceService {
                 ? legalCase.getAvailableTrustFunds()
                 : BigDecimal.ZERO;
 
-        ClientInvoice invoice = ClientInvoice.builder()
+        LawyerInvoice invoice = LawyerInvoice.builder()
                 .uuid(UUID.randomUUID())
                 .caseUuid(dto.getCaseUuid())
                 .lawyerUuid(lawyerUuid)
@@ -61,8 +61,8 @@ public class ClientInvoiceServiceImpl implements ClientInvoiceService {
     }
 
     @Override
-    public ClientInvoiceDto updateInvoice(UUID invoiceUuid, ClientInvoiceDto dto, UUID lawyerUuid) {
-        ClientInvoice invoice = invoiceRepository.findByUuid(invoiceUuid)
+    public LawyerInvoiceDto updateInvoice(UUID invoiceUuid, LawyerInvoiceDto dto, UUID lawyerUuid) {
+        LawyerInvoice invoice = invoiceRepository.findByUuid(invoiceUuid)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found"));
 
         if (!invoice.getLawyerUuid().equals(lawyerUuid)) {
@@ -84,8 +84,8 @@ public class ClientInvoiceServiceImpl implements ClientInvoiceService {
     }
 
     @Override
-    public ClientInvoiceDto getInvoice(UUID invoiceUuid, UUID lawyerUuid) {
-        ClientInvoice invoice = invoiceRepository.findByUuid(invoiceUuid)
+    public LawyerInvoiceDto getInvoice(UUID invoiceUuid, UUID lawyerUuid) {
+        LawyerInvoice invoice = invoiceRepository.findByUuid(invoiceUuid)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found"));
         if (!invoice.getLawyerUuid().equals(lawyerUuid)) {
             throw new SecurityException("Access denied");
@@ -94,7 +94,7 @@ public class ClientInvoiceServiceImpl implements ClientInvoiceService {
     }
 
     @Override
-    public List<ClientInvoiceDto> getInvoicesForLawyer(UUID lawyerUuid) {
+    public List<LawyerInvoiceDto> getInvoicesForLawyer(UUID lawyerUuid) {
         return invoiceRepository.findByLawyerUuid(lawyerUuid)
                 .stream()
                 .map(mapper::toDto)
@@ -103,7 +103,7 @@ public class ClientInvoiceServiceImpl implements ClientInvoiceService {
 
     @Override
     public void deleteInvoice(UUID invoiceUuid, UUID lawyerUuid) {
-        ClientInvoice invoice = invoiceRepository.findByUuid(invoiceUuid)
+        LawyerInvoice invoice = invoiceRepository.findByUuid(invoiceUuid)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found"));
         if (!invoice.getLawyerUuid().equals(lawyerUuid)) {
             throw new SecurityException("You can only delete your own invoices");
@@ -114,7 +114,7 @@ public class ClientInvoiceServiceImpl implements ClientInvoiceService {
     }
 
     @Override
-    public List<ClientInvoiceDto> getInvoicesByStatus(UUID lawyerUuid, String status) {
+    public List<LawyerInvoiceDto> getInvoicesByStatus(UUID lawyerUuid, String status) {
         return invoiceRepository.findByLawyerUuid(lawyerUuid)
                 .stream()
                 .filter(inv -> status.equalsIgnoreCase(inv.getStatus()))
@@ -124,7 +124,7 @@ public class ClientInvoiceServiceImpl implements ClientInvoiceService {
 
     @Override
     public void updateStripeSessionInfo(UUID invoiceUuid, UUID lawyerUuid, String stripeSessionId, String stripePaymentStatus) {
-        ClientInvoice invoice = invoiceRepository.findByUuidAndLawyerUuid(invoiceUuid, lawyerUuid)
+        LawyerInvoice invoice = invoiceRepository.findByUuidAndLawyerUuid(invoiceUuid, lawyerUuid)
                 .orElseThrow(() -> new RuntimeException("Invoice not found for lawyer"));
 
         invoice.setStripeSessionId(stripeSessionId);
@@ -137,7 +137,7 @@ public class ClientInvoiceServiceImpl implements ClientInvoiceService {
     @Override
     public void markInvoicePaid(String invoiceUuid, String stripeSessionId, String stripePaymentStatus, String activity) {
         UUID uuid = UUID.fromString(invoiceUuid);
-        ClientInvoice invoice = invoiceRepository.findByUuid(uuid)
+        LawyerInvoice invoice = invoiceRepository.findByUuid(uuid)
                 .orElseThrow(() -> new RuntimeException("Invoice not found for webhook"));
 
         invoice.setStripeSessionId(stripeSessionId);

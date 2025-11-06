@@ -14,7 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ClientInvoice {
+public class LawyerInvoice {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

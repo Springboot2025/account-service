@@ -26,6 +26,9 @@ public class Invoice {
     @Column(name = "case_uuid", nullable = false)
     private UUID caseUuid;
 
+    @Column(name = "client_uuid", nullable = false)
+    private UUID clientUuid;
+
     @Column(name = "lawyer_uuid", nullable = false)
     private UUID lawyerUuid; // logged-in user's UUID (from Account)
 

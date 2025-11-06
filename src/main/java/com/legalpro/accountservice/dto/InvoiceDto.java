@@ -14,6 +14,7 @@ public class InvoiceDto {
     private UUID uuid;
 
     private UUID caseUuid;
+    private UUID clientUuid;
     private UUID lawyerUuid;
 
     private BigDecimal trustBalance;

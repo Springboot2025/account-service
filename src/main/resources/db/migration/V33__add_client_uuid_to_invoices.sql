@@ -1,0 +1,2 @@
+ALTER TABLE invoices
+ADD COLUMN client_uuid UUID NOT NULL;

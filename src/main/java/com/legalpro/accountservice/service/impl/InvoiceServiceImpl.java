@@ -46,6 +46,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         Invoice invoice = Invoice.builder()
                 .uuid(UUID.randomUUID())
                 .caseUuid(dto.getCaseUuid())
+                .clientUuid(dto.getClientUuid())
                 .lawyerUuid(lawyerUuid)
                 .trustBalance(trustBalance)
                 .amountRequested(dto.getAmountRequested())

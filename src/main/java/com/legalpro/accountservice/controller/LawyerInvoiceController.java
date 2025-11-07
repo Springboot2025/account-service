@@ -94,7 +94,7 @@ public class LawyerInvoiceController {
         return ResponseEntity.ok(ApiResponse.success(200, "Invoice deleted successfully", null));
     }
 
-    @PostMapping("/{invoiceUuid}/checkout-session")
+    /*@PostMapping("/{invoiceUuid}/checkout-session")
     public ResponseEntity<ApiResponse<Map<String, String>>> createStripeSession(
             @PathVariable UUID invoiceUuid,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -115,7 +115,7 @@ public class LawyerInvoiceController {
             return ResponseEntity.status(500)
                     .body(ApiResponse.error(500, "Stripe session creation failed: " + e.getMessage()));
         }
-    }
+    }*/
 
 
 }

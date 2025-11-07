@@ -44,5 +44,29 @@ public class ClientInvoiceController {
         InvoiceDto invoice = invoiceService.getInvoiceClient(invoiceUuid, clientUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Invoice fetched successfully", invoice));
     }
+
+    @PostMapping("/pay")
+    public ResponseEntity<ApiResponse<Map<String, String>>> payInvoice(
+            @RequestBody Map<String, UUID> request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        try {
+            UUID invoiceUuid = request.get("invoiceUuid");
+            UUID clientUuid = userDetails.getUuid();
+
+            String checkoutUrl = stripeCheckoutService.createCheckoutSession(invoiceUuid, clientUuid);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(200, "Checkout session created",
+                            Map.of("checkoutUrl", checkoutUrl))
+            );
+
+        } catch (Exception e) {
+            log.error("❌ Stripe session creation failed", e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error(500, "Stripe session creation failed: " + e.getMessage()));
+        }
+    }
+
 }
 

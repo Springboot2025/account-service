@@ -4,5 +4,6 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public interface StripeCheckoutService {
-    String createCheckoutSession(UUID invoiceUuid, UUID lawyerUuid, BigDecimal amountRequested) throws Exception;
+    String createCheckoutSession(UUID invoiceUuid, UUID clientUuid);
+
 }

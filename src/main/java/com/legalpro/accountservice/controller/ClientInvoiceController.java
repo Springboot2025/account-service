@@ -1,6 +1,7 @@
 package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
+import com.legalpro.accountservice.dto.InvoiceDto;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.InvoiceService;
 import com.legalpro.accountservice.service.StripeCheckoutService;
@@ -11,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -33,6 +35,14 @@ public class ClientInvoiceController {
         );
     }
 
-
+    @GetMapping("/{invoiceUuid}")
+    public ResponseEntity<ApiResponse<InvoiceDto>> getInvoice(
+            @PathVariable UUID invoiceUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID clientUuid = userDetails.getUuid();
+        InvoiceDto invoice = invoiceService.getInvoiceClient(invoiceUuid, clientUuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "Invoice fetched successfully", invoice));
+    }
 }
 

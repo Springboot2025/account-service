@@ -111,6 +111,16 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     @Override
+    public InvoiceDto getInvoiceClient(UUID invoiceUuid, UUID clientUuid) {
+        Invoice invoice = invoiceRepository.findByUuid(invoiceUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Invoice not found"));
+        if (!invoice.getClientUuid().equals(clientUuid)) {
+            throw new SecurityException("Access denied");
+        }
+        return mapper.toDto(invoice);
+    }
+
+    @Override
     public void deleteInvoice(UUID invoiceUuid, UUID lawyerUuid) {
         Invoice invoice = invoiceRepository.findByUuid(invoiceUuid)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found"));

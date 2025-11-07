@@ -24,7 +24,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class LawyerInvoiceController {
 
-    private final InvoiceService clientInvoiceService;
+    private final InvoiceService invoiceService;
     private final StripeCheckoutService stripeCheckoutService;
 
     // --- Create Invoice ---
@@ -34,7 +34,7 @@ public class LawyerInvoiceController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        InvoiceDto created = clientInvoiceService.createInvoice(dto, lawyerUuid);
+        InvoiceDto created = invoiceService.createInvoice(dto, lawyerUuid);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(201, "Invoice created successfully", created));
     }
@@ -47,7 +47,7 @@ public class LawyerInvoiceController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        InvoiceDto updated = clientInvoiceService.updateInvoice(invoiceUuid, dto, lawyerUuid);
+        InvoiceDto updated = invoiceService.updateInvoice(invoiceUuid, dto, lawyerUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Invoice updated successfully", updated));
     }
 
@@ -58,7 +58,7 @@ public class LawyerInvoiceController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        InvoiceDto invoice = clientInvoiceService.getInvoice(invoiceUuid, lawyerUuid);
+        InvoiceDto invoice = invoiceService.getInvoice(invoiceUuid, lawyerUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Invoice fetched successfully", invoice));
     }
 
@@ -68,7 +68,7 @@ public class LawyerInvoiceController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        List<InvoiceDto> invoices = clientInvoiceService.getInvoicesForLawyer(lawyerUuid);
+        List<InvoiceDto> invoices = invoiceService.getInvoicesForLawyer(lawyerUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Invoices fetched successfully", invoices));
     }
 
@@ -79,7 +79,7 @@ public class LawyerInvoiceController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        List<InvoiceDto> invoices = clientInvoiceService.getInvoicesByStatus(lawyerUuid, status);
+        List<InvoiceDto> invoices = invoiceService.getInvoicesByStatus(lawyerUuid, status);
         return ResponseEntity.ok(ApiResponse.success(200, "Invoices filtered by status", invoices));
     }
 
@@ -90,7 +90,7 @@ public class LawyerInvoiceController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
-        clientInvoiceService.deleteInvoice(invoiceUuid, lawyerUuid);
+        invoiceService.deleteInvoice(invoiceUuid, lawyerUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Invoice deleted successfully", null));
     }
 
@@ -100,7 +100,7 @@ public class LawyerInvoiceController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         try {
-            InvoiceDto invoice = clientInvoiceService.getInvoice(invoiceUuid, userDetails.getUuid());
+            InvoiceDto invoice = invoiceService.getInvoice(invoiceUuid, userDetails.getUuid());
             String url = stripeCheckoutService.createCheckoutSession(
                     invoiceUuid,
                     userDetails.getUuid(),

@@ -100,4 +100,34 @@ public class QuoteServiceImpl implements QuoteService {
         log.info("✅ Lawyer {} updated quote {} to status {}", lawyerUuid, quoteUuid, newStatus);
         return quoteMapper.toDto(saved);
     }
+
+    @Override
+    public List<QuoteDto> getQuotesForClient(UUID lawyerUuid, UUID clientUuid) {
+
+        List<Quote> quotes = quoteRepository.findByLawyerUuidAndClientUuid(lawyerUuid, clientUuid);
+
+        return quotes.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+
+    private QuoteDto toDto(Quote q) {
+        QuoteDto dto = new QuoteDto();
+        dto.setId(q.getId());
+        dto.setUuid(q.getUuid());
+        dto.setLawyerUuid(q.getLawyerUuid());
+        dto.setClientUuid(q.getClientUuid());
+        dto.setTitle(q.getTitle());
+        dto.setDescription(q.getDescription());
+        dto.setExpectedAmount(q.getExpectedAmount());
+        dto.setQuotedAmount(q.getQuotedAmount());
+        dto.setCurrency(q.getCurrency());
+        dto.setStatus(q.getStatus());
+        dto.setCreatedAt(q.getCreatedAt());
+        dto.setUpdatedAt(q.getUpdatedAt());
+        dto.setDeletedAt(q.getDeletedAt());
+        return dto;
+    }
+
+
 }

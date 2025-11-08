@@ -42,4 +42,7 @@ public interface QuoteService {
      * Lawyer updates quote status or quoted amount.
      */
     QuoteDto updateQuoteStatus(UUID lawyerUuid, UUID quoteUuid, QuoteStatus newStatus, String remarks, QuoteDto dto);
+
+    List<QuoteDto> getQuotesForClient(UUID lawyerUuid, UUID clientUuid);
+
 }

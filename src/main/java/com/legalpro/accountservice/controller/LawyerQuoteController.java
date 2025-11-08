@@ -78,4 +78,20 @@ public class LawyerQuoteController {
         private String remarks;
         private java.math.BigDecimal quotedAmount;
     }
+
+    // === Get all quotes for a specific client (only for this lawyer) ===
+    @GetMapping("/client/{clientUuid}")
+    public ResponseEntity<ApiResponse<List<QuoteDto>>> getQuotesForClient(
+            @PathVariable UUID clientUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+
+        List<QuoteDto> quotes = quoteService.getQuotesForClient(lawyerUuid, clientUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Client quotes fetched successfully", quotes)
+        );
+    }
+
 }

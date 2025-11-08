@@ -56,7 +56,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> login(
+    public ResponseEntity<ApiResponse<Map<String, String>>> login(
             @Valid @RequestBody LoginRequest loginRequest,
             HttpServletRequest request,
             HttpServletResponse response
@@ -84,12 +84,14 @@ public class AuthController {
             String accessToken = jwtUtil.generateAccessToken(
                     account.getUuid(),
                     userDetails.getUsername(),
-                    userDetails.getAuthorities()
+                    userDetails.getAuthorities(),
+                    isSubscribed
             );
             String refreshToken = jwtUtil.generateRefreshToken(
                     account.getUuid(),
                     userDetails.getUsername(),
-                    userDetails.getAuthorities()
+                    userDetails.getAuthorities(),
+                    isSubscribed
             );
 
             // ✅ Allow local dev without HTTPS
@@ -107,14 +109,13 @@ public class AuthController {
             response.addHeader("Set-Cookie", refreshCookie.toString());
 
             // Send access token, email, and uuid in body
-            ApiResponse<Map<String, Object>> apiResponse = ApiResponse.success(
+            ApiResponse<Map<String, String>> apiResponse = ApiResponse.success(
                     HttpStatus.OK.value(),
                     "Login successful",
                     Map.of(
                             "accessToken", accessToken,
                             "email", account.getEmail(),
-                            "uuid", account.getUuid().toString(),
-                            "subscribed", isSubscribed
+                            "uuid", account.getUuid().toString()
                     )
             );
 
@@ -186,9 +187,11 @@ public class AuthController {
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
 
+        boolean isSubscribed = Boolean.TRUE.equals(claims.get("Subscribed", Boolean.class));
+
         // ✅ Generate new tokens with uuid included
-        String newAccessToken = jwtUtil.generateAccessToken(uuid, username, authorities);
-        String newRefreshToken = jwtUtil.generateRefreshToken(uuid, username, authorities);
+        String newAccessToken = jwtUtil.generateAccessToken(uuid, username, authorities, isSubscribed);
+        String newRefreshToken = jwtUtil.generateRefreshToken(uuid, username, authorities, isSubscribed);
 
         // ✅ Allow local dev without HTTPS
         boolean isLocalhost = "localhost".equalsIgnoreCase(request.getServerName());

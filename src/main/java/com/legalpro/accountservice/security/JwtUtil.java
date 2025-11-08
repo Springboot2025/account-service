@@ -21,17 +21,17 @@ public class JwtUtil {
     private final Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
 
     // --- Generate Access Token ---
-    public String generateAccessToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities) {
-        return generateToken(uuid, username, authorities, accessTokenExpirationMs);
+    public String generateAccessToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed) {
+        return generateToken(uuid, username, authorities, subscribed, accessTokenExpirationMs);
     }
 
     // --- Generate Refresh Token ---
-    public String generateRefreshToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities) {
-        return generateToken(uuid, username, authorities, refreshTokenExpirationMs);
+    public String generateRefreshToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed) {
+        return generateToken(uuid, username, authorities, subscribed, refreshTokenExpirationMs);
     }
 
     // --- Core token generator (now includes uuid) ---
-    private String generateToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, long expirationMs) {
+    private String generateToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed, long expirationMs) {
         Set<String> roles = authorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toSet());
@@ -43,6 +43,7 @@ public class JwtUtil {
                 .setSubject(username)                   // email as subject
                 .claim("uuid", uuid.toString())         // ✅ add uuid claim
                 .claim("roles", roles)
+                .claim("Subscribed", subscribed)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS256)

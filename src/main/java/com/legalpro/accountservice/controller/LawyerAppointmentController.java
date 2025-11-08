@@ -20,6 +20,7 @@ import java.util.UUID;
 @Slf4j
 @RestController
 @RequestMapping("/api/lawyer/appointments")
+@PreAuthorize("hasRole('Lawyer')")
 @RequiredArgsConstructor
 public class LawyerAppointmentController {
 

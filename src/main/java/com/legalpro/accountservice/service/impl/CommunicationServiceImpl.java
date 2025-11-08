@@ -4,9 +4,11 @@ import com.legalpro.accountservice.dto.AppointmentDto;
 import com.legalpro.accountservice.dto.ClientCommunicationSummaryDto;
 import com.legalpro.accountservice.dto.MessageDto;
 import com.legalpro.accountservice.dto.QuoteDto;
+import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Appointment;
 import com.legalpro.accountservice.entity.Message;
 import com.legalpro.accountservice.entity.Quote;
+import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.AppointmentRepository;
 import com.legalpro.accountservice.repository.MessageRepository;
 import com.legalpro.accountservice.repository.QuoteRepository;
@@ -26,21 +28,20 @@ public class CommunicationServiceImpl implements CommunicationService {
     private final MessageRepository messageRepository;
     private final QuoteRepository quoteRepository;
     private final AppointmentRepository appointmentRepository;
+    private final AccountRepository accountRepository;
 
     @Override
     public List<ClientCommunicationSummaryDto> getLawyerCommunications(UUID lawyerUuid, String search) {
 
         log.info("🔍 Fetching communications for lawyer: {}", lawyerUuid);
 
-        // === Step 1: Fetch data for the lawyer ===
         List<Message> messages = messageRepository.findAllByUserUuid(lawyerUuid);
         List<Quote> quotes = quoteRepository.findByLawyerUuid(lawyerUuid);
         List<Appointment> appointments = appointmentRepository.findByLawyerUuid(lawyerUuid);
 
-        // === Step 2: Group data by client UUID ===
         Map<UUID, ClientCommunicationSummaryDto> summaries = new HashMap<>();
 
-        // --- Group Messages ---
+        // Group Messages
         messages.forEach(msg -> {
             UUID clientUuid = msg.getSenderUuid().equals(lawyerUuid)
                     ? msg.getReceiverUuid()
@@ -49,54 +50,126 @@ public class CommunicationServiceImpl implements CommunicationService {
             ClientCommunicationSummaryDto dto = summaries.computeIfAbsent(clientUuid, k -> new ClientCommunicationSummaryDto());
             dto.setClientUuid(clientUuid);
 
-            if (dto.getMessages() == null)
-                dto.setMessages(new ArrayList<>());
-
             dto.getMessages().add(toMessageDto(msg));
         });
 
-        // --- Group Quotes ---
+        // Group Quotes
         quotes.forEach(q -> {
-            UUID clientUuid = q.getClientUuid();
-            ClientCommunicationSummaryDto dto = summaries.computeIfAbsent(clientUuid, k -> new ClientCommunicationSummaryDto());
-            dto.setClientUuid(clientUuid);
-
-            if (dto.getQuotes() == null)
-                dto.setQuotes(new ArrayList<>());
-
+            ClientCommunicationSummaryDto dto = summaries.computeIfAbsent(q.getClientUuid(), k -> new ClientCommunicationSummaryDto());
+            dto.setClientUuid(q.getClientUuid());
             dto.getQuotes().add(toQuoteDto(q));
         });
 
-        // --- Group Appointments ---
+        // Group Appointments
         appointments.forEach(a -> {
-            UUID clientUuid = a.getClientUuid();
-            ClientCommunicationSummaryDto dto = summaries.computeIfAbsent(clientUuid, k -> new ClientCommunicationSummaryDto());
-            dto.setClientUuid(clientUuid);
-
-            if (dto.getAppointments() == null)
-                dto.setAppointments(new ArrayList<>());
-
+            ClientCommunicationSummaryDto dto = summaries.computeIfAbsent(a.getClientUuid(), k -> new ClientCommunicationSummaryDto());
+            dto.setClientUuid(a.getClientUuid());
             dto.getAppointments().add(toAppointmentDto(a));
         });
 
-        // === Step 3: Optional search filter ===
+        // ✅ Hydrate Client & Lawyer details
+        summaries.values().forEach(dto -> {
+            dto.setLawyerUuid(lawyerUuid);
+
+            accountRepository.findByUuid(dto.getClientUuid()).ifPresent(acc -> {
+                dto.setClientName(extractNameFromAccount(acc));
+                dto.setClientEmail(acc.getEmail());
+            });
+
+            accountRepository.findByUuid(lawyerUuid).ifPresent(acc -> {
+                dto.setLawyerName(extractNameFromAccount(acc));
+                dto.setLawyerEmail(acc.getEmail());
+            });
+        });
+
         return summaries.values().stream()
-                .filter(dto ->
-                        search == null ||
-                                (dto.getClientName() != null && dto.getClientName().toLowerCase().contains(search.toLowerCase())) ||
-                                (dto.getClientEmail() != null && dto.getClientEmail().toLowerCase().contains(search.toLowerCase()))
-                )
+                .filter(dto -> search == null ||
+                        (dto.getClientName() != null && dto.getClientName().toLowerCase().contains(search.toLowerCase())) ||
+                        (dto.getClientEmail() != null && dto.getClientEmail().toLowerCase().contains(search.toLowerCase())))
                 .sorted(Comparator.comparing(dto ->
                                 Optional.ofNullable(dto.getMessages())
-                                        .flatMap(list -> list.stream()
-                                                .map(MessageDto::getCreatedAt)
-                                                .max(Comparator.naturalOrder()))
+                                        .flatMap(list -> list.stream().map(MessageDto::getCreatedAt).max(Comparator.naturalOrder()))
                                         .orElse(null),
                         Comparator.nullsLast(Comparator.reverseOrder())))
                 .collect(Collectors.toList());
     }
 
-    // === Helper Mappers ===
+    @Override
+    public List<ClientCommunicationSummaryDto> getClientCommunications(UUID clientUuid, String search) {
+
+        log.info("🔍 Fetching communications for client: {}", clientUuid);
+
+        List<Message> messages = messageRepository.findAllByUserUuid(clientUuid);
+        List<Quote> quotes = quoteRepository.findByClientUuid(clientUuid);
+        List<Appointment> appointments = appointmentRepository.findByClientUuid(clientUuid);
+
+        Map<UUID, ClientCommunicationSummaryDto> summaries = new HashMap<>();
+
+        // Group Messages by Lawyer
+        messages.forEach(msg -> {
+            UUID lawyerUuid = msg.getSenderUuid().equals(clientUuid)
+                    ? msg.getReceiverUuid()
+                    : msg.getSenderUuid();
+
+            ClientCommunicationSummaryDto dto = summaries.computeIfAbsent(lawyerUuid, k -> new ClientCommunicationSummaryDto());
+            dto.setLawyerUuid(lawyerUuid);
+
+            dto.getMessages().add(toMessageDto(msg));
+        });
+
+        // Group Quotes
+        quotes.forEach(q -> {
+            ClientCommunicationSummaryDto dto = summaries.computeIfAbsent(q.getLawyerUuid(), k -> new ClientCommunicationSummaryDto());
+            dto.setLawyerUuid(q.getLawyerUuid());
+            dto.getQuotes().add(toQuoteDto(q));
+        });
+
+        // Group Appointments
+        appointments.forEach(a -> {
+            ClientCommunicationSummaryDto dto = summaries.computeIfAbsent(a.getLawyerUuid(), k -> new ClientCommunicationSummaryDto());
+            dto.setLawyerUuid(a.getLawyerUuid());
+            dto.getAppointments().add(toAppointmentDto(a));
+        });
+
+        // ✅ Hydrate Lawyer & Client details
+        summaries.values().forEach(dto -> {
+            dto.setClientUuid(clientUuid);
+
+            accountRepository.findByUuid(clientUuid).ifPresent(acc -> {
+                dto.setClientName(extractNameFromAccount(acc));
+                dto.setClientEmail(acc.getEmail());
+            });
+
+            accountRepository.findByUuid(dto.getLawyerUuid()).ifPresent(acc -> {
+                dto.setLawyerName(extractNameFromAccount(acc));
+                dto.setLawyerEmail(acc.getEmail());
+            });
+        });
+
+        return summaries.values().stream()
+                .filter(dto -> search == null ||
+                        (dto.getLawyerName() != null && dto.getLawyerName().toLowerCase().contains(search.toLowerCase())) ||
+                        (dto.getLawyerEmail() != null && dto.getLawyerEmail().toLowerCase().contains(search.toLowerCase())))
+                .collect(Collectors.toList());
+    }
+
+
+    // === Helper: Extract Name from personal_details JSON ===
+    private String extractNameFromAccount(Account acc) {
+        if (acc.getPersonalDetails() == null) return null;
+
+        var pd = acc.getPersonalDetails();
+
+        if (pd.hasNonNull("fullName")) return pd.get("fullName").asText();
+        if (pd.hasNonNull("name")) return pd.get("name").asText();
+        if (pd.hasNonNull("firstName") && pd.hasNonNull("lastName")) {
+            return pd.get("firstName").asText() + " " + pd.get("lastName").asText();
+        }
+
+        return null;
+    }
+
+    // === DTO Mappers ===
 
     private MessageDto toMessageDto(Message m) {
         return MessageDto.builder()

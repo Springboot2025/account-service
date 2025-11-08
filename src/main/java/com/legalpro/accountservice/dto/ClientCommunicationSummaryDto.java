@@ -17,6 +17,10 @@ public class ClientCommunicationSummaryDto {
     private String clientName;
     private String clientEmail;
 
+    private UUID lawyerUuid;
+    private String lawyerName;
+    private String lawyerEmail;
+
     // === Nested Data ===
     private List<MessageDto> messages;
     private List<QuoteDto> quotes;

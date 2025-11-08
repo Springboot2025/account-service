@@ -16,4 +16,7 @@ public interface CommunicationService {
      * @return list of summaries per client
      */
     List<ClientCommunicationSummaryDto> getLawyerCommunications(UUID lawyerUuid, String search);
+
+    List<ClientCommunicationSummaryDto> getClientCommunications(UUID clientUuid, String search);
+
 }

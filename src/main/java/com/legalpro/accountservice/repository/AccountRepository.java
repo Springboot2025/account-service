@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpecificationExecutor<Account> {
@@ -26,4 +27,6 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
 
     // Get all accounts that are companies
     List<Account> findByIsCompanyTrue();
+
+    List<Account> findByUuidIn(Set<UUID> uuids);
 }

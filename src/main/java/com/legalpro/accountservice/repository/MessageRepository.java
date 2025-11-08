@@ -59,4 +59,20 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 """)
     List<Message> findAllByUserUuid(@Param("userUuid") UUID userUuid);
 
+    // ✅ Lawyer - fetch all messages where lawyer is sender or receiver
+    @Query("""
+        SELECT m FROM Message m
+        WHERE m.senderUuid = :userUuid OR m.receiverUuid = :userUuid
+        ORDER BY m.createdAt DESC
+    """)
+    List<Message> findAllByUserUuidOrdered(UUID userUuid);
+
+    // ✅ Client - fetch all messages where client is sender or receiver
+    @Query("""
+        SELECT m FROM Message m
+        WHERE m.senderUuid = :clientUuid OR m.receiverUuid = :clientUuid
+        ORDER BY m.createdAt DESC
+    """)
+    List<Message> findAllByClientUuidOrdered(UUID clientUuid);
+
 }

@@ -60,4 +60,20 @@ public class ClientQuoteController {
         QuoteDto quote = quoteService.getQuoteForClient(clientUuid, quoteUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Quote details fetched successfully", quote));
     }
+
+    // === Get all quotes between this client and a specific lawyer ===
+    @GetMapping("/lawyer/{lawyerUuid}")
+    public ResponseEntity<ApiResponse<List<QuoteDto>>> getQuotesForLawyer(
+            @PathVariable UUID lawyerUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID clientUuid = userDetails.getUuid();
+
+        List<QuoteDto> quotes = quoteService.getQuotesForClientAndLawyer(clientUuid, lawyerUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Quotes for lawyer fetched successfully", quotes)
+        );
+    }
+
 }

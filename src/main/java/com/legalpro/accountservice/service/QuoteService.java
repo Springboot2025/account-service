@@ -44,5 +44,6 @@ public interface QuoteService {
     QuoteDto updateQuoteStatus(UUID lawyerUuid, UUID quoteUuid, QuoteStatus newStatus, String remarks, QuoteDto dto);
 
     List<QuoteDto> getQuotesForClient(UUID lawyerUuid, UUID clientUuid);
+    List<QuoteDto> getQuotesForClientAndLawyer(UUID clientUuid, UUID lawyerUuid);
 
 }

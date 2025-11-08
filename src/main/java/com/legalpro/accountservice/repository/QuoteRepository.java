@@ -23,5 +23,6 @@ public interface QuoteRepository extends JpaRepository<Quote, Long> {
     List<Quote> findByClientUuidAndStatus(UUID clientUuid, QuoteStatus status);
 
     List<Quote> findByLawyerUuidAndClientUuid(UUID lawyerUuid, UUID clientUuid);
+    List<Quote> findByClientUuidAndLawyerUuid(UUID clientUuid, UUID lawyerUuid);
 
 }

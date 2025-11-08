@@ -129,5 +129,14 @@ public class QuoteServiceImpl implements QuoteService {
         return dto;
     }
 
+    @Override
+    public List<QuoteDto> getQuotesForClientAndLawyer(UUID clientUuid, UUID lawyerUuid) {
+
+        List<Quote> quotes = quoteRepository.findByClientUuidAndLawyerUuid(clientUuid, lawyerUuid);
+
+        return quotes.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
 
 }

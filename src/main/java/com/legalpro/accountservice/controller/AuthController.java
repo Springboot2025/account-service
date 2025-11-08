@@ -4,6 +4,7 @@ import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.LoginRequest;
 import com.legalpro.accountservice.dto.RegisterRequest;
 import com.legalpro.accountservice.entity.Account;
+import com.legalpro.accountservice.repository.SubscriberRepository;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.security.JwtUtil;
 import com.legalpro.accountservice.security.TokenBlacklistService;
@@ -36,18 +37,22 @@ public class AuthController {
     private final AccountService accountService;
     private final EmailService emailService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final SubscriberRepository subscriberRepository;
+
 
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtUtil jwtUtil,
                           AccountService accountService,
                           EmailService emailService,
-                          TokenBlacklistService tokenBlacklistService) {
+                          TokenBlacklistService tokenBlacklistService,
+                          SubscriberRepository subscriberRepository) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.accountService = accountService;
         this.emailService = emailService;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.subscriberRepository = subscriberRepository;
     }
 
     @PostMapping("/login")
@@ -69,6 +74,11 @@ public class AuthController {
             // Fetch UUID from Account
             Account account = accountService.findByEmail(userDetails.getUsername())
                     .orElseThrow(() -> new RuntimeException("User not found"));
+
+            boolean isSubscribed = subscriberRepository.findByEmail(account.getEmail())
+                    .map(sub -> Boolean.TRUE.equals(sub.getIsActive()))
+                    .orElse(false);
+
 
             // ✅ Generate tokens with uuid included
             String accessToken = jwtUtil.generateAccessToken(
@@ -103,7 +113,8 @@ public class AuthController {
                     Map.of(
                             "accessToken", accessToken,
                             "email", account.getEmail(),
-                            "uuid", account.getUuid().toString()
+                            "uuid", account.getUuid().toString(),
+                            "subscribed", isSubscribed ? "true" : "false"
                     )
             );
 

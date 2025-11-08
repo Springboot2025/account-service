@@ -20,7 +20,6 @@ import java.util.UUID;
 @Slf4j
 @RestController
 @RequestMapping("/api/lawyer/appointments")
-@PreAuthorize("hasRole('Lawyer')")
 @RequiredArgsConstructor
 public class LawyerAppointmentController {
 
@@ -92,4 +91,20 @@ public class LawyerAppointmentController {
         private java.time.LocalTime appointmentTime;
         private Integer durationMinutes;
     }
+
+    // === Get all appointments between this lawyer and a specific client ===
+    @GetMapping("/client/{clientUuid}")
+    public ResponseEntity<ApiResponse<List<AppointmentDto>>> getAppointmentsForClient(
+            @PathVariable UUID clientUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+
+        List<AppointmentDto> appointments = appointmentService.getAppointmentsForLawyerAndClient(lawyerUuid, clientUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Appointments for this client fetched successfully", appointments)
+        );
+    }
+
 }

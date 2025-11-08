@@ -126,4 +126,45 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         return appointmentMapper.toDto(saved);
     }
+
+    @Override
+    public List<AppointmentDto> getAppointmentsForLawyerAndClient(UUID lawyerUuid, UUID clientUuid) {
+
+        List<Appointment> appointments = appointmentRepository.findByLawyerUuidAndClientUuid(lawyerUuid, clientUuid);
+
+        return appointments.stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Override
+    public List<AppointmentDto> getAppointmentsForClientAndLawyer(UUID clientUuid, UUID lawyerUuid) {
+
+        List<Appointment> appointments = appointmentRepository.findByClientUuidAndLawyerUuid(clientUuid, lawyerUuid);
+
+        return appointments.stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    private AppointmentDto toDto(Appointment a) {
+        return AppointmentDto.builder()
+                .id(a.getId())
+                .uuid(a.getUuid())
+                .clientUuid(a.getClientUuid())
+                .lawyerUuid(a.getLawyerUuid())
+                .appointmentDate(a.getAppointmentDate())
+                .appointmentTime(a.getAppointmentTime())
+                .durationMinutes(a.getDurationMinutes())
+                .meetingType(a.getMeetingType())
+                .notes(a.getNotes())
+                .status(a.getStatus())
+                .rescheduledFrom(a.getRescheduledFrom())
+                .createdAt(a.getCreatedAt())
+                .updatedAt(a.getUpdatedAt())
+                .deletedAt(a.getDeletedAt())
+                .build();
+    }
+
+
 }

@@ -47,4 +47,9 @@ public interface AppointmentService {
      * Lawyer reschedules an existing appointment.
      */
     AppointmentDto rescheduleAppointment(UUID lawyerUuid, UUID appointmentUuid, AppointmentDto newScheduleDto);
+
+    List<AppointmentDto> getAppointmentsForLawyerAndClient(UUID lawyerUuid, UUID clientUuid);
+
+    List<AppointmentDto> getAppointmentsForClientAndLawyer(UUID clientUuid, UUID lawyerUuid);
+
 }

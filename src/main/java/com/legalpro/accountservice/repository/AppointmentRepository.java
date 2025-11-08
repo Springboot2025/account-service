@@ -21,4 +21,9 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> findByClientUuidAndStatus(UUID clientUuid, AppointmentStatus status);
 
     List<Appointment> findByLawyerUuidAndStatus(UUID lawyerUuid, AppointmentStatus status);
+
+    List<Appointment> findByLawyerUuidAndClientUuid(UUID lawyerUuid, UUID clientUuid);
+
+    List<Appointment> findByClientUuidAndLawyerUuid(UUID clientUuid, UUID lawyerUuid);
+
 }

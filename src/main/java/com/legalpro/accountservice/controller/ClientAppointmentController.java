@@ -56,4 +56,20 @@ public class ClientAppointmentController {
         AppointmentDto appointment = appointmentService.getAppointmentForClient(clientUuid, appointmentUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Appointment details fetched successfully", appointment));
     }
+
+    // === Get all appointments between this client and a specific lawyer ===
+    @GetMapping("/lawyer/{lawyerUuid}")
+    public ResponseEntity<ApiResponse<List<AppointmentDto>>> getAppointmentsForLawyer(
+            @PathVariable UUID lawyerUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID clientUuid = userDetails.getUuid();
+
+        List<AppointmentDto> appointments = appointmentService.getAppointmentsForClientAndLawyer(clientUuid, lawyerUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Appointments for this lawyer fetched successfully", appointments)
+        );
+    }
+
 }

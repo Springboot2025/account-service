@@ -56,7 +56,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Map<String, String>>> login(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> login(
             @Valid @RequestBody LoginRequest loginRequest,
             HttpServletRequest request,
             HttpServletResponse response
@@ -107,14 +107,14 @@ public class AuthController {
             response.addHeader("Set-Cookie", refreshCookie.toString());
 
             // Send access token, email, and uuid in body
-            ApiResponse<Map<String, String>> apiResponse = ApiResponse.success(
+            ApiResponse<Map<String, Object>> apiResponse = ApiResponse.success(
                     HttpStatus.OK.value(),
                     "Login successful",
                     Map.of(
                             "accessToken", accessToken,
                             "email", account.getEmail(),
                             "uuid", account.getUuid().toString(),
-                            "subscribed", isSubscribed ? "true" : "false"
+                            "subscribed", isSubscribed
                     )
             );
 

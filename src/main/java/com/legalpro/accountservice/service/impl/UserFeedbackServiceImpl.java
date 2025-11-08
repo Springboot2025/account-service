@@ -31,6 +31,8 @@ public class UserFeedbackServiceImpl implements UserFeedbackService {
                 .userUuid(userUuid)
                 .rating(dto.getRating())
                 .review(dto.getReview())
+                .name(dto.getName())
+                .profession(dto.getProfession())
                 .isPublic(dto.getIsPublic() != null ? dto.getIsPublic() : true)
                 .build();
 

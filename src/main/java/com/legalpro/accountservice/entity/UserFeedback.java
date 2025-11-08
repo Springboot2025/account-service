@@ -33,6 +33,12 @@ public class UserFeedback {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String review;
 
+    @Column(name = "name", nullable = false)
+    private String name;
+
+    @Column(name = "profession")
+    private String profession;
+
     @Builder.Default
     @Column(name = "is_public", nullable = false)
     private Boolean isPublic = true;

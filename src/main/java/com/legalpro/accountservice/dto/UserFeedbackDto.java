@@ -15,6 +15,8 @@ public class UserFeedbackDto {
     private UUID userUuid;
     private Double rating;
     private String review;
+    private String name;
+    private String profession;
     private Boolean isPublic;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

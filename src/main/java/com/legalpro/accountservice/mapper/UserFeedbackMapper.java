@@ -16,6 +16,8 @@ public class UserFeedbackMapper {
                 .userUuid(entity.getUserUuid())
                 .rating(entity.getRating())
                 .review(entity.getReview())
+                .name(entity.getName())
+                .profession(entity.getProfession())
                 .isPublic(entity.getIsPublic())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

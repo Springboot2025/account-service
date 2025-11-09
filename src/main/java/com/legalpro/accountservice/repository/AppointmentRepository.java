@@ -29,10 +29,11 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
     @Query(value = """
         SELECT DISTINCT ON (a.client_uuid) a.*
-        FROM appointments a
+        FROM client_appointments a
         WHERE a.lawyer_uuid = :lawyerUuid
         ORDER BY a.client_uuid, a.created_at DESC
     """, nativeQuery = true)
     List<Appointment> findLatestAppointmentsForLawyer(UUID lawyerUuid);
+
 
 }

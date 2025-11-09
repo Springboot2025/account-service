@@ -2,6 +2,7 @@ package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.ApiResponse;
+import com.legalpro.accountservice.service.ContactRequestService;
 import com.legalpro.accountservice.service.SuperAdminService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,15 +13,16 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/superadmin")
-@PreAuthorize("hasRole('SuperAdmin')")
+@PreAuthorize("hasRole('Admin')")
 public class SuperAdminController {
 
     private final SuperAdminService superAdminService;
+    private final ContactRequestService contactRequestService;
 
-    public SuperAdminController(SuperAdminService superAdminService) {
+    public SuperAdminController(SuperAdminService superAdminService, ContactRequestService contactRequestService) {
         this.superAdminService = superAdminService;
+        this.contactRequestService = contactRequestService;
     }
-
     @GetMapping("/hello")
     public ResponseEntity<ApiResponse<String>> helloSuperAdmin() {
         ApiResponse<String> response = ApiResponse.success(
@@ -53,4 +55,28 @@ public class SuperAdminController {
             );
         }
     }
+
+    @GetMapping("/contacts")
+    public ResponseEntity<ApiResponse<?>> listContactRequests() {
+        try {
+            var list = contactRequestService.listAll();
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(
+                            HttpStatus.OK.value(),
+                            "Fetched contact requests successfully",
+                            list
+                    )
+            );
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error(
+                            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                            "Something went wrong while fetching contact requests"
+                    )
+            );
+        }
+    }
+
 }

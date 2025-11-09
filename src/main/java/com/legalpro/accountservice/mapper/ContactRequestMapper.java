@@ -20,4 +20,18 @@ public class ContactRequestMapper {
                 .subscribeNewsletter(dto.isSubscribeNewsletter())
                 .build();
     }
+
+    public ContactRequestDto toDto(ContactRequest entity) {
+        if (entity == null) return null;
+
+        return ContactRequestDto.builder()
+                .firstName(entity.getFirstName())
+                .lastName(entity.getLastName())
+                .email(entity.getEmail())
+                .phone(entity.getPhone())
+                .firmName(entity.getFirmName())
+                .message(entity.getMessage())
+                .subscribeNewsletter(entity.isSubscribeNewsletter())
+                .build();
+    }
 }

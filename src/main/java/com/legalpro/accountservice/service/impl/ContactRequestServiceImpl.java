@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -23,4 +25,13 @@ public class ContactRequestServiceImpl implements ContactRequestService {
         contactRequestRepository.save(entity);
         log.info("📩 Contact Request submitted from: {} <{}>", dto.getFirstName(), dto.getEmail());
     }
+
+    @Override
+    public List<ContactRequestDto> listAll() {
+        return contactRequestRepository.findAll()
+                .stream()
+                .map(contactRequestMapper::toDto)
+                .toList();
+    }
+
 }

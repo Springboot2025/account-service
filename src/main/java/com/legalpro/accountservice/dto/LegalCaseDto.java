@@ -20,6 +20,7 @@ public class LegalCaseDto {
     private LocalDate courtDate;
     private BigDecimal availableTrustFunds;
     private String followUp;
+    private String name;
 
     private Long statusId;
     private String statusName;

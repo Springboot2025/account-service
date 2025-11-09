@@ -57,4 +57,6 @@ public class LegalCase {
     @JoinColumn(name = "case_type_id")
     private CaseType caseType;
 
+    @Column(name = "name", length = 255)
+    private String name;
 }

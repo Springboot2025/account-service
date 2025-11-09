@@ -15,6 +15,7 @@ public class LegalCaseMapper {
                 .id(entity.getId())
                 .uuid(entity.getUuid())
                 .caseNumber(entity.getCaseNumber())
+                .name(entity.getName())
                 .listing(entity.getListing())
                 .courtDate(entity.getCourtDate())
                 .availableTrustFunds(entity.getAvailableTrustFunds())
@@ -42,6 +43,7 @@ public class LegalCaseMapper {
                 .id(dto.getId())
                 .uuid(dto.getUuid()) // null is fine; JPA will ignore if id present/absent as needed
                 .caseNumber(dto.getCaseNumber())
+                .name(dto.getName())
                 .listing(dto.getListing())
                 .courtDate(dto.getCourtDate())
                 .availableTrustFunds(dto.getAvailableTrustFunds())

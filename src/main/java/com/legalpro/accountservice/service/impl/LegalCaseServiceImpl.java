@@ -5,6 +5,7 @@ import com.legalpro.accountservice.entity.CaseStatus;
 import com.legalpro.accountservice.entity.CaseType;
 import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.mapper.LegalCaseMapper;
+import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.CaseStatusRepository;
 import com.legalpro.accountservice.repository.CaseTypeRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
@@ -30,6 +31,7 @@ public class LegalCaseServiceImpl implements LegalCaseService {
     private final CaseStatusRepository caseStatusRepository;
     private final CaseTypeRepository caseTypeRepository;
     private final LegalCaseMapper mapper;
+    private final AccountRepository accountRepository;
 
     // --- Helper: Generate case number ---
     private String generateCaseNumber(UUID lawyerUuid) {
@@ -51,9 +53,12 @@ public class LegalCaseServiceImpl implements LegalCaseService {
                     .orElseThrow(() -> new IllegalArgumentException("Invalid caseTypeId"));
         }
 
+        String clientName = resolveClientName(dto.getClientUuid());
+
         LegalCase legalCase = LegalCase.builder()
                 .uuid(UUID.randomUUID())
                 .caseNumber(caseNumber)
+                .name(clientName)
                 .lawyerUuid(lawyerUuid)
                 .clientUuid(dto.getClientUuid())
                 .status(status)
@@ -179,4 +184,17 @@ public class LegalCaseServiceImpl implements LegalCaseService {
                 .collect(Collectors.toList());
     }
 
+    private String resolveClientName(UUID clientUuid) {
+        return accountRepository.findByUuid(clientUuid)
+                .map(acc -> {
+                    var pd = acc.getPersonalDetails();
+                    if (pd == null) return null;
+                    if (pd.hasNonNull("fullName")) return pd.get("fullName").asText();
+                    if (pd.hasNonNull("name")) return pd.get("name").asText();
+                    if (pd.hasNonNull("firstName") && pd.hasNonNull("lastName"))
+                        return pd.get("firstName").asText() + " " + pd.get("lastName").asText();
+                    return null;
+                })
+                .orElse(null);
+    }
 }

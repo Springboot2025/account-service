@@ -1,0 +1,2 @@
+ALTER TABLE cases
+ADD COLUMN name VARCHAR(255);

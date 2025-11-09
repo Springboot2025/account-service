@@ -4,12 +4,14 @@ import com.legalpro.accountservice.entity.DeviceToken;
 import com.legalpro.accountservice.repository.DeviceTokenRepository;
 import com.legalpro.accountservice.service.DeviceTokenService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -43,5 +45,11 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
     public void deleteByDeviceId(String deviceId) {
         deviceTokenRepository.findByDeviceId(deviceId)
                 .ifPresent(deviceTokenRepository::delete);
+    }
+
+    @Override
+    public void removeAllTokens(UUID userUuid) {
+        deviceTokenRepository.deleteAllByUserUuid(userUuid);
+        log.info("🟢 Removed all device tokens for user {}", userUuid);
     }
 }

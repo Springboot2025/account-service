@@ -10,6 +10,7 @@ import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.security.JwtUtil;
 import com.legalpro.accountservice.security.TokenBlacklistService;
 import com.legalpro.accountservice.service.AccountService;
+import com.legalpro.accountservice.service.DeviceTokenService;
 import com.legalpro.accountservice.service.EmailService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -22,6 +23,7 @@ import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import com.legalpro.accountservice.entity.Company;
@@ -41,6 +43,7 @@ public class AuthController {
     private final TokenBlacklistService tokenBlacklistService;
     private final SubscriberRepository subscriberRepository;
     private final CompanyRepository companyRepository;
+    private final DeviceTokenService deviceTokenService;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtUtil jwtUtil,
@@ -48,7 +51,8 @@ public class AuthController {
                           EmailService emailService,
                           TokenBlacklistService tokenBlacklistService,
                           SubscriberRepository subscriberRepository,
-                          CompanyRepository companyRepository) {
+                          CompanyRepository companyRepository,
+                          DeviceTokenService deviceTokenService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.accountService = accountService;
@@ -56,6 +60,7 @@ public class AuthController {
         this.tokenBlacklistService = tokenBlacklistService;
         this.subscriberRepository = subscriberRepository;
         this.companyRepository = companyRepository;
+        this.deviceTokenService = deviceTokenService;
     }
 
     @PostMapping("/login")
@@ -323,7 +328,8 @@ public class AuthController {
     public ResponseEntity<ApiResponse<String>> logout(
             @RequestHeader(name = "Authorization", required = false) String authHeader,
             HttpServletRequest request,
-            HttpServletResponse response
+            HttpServletResponse response,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         // Clear refresh token cookie for client
         boolean isLocalhost = "localhost".equalsIgnoreCase(request.getServerName());
@@ -349,8 +355,8 @@ public class AuthController {
             }
         }
 
+        deviceTokenService.removeAllTokens(userDetails.getUuid());
+
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Logout successful", null));
     }
-
-
 }

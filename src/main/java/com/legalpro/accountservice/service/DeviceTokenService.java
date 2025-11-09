@@ -21,4 +21,6 @@ public interface DeviceTokenService {
      * Delete a specific device registration.
      */
     void deleteByDeviceId(String deviceId);
+
+    void removeAllTokens(UUID userUuid);
 }

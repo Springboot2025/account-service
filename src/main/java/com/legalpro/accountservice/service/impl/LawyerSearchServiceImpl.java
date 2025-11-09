@@ -59,7 +59,13 @@ public class LawyerSearchServiceImpl implements LawyerSearchService {
             Map<UUID, BigDecimal> avgMap = avgList.stream()
                     .collect(Collectors.toMap(
                             row -> (UUID) row[0],
-                            row -> (BigDecimal) row[1]
+                            row -> {
+                                Object val = row[1];
+                                if (val instanceof BigDecimal bd) return bd;
+                                if (val instanceof Double d) return BigDecimal.valueOf(d);
+                                if (val instanceof Number n) return BigDecimal.valueOf(n.doubleValue());
+                                return BigDecimal.ZERO;
+                            }
                     ));
 
             // ✅ Attach to DTO

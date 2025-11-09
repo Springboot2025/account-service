@@ -19,7 +19,7 @@ public class Message {
     private Long id; // matches BIGSERIAL
 
     @Builder.Default
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, updatable = false)
     private UUID uuid = UUID.randomUUID();
 
     @Column(name = "sender_uuid", nullable = false)

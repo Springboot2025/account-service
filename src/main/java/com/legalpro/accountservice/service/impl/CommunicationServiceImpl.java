@@ -34,9 +34,9 @@ public class CommunicationServiceImpl implements CommunicationService {
     @Override
     public List<ClientCommunicationSummaryDto> getLawyerCommunications(UUID lawyerUuid, String search) {
 
-        List<Message> messages = messageRepository.findAllByUserUuidOrdered(lawyerUuid);
-        List<Quote> quotes = quoteRepository.findByLawyerUuid(lawyerUuid);
-        List<Appointment> appointments = appointmentRepository.findByLawyerUuid(lawyerUuid);
+        List<Message> messages = messageRepository.findLatestMessagesForLawyer(lawyerUuid);
+        List<Quote> quotes = quoteRepository.findLatestQuotesForLawyer(lawyerUuid);
+        List<Appointment> appointments = appointmentRepository.findLatestAppointmentsForLawyer(lawyerUuid);
 
         Map<UUID, ClientCommunicationSummaryDto> summaries = new HashMap<>();
 

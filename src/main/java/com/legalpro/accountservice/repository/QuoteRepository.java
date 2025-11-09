@@ -3,6 +3,7 @@ package com.legalpro.accountservice.repository;
 import com.legalpro.accountservice.entity.Quote;
 import com.legalpro.accountservice.enums.QuoteStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -24,5 +25,13 @@ public interface QuoteRepository extends JpaRepository<Quote, Long> {
 
     List<Quote> findByLawyerUuidAndClientUuid(UUID lawyerUuid, UUID clientUuid);
     List<Quote> findByClientUuidAndLawyerUuid(UUID clientUuid, UUID lawyerUuid);
+
+    @Query(value = """
+        SELECT DISTINCT ON (q.client_uuid) q.*
+        FROM quotes q
+        WHERE q.lawyer_uuid = :lawyerUuid
+        ORDER BY q.client_uuid, q.created_at DESC
+    """, nativeQuery = true)
+    List<Quote> findLatestQuotesForLawyer(UUID lawyerUuid);
 
 }

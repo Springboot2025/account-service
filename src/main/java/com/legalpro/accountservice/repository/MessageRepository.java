@@ -75,4 +75,22 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     """)
     List<Message> findAllByClientUuidOrdered(UUID clientUuid);
 
+    @Query(value = """
+        SELECT DISTINCT ON (
+            CASE 
+                WHEN sender_uuid = :lawyerUuid THEN receiver_uuid
+                ELSE sender_uuid
+            END
+        ) m.*
+        FROM messages m
+        WHERE m.sender_uuid = :lawyerUuid OR m.receiver_uuid = :lawyerUuid
+        ORDER BY 
+            CASE 
+                WHEN m.sender_uuid = :lawyerUuid THEN m.receiver_uuid
+                ELSE m.sender_uuid
+            END,
+            m.created_at DESC
+    """, nativeQuery = true)
+    List<Message> findLatestMessagesForLawyer(UUID lawyerUuid);
+
 }

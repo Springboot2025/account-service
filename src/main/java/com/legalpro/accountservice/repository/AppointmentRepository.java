@@ -3,6 +3,7 @@ package com.legalpro.accountservice.repository;
 import com.legalpro.accountservice.entity.Appointment;
 import com.legalpro.accountservice.enums.AppointmentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -25,5 +26,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> findByLawyerUuidAndClientUuid(UUID lawyerUuid, UUID clientUuid);
 
     List<Appointment> findByClientUuidAndLawyerUuid(UUID clientUuid, UUID lawyerUuid);
+
+    @Query(value = """
+        SELECT DISTINCT ON (a.client_uuid) a.*
+        FROM appointments a
+        WHERE a.lawyer_uuid = :lawyerUuid
+        ORDER BY a.client_uuid, a.created_at DESC
+    """, nativeQuery = true)
+    List<Appointment> findLatestAppointmentsForLawyer(UUID lawyerUuid);
 
 }

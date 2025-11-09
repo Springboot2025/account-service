@@ -60,6 +60,7 @@ public class MessageServiceImpl implements MessageService {
     private MessageDto toDto(Message message) {
         return MessageDto.builder()
                 .id(message.getId())
+                .uuid(message.getUuid())
                 .senderUuid(message.getSenderUuid())
                 .receiverUuid(message.getReceiverUuid())
                 .content(message.getContent())

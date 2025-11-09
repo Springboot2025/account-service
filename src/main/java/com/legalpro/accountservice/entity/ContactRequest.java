@@ -42,6 +42,6 @@ public class ContactRequest {
     @Column(name = "subscribe_newsletter")
     private boolean subscribeNewsletter;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    private LocalDateTime createdAt;
 }

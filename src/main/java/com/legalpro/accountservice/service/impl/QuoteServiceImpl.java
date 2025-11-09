@@ -1,15 +1,19 @@
 package com.legalpro.accountservice.service.impl;
 
+import com.legalpro.accountservice.dto.LegalCaseDto;
 import com.legalpro.accountservice.dto.QuoteDto;
 import com.legalpro.accountservice.entity.Quote;
 import com.legalpro.accountservice.enums.QuoteStatus;
 import com.legalpro.accountservice.mapper.QuoteMapper;
 import com.legalpro.accountservice.repository.QuoteRepository;
+import com.legalpro.accountservice.service.LegalCaseService;
 import com.legalpro.accountservice.service.QuoteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -22,6 +26,7 @@ public class QuoteServiceImpl implements QuoteService {
 
     private final QuoteRepository quoteRepository;
     private final QuoteMapper quoteMapper;
+    private final LegalCaseService legalCaseService;
 
     // === Client Actions ===
 
@@ -80,7 +85,9 @@ public class QuoteServiceImpl implements QuoteService {
     }
 
     @Override
+    @Transactional
     public QuoteDto updateQuoteStatus(UUID lawyerUuid, UUID quoteUuid, QuoteStatus newStatus, String remarks, QuoteDto dto) {
+
         Quote entity = quoteRepository.findByUuid(quoteUuid)
                 .orElseThrow(() -> new RuntimeException("Quote not found"));
 
@@ -88,16 +95,36 @@ public class QuoteServiceImpl implements QuoteService {
             throw new RuntimeException("Access denied: not your quote");
         }
 
-        // update details (e.g. lawyer providing quoted amount or status change)
+        // update quoted amount if provided
         if (dto.getQuotedAmount() != null) {
             entity.setQuotedAmount(dto.getQuotedAmount());
         }
+
         entity.setStatus(newStatus);
         entity.setUpdatedAt(LocalDateTime.now());
         entity.setDescription(remarks != null ? remarks : entity.getDescription());
 
         Quote saved = quoteRepository.save(entity);
         log.info("✅ Lawyer {} updated quote {} to status {}", lawyerUuid, quoteUuid, newStatus);
+
+        // ✅ If quote is accepted → create a Legal Case automatically
+        if (newStatus == QuoteStatus.ACCEPTED) {
+
+            LegalCaseDto caseDto = LegalCaseDto.builder()
+                    .clientUuid(entity.getClientUuid())
+                    .listing(entity.getTitle()) // case name from quote title
+                    .availableTrustFunds(entity.getQuotedAmount()) // ✅ proposed fee becomes initial trust fund
+                    .followUp(entity.getDescription()) // ✅ carry over remarks/quote description
+                    .caseTypeId(2L)
+                    .build();
+
+            LegalCaseDto createdCase = legalCaseService.createCase(caseDto, lawyerUuid);
+
+            log.info("📁 Case created from accepted quote → CaseNumber={}, Lawyer={}, Client={}",
+                    createdCase.getCaseNumber(), lawyerUuid, entity.getClientUuid());
+        }
+
+
         return quoteMapper.toDto(saved);
     }
 

@@ -79,19 +79,36 @@ public class AuthController {
                     .map(sub -> Boolean.TRUE.equals(sub.getIsActive()))
                     .orElse(false);
 
+            boolean isCompany = account.isCompany();
+            boolean isCompanyMember = !account.isCompany() && account.getCompanyUuid() != null;
+
+            UUID companyUuid = isCompany
+                    ? account.getUuid()
+                    : account.getCompanyUuid();
+
+            String companyName = null;
+            if (isCompany && account.getPersonalDetails() != null && account.getPersonalDetails().has("companyName")) {
+                companyName = account.getPersonalDetails().get("companyName").asText();
+            }
 
             // ✅ Generate tokens with uuid included
             String accessToken = jwtUtil.generateAccessToken(
                     account.getUuid(),
                     userDetails.getUsername(),
                     userDetails.getAuthorities(),
-                    isSubscribed
+                    isSubscribed,
+                    isCompany,
+                    isCompanyMember,
+                    companyName
             );
             String refreshToken = jwtUtil.generateRefreshToken(
                     account.getUuid(),
                     userDetails.getUsername(),
                     userDetails.getAuthorities(),
-                    isSubscribed
+                    isSubscribed,
+                    isCompany,
+                    isCompanyMember,
+                    companyName
             );
 
             // ✅ Allow local dev without HTTPS
@@ -188,10 +205,13 @@ public class AuthController {
                 .collect(Collectors.toList());
 
         boolean isSubscribed = Boolean.TRUE.equals(claims.get("Subscribed", Boolean.class));
+        boolean isCompany = Boolean.TRUE.equals(claims.get("isCompany", Boolean.class));
+        boolean isCompanyMember = Boolean.TRUE.equals(claims.get("isCompanyMember", Boolean.class));
+        String companyName = claims.get("companyName", String.class);
 
         // ✅ Generate new tokens with uuid included
-        String newAccessToken = jwtUtil.generateAccessToken(uuid, username, authorities, isSubscribed);
-        String newRefreshToken = jwtUtil.generateRefreshToken(uuid, username, authorities, isSubscribed);
+        String newAccessToken = jwtUtil.generateAccessToken(uuid, username, authorities, isSubscribed, isCompany, isCompanyMember, companyName);
+        String newRefreshToken = jwtUtil.generateRefreshToken(uuid, username, authorities, isSubscribed, isCompany, isCompanyMember, companyName);
 
         // ✅ Allow local dev without HTTPS
         boolean isLocalhost = "localhost".equalsIgnoreCase(request.getServerName());

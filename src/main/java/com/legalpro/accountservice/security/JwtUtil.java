@@ -21,17 +21,23 @@ public class JwtUtil {
     private final Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
 
     // --- Generate Access Token ---
-    public String generateAccessToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed) {
-        return generateToken(uuid, username, authorities, subscribed, accessTokenExpirationMs);
+    public String generateAccessToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed, boolean isCompany,
+                                      boolean isCompanyMember,
+                                      String companyName) {
+        return generateToken(uuid, username, authorities, subscribed, isCompany, isCompanyMember, companyName, accessTokenExpirationMs);
     }
 
     // --- Generate Refresh Token ---
-    public String generateRefreshToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed) {
-        return generateToken(uuid, username, authorities, subscribed, refreshTokenExpirationMs);
+    public String generateRefreshToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed, boolean isCompany,
+                                       boolean isCompanyMember,
+                                       String companyName) {
+        return generateToken(uuid, username, authorities, subscribed, isCompany, isCompanyMember, companyName, refreshTokenExpirationMs);
     }
 
     // --- Core token generator (now includes uuid) ---
-    private String generateToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed, long expirationMs) {
+    private String generateToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed, boolean isCompany,
+                                 boolean isCompanyMember,
+                                 String companyName, long expirationMs) {
         Set<String> roles = authorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toSet());
@@ -44,6 +50,9 @@ public class JwtUtil {
                 .claim("uuid", uuid.toString())         // ✅ add uuid claim
                 .claim("roles", roles)
                 .claim("Subscribed", subscribed)
+                .claim("isCompany", isCompany)
+                .claim("isCompanyMember", isCompanyMember)
+                .claim("companyName", companyName)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS256)

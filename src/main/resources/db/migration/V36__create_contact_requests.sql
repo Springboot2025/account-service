@@ -8,5 +8,5 @@ CREATE TABLE contact_requests (
     firm_name VARCHAR(255),
     message TEXT,
     subscribe_newsletter BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

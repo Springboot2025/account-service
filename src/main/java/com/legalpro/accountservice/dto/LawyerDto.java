@@ -1,6 +1,8 @@
 package com.legalpro.accountservice.dto;
 
 import lombok.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
@@ -24,4 +26,5 @@ public class LawyerDto {
     private Map<String, Object> awardsAppreciations;
     private boolean isCompany;
     private UUID companyUuid;
+    private BigDecimal averageRating;
 }

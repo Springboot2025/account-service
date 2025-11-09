@@ -6,12 +6,15 @@ import com.legalpro.accountservice.dto.LawyerSearchRequestDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.mapper.AccountMapper;
 import com.legalpro.accountservice.repository.AccountRepository;
+import com.legalpro.accountservice.repository.LawyerRatingRepository;
 import com.legalpro.accountservice.service.LawyerSearchService;
 import com.legalpro.accountservice.specification.LawyerSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,6 +22,7 @@ import java.util.stream.Collectors;
 public class LawyerSearchServiceImpl implements LawyerSearchService {
 
     private final AccountRepository accountRepository;
+    private final LawyerRatingRepository lawyerRatingRepository; // ✅ ADD THIS
     private final ObjectMapper objectMapper;
 
     @Override
@@ -38,12 +42,32 @@ public class LawyerSearchServiceImpl implements LawyerSearchService {
 
         Page<Account> lawyerPage = accountRepository.findAll(spec, pageable);
 
-        return new PageImpl<>(
-                lawyerPage.stream()
-                        .map(AccountMapper::toLawyerDto)
-                        .collect(Collectors.toList()),
-                pageable,
-                lawyerPage.getTotalElements()
-        );
+        // ✅ Convert Accounts → LawyerDto
+        List<LawyerDto> lawyerDtos = lawyerPage.getContent().stream()
+                .map(AccountMapper::toLawyerDto)
+                .collect(Collectors.toList());
+
+        // ✅ Extract UUIDs for bulk lookup
+        List<UUID> uuids = lawyerDtos.stream()
+                .map(LawyerDto::getUuid)
+                .toList();
+
+        if (!uuids.isEmpty()) {
+            // ✅ Bulk load average ratings
+            List<Object[]> avgList = lawyerRatingRepository.getAverageRatingsForLawyers(uuids);
+
+            Map<UUID, BigDecimal> avgMap = avgList.stream()
+                    .collect(Collectors.toMap(
+                            row -> (UUID) row[0],
+                            row -> (BigDecimal) row[1]
+                    ));
+
+            // ✅ Attach to DTO
+            lawyerDtos.forEach(dto ->
+                    dto.setAverageRating(avgMap.getOrDefault(dto.getUuid(), BigDecimal.ZERO))
+            );
+        }
+
+        return new PageImpl<>(lawyerDtos, pageable, lawyerPage.getTotalElements());
     }
 }

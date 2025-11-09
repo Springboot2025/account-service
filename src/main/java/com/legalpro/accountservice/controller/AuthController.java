@@ -4,6 +4,7 @@ import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.LoginRequest;
 import com.legalpro.accountservice.dto.RegisterRequest;
 import com.legalpro.accountservice.entity.Account;
+import com.legalpro.accountservice.repository.CompanyRepository;
 import com.legalpro.accountservice.repository.SubscriberRepository;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.security.JwtUtil;
@@ -23,6 +24,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import com.legalpro.accountservice.entity.Company;
 
 import jakarta.validation.Valid;
 import java.util.*;
@@ -38,21 +40,22 @@ public class AuthController {
     private final EmailService emailService;
     private final TokenBlacklistService tokenBlacklistService;
     private final SubscriberRepository subscriberRepository;
-
-
+    private final CompanyRepository companyRepository;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtUtil jwtUtil,
                           AccountService accountService,
                           EmailService emailService,
                           TokenBlacklistService tokenBlacklistService,
-                          SubscriberRepository subscriberRepository) {
+                          SubscriberRepository subscriberRepository,
+                          CompanyRepository companyRepository) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.accountService = accountService;
         this.emailService = emailService;
         this.tokenBlacklistService = tokenBlacklistService;
         this.subscriberRepository = subscriberRepository;
+        this.companyRepository = companyRepository;
     }
 
     @PostMapping("/login")
@@ -82,14 +85,15 @@ public class AuthController {
             boolean isCompany = account.isCompany();
             boolean isCompanyMember = !account.isCompany() && account.getCompanyUuid() != null;
 
-            UUID companyUuid = isCompany
-                    ? account.getUuid()
-                    : account.getCompanyUuid();
-
             String companyName = null;
-            if (isCompany && account.getPersonalDetails() != null && account.getPersonalDetails().has("companyName")) {
-                companyName = account.getPersonalDetails().get("companyName").asText();
+            if (isCompany) {
+                // ✅ company account → name from companies table
+                companyName = companyRepository.findByUuid(account.getCompanyUuid())
+                        .map(Company::getName)
+                        .orElse(null);
             }
+// else if member: leave companyName as null (as per your requirement)
+
 
             // ✅ Generate tokens with uuid included
             String accessToken = jwtUtil.generateAccessToken(

@@ -3,6 +3,7 @@ package com.legalpro.accountservice.controller;
 import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.service.ContactRequestService;
+import com.legalpro.accountservice.service.DisputeService;
 import com.legalpro.accountservice.service.SuperAdminService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,10 +19,13 @@ public class SuperAdminController {
 
     private final SuperAdminService superAdminService;
     private final ContactRequestService contactRequestService;
+    private final DisputeService disputeService;
 
-    public SuperAdminController(SuperAdminService superAdminService, ContactRequestService contactRequestService) {
+    public SuperAdminController(SuperAdminService superAdminService, ContactRequestService contactRequestService,
+                                DisputeService disputeService) {
         this.superAdminService = superAdminService;
         this.contactRequestService = contactRequestService;
+        this.disputeService = disputeService;
     }
     @GetMapping("/hello")
     public ResponseEntity<ApiResponse<String>> helloSuperAdmin() {
@@ -77,6 +81,20 @@ public class SuperAdminController {
                     )
             );
         }
+    }
+
+    @GetMapping("/disputes")
+    public ResponseEntity<ApiResponse<?>> getAllDisputes() {
+
+        var list = disputeService.getAllWithDocumentCount();
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Fetched disputes successfully",
+                        list
+                )
+        );
     }
 
 }

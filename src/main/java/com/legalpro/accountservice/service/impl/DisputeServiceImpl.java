@@ -3,6 +3,7 @@ package com.legalpro.accountservice.service.impl;
 import com.legalpro.accountservice.dto.DisputeDto;
 import com.legalpro.accountservice.entity.Dispute;
 import com.legalpro.accountservice.mapper.DisputeMapper;
+import com.legalpro.accountservice.repository.DisputeDocumentRepository;
 import com.legalpro.accountservice.repository.DisputeRepository;
 import com.legalpro.accountservice.service.DisputeService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class DisputeServiceImpl implements DisputeService {
 
     private final DisputeRepository disputeRepository;
     private final DisputeMapper disputeMapper;
+    private final DisputeDocumentRepository disputeDocumentRepository;
 
     @Override
     public DisputeDto submitDispute(DisputeDto dto) {

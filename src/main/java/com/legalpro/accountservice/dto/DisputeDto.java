@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,7 +26,10 @@ public class DisputeDto {
     private String role;
 
     private String reference;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate incidentDate;
+    
     private String typeOfDispute;
     private String description;
     private String resolutionRequested;

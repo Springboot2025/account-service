@@ -4,6 +4,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,9 +22,11 @@ public class LawyerDto {
     private Map<String, Object> addressDetails;
     private Map<String, Object> preferences;
     private Map<String, Object> professionalDetails;
-    private Map<String, Object> educationQualification;
-    private Map<String, Object> experienceStaff;
-    private Map<String, Object> awardsAppreciations;
+
+    private List<Map<String, Object>> educationQualification;
+    private List<Map<String, Object>> experienceStaff;
+    private List<Map<String, Object>> awardsAppreciations;
+
     private boolean isCompany;
     private UUID companyUuid;
     private BigDecimal averageRating;

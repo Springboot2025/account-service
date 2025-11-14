@@ -27,4 +27,6 @@ public class RegisterRequest {
     private UUID companyUuid;
     private String companyName;
     private String companyDescription;
+    private String inviteToken;
+
 }

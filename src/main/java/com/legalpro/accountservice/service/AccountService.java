@@ -8,9 +8,11 @@ import com.legalpro.accountservice.dto.LawyerDto;
 import com.legalpro.accountservice.dto.RegisterRequest;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Company;
+import com.legalpro.accountservice.entity.CompanyInvite;
 import com.legalpro.accountservice.entity.Role;
 import com.legalpro.accountservice.mapper.AccountMapper;
 import com.legalpro.accountservice.repository.AccountRepository;
+import com.legalpro.accountservice.repository.CompanyInviteRepository;
 import com.legalpro.accountservice.repository.CompanyRepository;
 import com.legalpro.accountservice.repository.RoleRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,22 +35,48 @@ public class AccountService {
     private final EmailService emailService;
     private final ObjectMapper objectMapper;
     private final CompanyRepository companyRepository;
+    private final CompanyInviteRepository companyInviteRepository;
 
     public AccountService(AccountRepository accountRepository,
                           RoleRepository roleRepository,
                           PasswordEncoder passwordEncoder,
                           EmailService emailService,
                           ObjectMapper objectMapper,
-                          CompanyRepository companyRepository) {
+                          CompanyRepository companyRepository,
+                          CompanyInviteRepository companyInviteRepository) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.objectMapper = objectMapper;
         this.companyRepository = companyRepository;
+        this.companyInviteRepository = companyInviteRepository;
     }
 
     public Account register(RegisterRequest request) {
+
+        // --- 🔹 0. If inviteToken exists → validate invite ---
+        CompanyInvite invite = null;
+
+        if (request.getInviteToken() != null && !request.getInviteToken().isBlank()) {
+
+            invite = companyInviteRepository.findByToken(request.getInviteToken())
+                    .orElseThrow(() -> new RuntimeException("Invalid invite token"));
+
+            if (invite.isUsed()) {
+                throw new RuntimeException("Invite link has already been used");
+            }
+
+            if (invite.getExpiresAt().isBefore(LocalDateTime.now())) {
+                throw new RuntimeException("Invite link has expired");
+            }
+
+            // Email must match the invited email
+            if (!invite.getEmail().equalsIgnoreCase(request.getEmail())) {
+                throw new RuntimeException("Email does not match the invitation");
+            }
+        }
+
         // 1. Validate if email already exists
         if (accountRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already registered");
@@ -109,14 +137,21 @@ public class AccountService {
             }
         }
 
-        // --- Handle company info for lawyers ---
+        // --- 5. Handle company logic for lawyers ---
         if ("Lawyer".equalsIgnoreCase(accountType)) {
-            if (request.isCompany()) {
+
+            if (invite != null) {
+                // 🔹 Registration using invite
+                accountBuilder
+                        .isCompany(false)
+                        .companyUuid(invite.getCompanyUuid());
+            }
+            else if (request.isCompany()) {
                 if (request.getCompanyName() == null || request.getCompanyName().isBlank()) {
                     throw new RuntimeException("Company name is required for company lawyers");
                 }
 
-                // 1️⃣ Create new company record
+                // Create new company
                 Company company = Company.builder()
                         .uuid(UUID.randomUUID())
                         .name(request.getCompanyName())
@@ -127,25 +162,26 @@ public class AccountService {
 
                 companyRepository.save(company);
 
-                // 2️⃣ Assign to lawyer
                 accountBuilder
                         .isCompany(true)
-                        .uuid(UUID.randomUUID()) // lawyer’s own UUID
+                        .uuid(UUID.randomUUID())
                         .companyUuid(company.getUuid());
             }
             else if (request.getCompanyUuid() != null) {
-                // Member lawyer → belongs to an existing company
+                // Manual company assignment
                 accountBuilder
                         .isCompany(false)
                         .companyUuid(request.getCompanyUuid());
-            } else {
-                // Independent lawyer → solo practitioner
+            }
+            else {
+                // Independent lawyer
                 accountBuilder
                         .isCompany(false)
                         .companyUuid(null);
             }
+
         } else {
-            // For non-lawyers (clients, etc.)
+            // Non-lawyers
             accountBuilder
                     .isCompany(false)
                     .companyUuid(null);
@@ -154,19 +190,27 @@ public class AccountService {
         Account account = accountBuilder.build();
         accountRepository.save(account);
 
-        // 5. Send verification email
-        String verificationUrl = "https://lawproject-nu.vercel.app/set-password?token="
-                + account.getVerificationToken();
+        // --- 6. Mark invite as used ---
+        if (invite != null) {
+            invite.setUsed(true);
+            invite.setUsedAt(LocalDateTime.now());
+            companyInviteRepository.save(invite);
+        }
 
-        String bodyHtml = "<p>Hello " + account.getEmail() + ",</p>"
-                + "<p>Thanks for signing up to Boss Law Online Services. "
-                + "Click the link below to verify your email address.</p>"
-                + "<a href=\"" + verificationUrl + "\">Click here to verify your email address.</a>";
+        // 7. Send verification email
+        String verificationUrl = "https://lawproject-nu.vercel.app/set-password?token=" + account.getVerificationToken();
+
+        String bodyHtml =
+                "<p>Hello " + account.getEmail() + ",</p>"
+                        + "<p>Thanks for signing up to Boss Law Online Services.</p>"
+                        + "<p>Click below to verify your email:</p>"
+                        + "<a href=\"" + verificationUrl + "\">Verify your email</a>";
 
         emailService.sendEmail(account.getEmail(), "Boss Law Verification", bodyHtml);
 
         return account;
     }
+
 
     // --- NEW METHODS FOR CLIENT PATCH ---
     public Optional<Account> findByUuid(UUID uuid) {

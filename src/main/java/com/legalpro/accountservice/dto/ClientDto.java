@@ -18,4 +18,5 @@ public class ClientDto {
     private Map<String, Object> addressDetails;
     private Map<String, Object> preferences;
     private Map<String, Object> emergencyContact;
+    private String profilePictureUrl;
 }

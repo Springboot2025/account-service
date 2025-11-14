@@ -95,6 +95,9 @@ public class Account {
     @Column(name = "awards_appreciations", columnDefinition = "jsonb", nullable = true)
     private JsonNode awardsAppreciations;
 
+    @Column(name = "profile_picture_url", columnDefinition = "TEXT")
+    private String profilePictureUrl;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "account_roles",

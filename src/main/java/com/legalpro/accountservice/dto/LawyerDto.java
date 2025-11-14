@@ -30,4 +30,5 @@ public class LawyerDto {
     private boolean isCompany;
     private UUID companyUuid;
     private BigDecimal averageRating;
+    private String profilePictureUrl;
 }

@@ -24,6 +24,7 @@ public class AccountMapper {
                 .addressDetails(toMap(account.getAddressDetails()))
                 .preferences(toMap(account.getPreferences()))
                 .emergencyContact(toMap(account.getEmergencyContact()))
+                .profilePictureUrl(account.getProfilePictureUrl())
                 .build();
     }
 
@@ -43,7 +44,7 @@ public class AccountMapper {
                 .educationQualification(toList(account.getEducationQualification()))
                 .experienceStaff(toList(account.getExperienceStaff()))
                 .awardsAppreciations(toList(account.getAwardsAppreciations()))
-
+                .profilePictureUrl(account.getProfilePictureUrl())
                 .isCompany(account.isCompany())
                 .companyUuid(account.getCompanyUuid())
                 .build();

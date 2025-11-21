@@ -14,4 +14,5 @@ public interface CourtSupportMaterialRepository extends JpaRepository<CourtSuppo
     Optional<CourtSupportMaterial> findByIdAndDeletedAtIsNull(Long id);
 
     boolean existsByClientUuidAndFileName(UUID clientUuid, String fileName);
+    List<CourtSupportMaterial> findByClientUuidAndDeletedAtIsNull(UUID clientUuid);
 }

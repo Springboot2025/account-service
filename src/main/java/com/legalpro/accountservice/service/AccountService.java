@@ -2,19 +2,13 @@ package com.legalpro.accountservice.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.legalpro.accountservice.dto.AccountDto;
-import com.legalpro.accountservice.dto.ClientDto;
-import com.legalpro.accountservice.dto.LawyerDto;
-import com.legalpro.accountservice.dto.RegisterRequest;
+import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Company;
 import com.legalpro.accountservice.entity.CompanyInvite;
 import com.legalpro.accountservice.entity.Role;
 import com.legalpro.accountservice.mapper.AccountMapper;
-import com.legalpro.accountservice.repository.AccountRepository;
-import com.legalpro.accountservice.repository.CompanyInviteRepository;
-import com.legalpro.accountservice.repository.CompanyRepository;
-import com.legalpro.accountservice.repository.RoleRepository;
+import com.legalpro.accountservice.repository.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +30,9 @@ public class AccountService {
     private final ObjectMapper objectMapper;
     private final CompanyRepository companyRepository;
     private final CompanyInviteRepository companyInviteRepository;
+    private final ClientAnswerRepository clientAnswerRepository;
+    private final CourtSupportMaterialRepository courtSupportMaterialRepository;
+    private final ClientDocumentRepository clientDocumentRepository;
 
     public AccountService(AccountRepository accountRepository,
                           RoleRepository roleRepository,
@@ -43,7 +40,10 @@ public class AccountService {
                           EmailService emailService,
                           ObjectMapper objectMapper,
                           CompanyRepository companyRepository,
-                          CompanyInviteRepository companyInviteRepository) {
+                          CompanyInviteRepository companyInviteRepository,
+                          ClientAnswerRepository clientAnswerRepository,
+                          CourtSupportMaterialRepository courtSupportMaterialRepository,
+                          ClientDocumentRepository clientDocumentRepository) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
@@ -51,6 +51,9 @@ public class AccountService {
         this.objectMapper = objectMapper;
         this.companyRepository = companyRepository;
         this.companyInviteRepository = companyInviteRepository;
+        this.clientAnswerRepository = clientAnswerRepository;
+        this.courtSupportMaterialRepository = courtSupportMaterialRepository;
+        this.clientDocumentRepository = clientDocumentRepository;
     }
 
     public Account register(RegisterRequest request) {
@@ -405,4 +408,76 @@ public class AccountService {
                 .map(AccountMapper::toLawyerDto)
                 .collect(Collectors.toList());
     }
+
+    public ClientFullResponseDto getClientFullDetails(UUID clientUuid) {
+
+        // 1️⃣ Get profile (Account → ClientDto)
+        Account account = accountRepository.findByUuid(clientUuid)
+                .orElseThrow(() -> new RuntimeException("Client not found"));
+
+        ClientDto profileDto = AccountMapper.toClientDto(account);
+
+
+        // 2️⃣ Get all question sets (Core, Offence, or any future type)
+        List<ClientAnswerDto> questionDtos = clientAnswerRepository
+                .findAllByClientUuidAndDeletedAtIsNull(clientUuid)   // ✅ correct method
+                .stream()
+                .map(answer -> ClientAnswerDto.builder()
+                        .id(answer.getId())
+                        .clientUuid(answer.getClientUuid())
+                        .questionType(answer.getQuestionType())
+                        .answers(answer.getAnswers())
+                        .createdAt(answer.getCreatedAt())
+                        .updatedAt(answer.getUpdatedAt())
+                        .build()
+                )
+                .toList();
+
+
+
+        // 3️⃣ Get court support materials
+        List<CourtSupportMaterialDto> courtMaterialDtos = courtSupportMaterialRepository
+                .findByClientUuidAndDeletedAtIsNull(clientUuid)
+                .stream()
+                .map(item -> CourtSupportMaterialDto.builder()
+                        .id(item.getId())
+                        .clientUuid(item.getClientUuid())
+                        .fileName(item.getFileName())
+                        .fileType(item.getFileType())
+                        .fileUrl(item.getFileUrl())
+                        .description(item.getDescription())
+                        .createdAt(item.getCreatedAt())
+                        .updatedAt(item.getUpdatedAt())
+                        .build()
+                )
+                .toList();
+
+
+        // 4️⃣ Get uploaded documents
+        List<ClientDocumentDto> documentDtos = clientDocumentRepository
+                .findByClientUuidAndDeletedAtIsNull(clientUuid)
+                .stream()
+                .map(doc -> ClientDocumentDto.builder()
+                        .id(doc.getId())
+                        .clientUuid(doc.getClientUuid())
+                        .lawyerUuid(doc.getLawyerUuid())
+                        .fileName(doc.getFileName())
+                        .fileType(doc.getFileType())
+                        .fileUrl(doc.getFileUrl())
+                        .createdAt(doc.getCreatedAt())
+                        .updatedAt(doc.getUpdatedAt())
+                        .build()
+                )
+                .toList();
+
+
+        // 5️⃣ Stitch everything into final response DTO
+        return ClientFullResponseDto.builder()
+                .profileData(profileDto)
+                .questions(questionDtos)
+                .courtSupportingMaterial(courtMaterialDtos)
+                .documents(documentDtos)
+                .build();
+    }
+
 }

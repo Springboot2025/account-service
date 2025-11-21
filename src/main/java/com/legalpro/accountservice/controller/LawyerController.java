@@ -1,9 +1,11 @@
 package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
+import com.legalpro.accountservice.dto.ClientFullResponseDto;
 import com.legalpro.accountservice.dto.LawyerDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.mapper.AccountMapper;
+import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.AccountService;
 import org.springframework.http.HttpStatus;
@@ -21,9 +23,11 @@ import java.util.UUID;
 public class LawyerController {
 
     private final AccountService accountService;
+    private final LegalCaseRepository legalCaseRepository;
 
-    public LawyerController(AccountService accountService) {
+    public LawyerController(AccountService accountService, LegalCaseRepository legalCaseRepository) {
         this.accountService = accountService;
+        this.legalCaseRepository = legalCaseRepository;
     }
 
     @GetMapping("/hello")
@@ -88,4 +92,30 @@ public class LawyerController {
                 ApiResponse.success(200, "Company members fetched successfully", members)
         );
     }
+
+    @GetMapping("/clients/{clientUuid}")
+    public ResponseEntity<ApiResponse<ClientFullResponseDto>> getClientFullDetails(
+            @PathVariable UUID clientUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+
+        boolean hasCase = legalCaseRepository.existsByClientUuidAndLawyerUuid(clientUuid, lawyerUuid);
+
+        if (!hasCase) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(
+                            HttpStatus.FORBIDDEN.value(),
+                            "You are not assigned to this client. Access denied."
+                    ));
+        }
+
+        ClientFullResponseDto dto = accountService.getClientFullDetails(clientUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Client fetched successfully", dto)
+        );
+    }
+
+
 }

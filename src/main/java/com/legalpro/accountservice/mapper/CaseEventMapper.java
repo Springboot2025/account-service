@@ -4,6 +4,8 @@ import com.legalpro.accountservice.dto.CaseEventDto;
 import com.legalpro.accountservice.entity.CaseEvent;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Component
 public class CaseEventMapper {
 
@@ -30,7 +32,7 @@ public class CaseEventMapper {
 
         return CaseEvent.builder()
                 .id(dto.getId())
-                .uuid(dto.getUuid())
+                .uuid(UUID.randomUUID())
                 .caseUuid(dto.getCaseUuid())
                 .eventDate(dto.getDate())
                 .eventType(dto.getType())

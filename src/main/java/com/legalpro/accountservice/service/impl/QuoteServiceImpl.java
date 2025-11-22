@@ -106,25 +106,7 @@ public class QuoteServiceImpl implements QuoteService {
 
         Quote saved = quoteRepository.save(entity);
         log.info("✅ Lawyer {} updated quote {} to status {}", lawyerUuid, quoteUuid, newStatus);
-
-        // ✅ If quote is accepted → create a Legal Case automatically
-        if (newStatus == QuoteStatus.ACCEPTED) {
-
-            LegalCaseDto caseDto = LegalCaseDto.builder()
-                    .clientUuid(entity.getClientUuid())
-                    .listing(entity.getTitle()) // case name from quote title
-                    .availableTrustFunds(entity.getQuotedAmount()) // ✅ proposed fee becomes initial trust fund
-                    .followUp(entity.getDescription()) // ✅ carry over remarks/quote description
-                    .caseTypeId(2L)
-                    .build();
-
-            LegalCaseDto createdCase = legalCaseService.createCase(caseDto, lawyerUuid);
-
-            log.info("📁 Case created from accepted quote → CaseNumber={}, Lawyer={}, Client={}",
-                    createdCase.getCaseNumber(), lawyerUuid, entity.getClientUuid());
-        }
-
-
+        
         return quoteMapper.toDto(saved);
     }
 

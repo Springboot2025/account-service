@@ -98,4 +98,25 @@ public class ClientLegalCaseController {
         return ResponseEntity.ok(ApiResponse.success(200, "Cases fetched successfully", cases));
     }
 
+    // --- Update Case (Client Side) ---
+    @PatchMapping("/{caseUuid}")
+    public ResponseEntity<ApiResponse<LegalCaseDto>> updateCaseForClient(
+            @PathVariable UUID caseUuid,
+            @RequestBody LegalCaseDto dto,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID clientUuid = userDetails.getUuid();
+
+        try {
+            LegalCaseDto updated = legalCaseService.updateCaseForClient(caseUuid, dto, clientUuid);
+            return ResponseEntity.ok(ApiResponse.success(200, "Case updated successfully", updated));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), e.getMessage()));
+        }
+    }
+
 }

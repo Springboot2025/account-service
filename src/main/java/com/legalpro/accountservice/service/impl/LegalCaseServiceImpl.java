@@ -309,4 +309,32 @@ public class LegalCaseServiceImpl implements LegalCaseService {
                 })
                 .orElse(null);
     }
+
+    @Override
+    public LegalCaseDto updateCaseForClient(UUID caseUuid, LegalCaseDto dto, UUID clientUuid) {
+        LegalCase existing = legalCaseRepository.findByUuid(caseUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Case not found"));
+
+        if (!existing.getClientUuid().equals(clientUuid)) {
+            throw new SecurityException("You can only update your own cases");
+        }
+
+        // client can only update limited fields
+        if (dto.getListing() != null) existing.setListing(dto.getListing());
+        if (dto.getCourtDate() != null) existing.setCourtDate(dto.getCourtDate());
+        if (dto.getFollowUp() != null) existing.setFollowUp(dto.getFollowUp());
+        if (dto.getAvailableTrustFunds() != null) existing.setAvailableTrustFunds(dto.getAvailableTrustFunds());
+
+        if (dto.getCaseTypeId() != null) {
+            CaseType caseType = caseTypeRepository.findById(dto.getCaseTypeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid caseTypeId"));
+            existing.setCaseType(caseType);
+        }
+
+        existing.setUpdatedAt(LocalDateTime.now());
+        legalCaseRepository.save(existing);
+
+        return mapper.toDto(existing);
+    }
+
 }

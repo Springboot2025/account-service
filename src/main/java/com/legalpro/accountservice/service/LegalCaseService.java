@@ -30,4 +30,6 @@ public interface LegalCaseService {
     List<LegalCaseDto> getCasesByStatusForClient(UUID clientUuid, String statusName);
     Map<String, Object> getCaseSummaryForClient(UUID clientUuid);
     List<LegalCaseDto> getCasesByTypeForClient(UUID clientUuid, String typeName);
+    LegalCaseDto updateCaseForClient(UUID caseUuid, LegalCaseDto dto, UUID clientUuid);
+
 }

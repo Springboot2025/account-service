@@ -24,4 +24,10 @@ public interface LegalCaseService {
 
     List<LegalCaseDto> getCasesByType(UUID lawyerUuid, String typeName);
 
+    LegalCaseDto createCaseForClient(LegalCaseDto dto, UUID clientUuid);
+    List<LegalCaseDto> getCasesForClient(UUID clientUuid);
+    LegalCaseDto getCaseForClient(UUID caseUuid, UUID clientUuid);
+    List<LegalCaseDto> getCasesByStatusForClient(UUID clientUuid, String statusName);
+    Map<String, Object> getCaseSummaryForClient(UUID clientUuid);
+    List<LegalCaseDto> getCasesByTypeForClient(UUID clientUuid, String typeName);
 }

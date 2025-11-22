@@ -235,11 +235,12 @@ public class LegalCaseServiceImpl implements LegalCaseService {
 
     @Override
     public List<LegalCaseDto> getCasesForClient(UUID clientUuid) {
-        return legalCaseRepository.findAllByLawyerUuidAndClientUuid(null, clientUuid)
+        return legalCaseRepository.findAllByClientUuid(clientUuid)
                 .stream()
                 .map(mapper::toDto)
                 .collect(Collectors.toList());
     }
+
 
     @Override
     public LegalCaseDto getCaseForClient(UUID caseUuid, UUID clientUuid) {

@@ -56,4 +56,7 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     """)
     List<LegalCase> findAllByLawyerUuidWithStatus(UUID lawyerUuid);
     boolean existsByClientUuidAndLawyerUuid(UUID clientUuid, UUID lawyerUuid);
+
+    List<LegalCase> findAllByClientUuid(UUID clientUuid);
+
 }

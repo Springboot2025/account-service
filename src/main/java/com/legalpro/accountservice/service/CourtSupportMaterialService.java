@@ -30,6 +30,7 @@ public class CourtSupportMaterialService {
     @Transactional
     public List<CourtSupportMaterial> uploadMaterials(
             UUID clientUuid,
+            UUID caseUuid,
             List<Map<String, Object>> descriptions,
             List<MultipartFile> files
     ) throws IOException {
@@ -57,6 +58,7 @@ public class CourtSupportMaterialService {
             // Save metadata in DB
             CourtSupportMaterial material = CourtSupportMaterial.builder()
                     .clientUuid(clientUuid)
+                    .caseUuid(caseUuid)
                     .fileName(file.getOriginalFilename())
                     .fileType(file.getContentType())
                     .fileUrl("gs://" + bucketName + "/" + objectName)
@@ -101,7 +103,7 @@ public class CourtSupportMaterialService {
 
     // --- Upload a single file with description ---
     @Transactional
-    public CourtSupportMaterial uploadMaterial(UUID clientUuid, Map<String, Object> description, MultipartFile file) throws IOException {
+    public CourtSupportMaterial uploadMaterial(UUID clientUuid, UUID caseUuid, Map<String, Object> description, MultipartFile file) throws IOException {
 
         // Optional: check if client already has file with same name
         if (repository.existsByClientUuidAndFileName(clientUuid, file.getOriginalFilename())) {
@@ -120,6 +122,7 @@ public class CourtSupportMaterialService {
         // Save metadata in DB
         CourtSupportMaterial material = CourtSupportMaterial.builder()
                 .clientUuid(clientUuid)
+                .caseUuid(caseUuid)
                 .fileName(file.getOriginalFilename())
                 .fileType(file.getContentType())
                 .fileUrl("gs://" + bucketName + "/" + objectName)

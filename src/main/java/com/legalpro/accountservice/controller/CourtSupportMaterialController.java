@@ -33,6 +33,7 @@ public class CourtSupportMaterialController {
     @PostMapping("/support-materials")
     public ResponseEntity<ApiResponse<CourtSupportMaterial>> uploadMaterial(
             @RequestParam("clientUuid") UUID clientUuid,
+            @RequestParam(value = "caseUuid", required = false) UUID caseUuid,
             @RequestParam("description") String description, // single JSON string
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -47,7 +48,7 @@ public class CourtSupportMaterialController {
         // Convert JSON string to Map
         Map<String, Object> parsedDescription = objectMapper.readValue(description, new TypeReference<>() {});
 
-        CourtSupportMaterial saved = service.uploadMaterial(clientUuid, parsedDescription, file);
+        CourtSupportMaterial saved = service.uploadMaterial(clientUuid, caseUuid, parsedDescription, file);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), "Material uploaded successfully", saved));

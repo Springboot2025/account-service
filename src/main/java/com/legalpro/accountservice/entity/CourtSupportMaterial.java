@@ -40,6 +40,9 @@ public class CourtSupportMaterial {
     @Column(name = "description", columnDefinition = "jsonb")
     private Map<String, Object> description;
 
+    @Column(name = "case_uuid")
+    private UUID caseUuid;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -17,6 +17,7 @@ public class CourtSupportMaterialDto {
     private String fileName;
     private String fileType;
     private String fileUrl;
+    private UUID caseUuid;
     private Map<String, Object> description;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

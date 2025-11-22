@@ -12,6 +12,7 @@ public class CourtSupportMaterialMapper {
                 .fileName(e.getFileName())
                 .fileType(e.getFileType())
                 .fileUrl(e.getFileUrl())
+                .caseUuid(e.getCaseUuid())
                 .description(e.getDescription())
                 .createdAt(e.getCreatedAt())
                 .updatedAt(e.getUpdatedAt())

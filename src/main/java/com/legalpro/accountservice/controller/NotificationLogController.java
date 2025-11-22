@@ -2,6 +2,7 @@ package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.NotificationLogDto;
+import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.NotificationLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -68,4 +69,41 @@ public class NotificationLogController {
                 "OK"
         ));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<String>> deleteOne(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        notificationLogService.deleteOne(id, userDetails.getUuid());
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Notification deleted successfully",
+                "OK"
+        ));
+    }
+
+    @DeleteMapping("/user/{userUuid}")
+    public ResponseEntity<ApiResponse<String>> deleteAll(
+            @PathVariable UUID userUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        if (!userUuid.equals(userDetails.getUuid())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(
+                            HttpStatus.FORBIDDEN.value(),
+                            "You can only delete your own notifications"
+                    ));
+        }
+
+        notificationLogService.deleteAll(userUuid);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "All notifications deleted successfully",
+                "OK"
+        ));
+    }
+
 }

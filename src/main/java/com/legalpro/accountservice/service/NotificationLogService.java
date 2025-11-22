@@ -10,4 +10,6 @@ public interface NotificationLogService {
     void markAsRead(Long id);
     void markAllAsRead(UUID userUuid);
 
+    void deleteOne(Long id, UUID requesterUuid);
+    void deleteAll(UUID userUuid);
 }

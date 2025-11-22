@@ -103,4 +103,18 @@ public class NotificationLogServiceImpl implements NotificationLogService {
         }
     }
 
+    @Override
+    public void deleteOne(Long id, UUID requesterUuid) {
+
+        if (!repository.existsByIdAndUserUuid(id, requesterUuid)) {
+            throw new SecurityException("You can only delete your own notifications");
+        }
+
+        repository.softDeleteById(id);
+    }
+
+    @Override
+    public void deleteAll(UUID userUuid) {
+        repository.softDeleteByUser(userUuid);
+    }
 }

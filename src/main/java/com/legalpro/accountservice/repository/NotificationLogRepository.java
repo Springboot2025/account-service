@@ -25,4 +25,12 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
 
     boolean existsByIdAndUserUuid(Long id, UUID userUuid);
 
+    @Modifying
+    @Query("DELETE FROM NotificationLog n WHERE n.id = :id AND n.userUuid = :userUuid")
+    void deleteByIdAndUserUuid(@Param("id") Long id, @Param("userUuid") UUID userUuid);
+
+    @Modifying
+    @Query("DELETE FROM NotificationLog n WHERE n.userUuid = :userUuid")
+    void deleteAllByUserUuid(@Param("userUuid") UUID userUuid);
+
 }

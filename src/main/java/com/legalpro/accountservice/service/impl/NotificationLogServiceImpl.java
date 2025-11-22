@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -104,17 +105,20 @@ public class NotificationLogServiceImpl implements NotificationLogService {
     }
 
     @Override
+    @Transactional
     public void deleteOne(Long id, UUID requesterUuid) {
 
         if (!repository.existsByIdAndUserUuid(id, requesterUuid)) {
             throw new SecurityException("You can only delete your own notifications");
         }
 
-        repository.softDeleteById(id);
+        repository.deleteByIdAndUserUuid(id, requesterUuid);
     }
 
     @Override
+    @Transactional
     public void deleteAll(UUID userUuid) {
-        repository.softDeleteByUser(userUuid);
+        repository.deleteAllByUserUuid(userUuid);
     }
+
 }

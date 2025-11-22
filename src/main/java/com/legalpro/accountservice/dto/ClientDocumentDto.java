@@ -15,6 +15,7 @@ public class ClientDocumentDto {
     private String fileName;
     private String fileType;
     private String fileUrl;
+    private UUID caseUuid;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

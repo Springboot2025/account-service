@@ -51,6 +51,9 @@ public class ClientDocument {
     @Column(name = "document_type", nullable = false, length = 100)
     private String documentType; // ✅ new field
 
+    @Column(name = "case_uuid", nullable = true)
+    private UUID caseUuid;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

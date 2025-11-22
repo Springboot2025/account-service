@@ -31,7 +31,7 @@ public class ClientDocumentService {
 
     // --- Upload document with type ---
     @Transactional
-    public List<ClientDocument> uploadDocuments(UUID clientUuid, UUID lawyerUuid, List<String> documentTypes, List<MultipartFile> files) throws IOException {
+    public List<ClientDocument> uploadDocuments(UUID clientUuid, UUID lawyerUuid, UUID caseUuid, List<String> documentTypes, List<MultipartFile> files) throws IOException {
         List<ClientDocument> savedDocuments = new ArrayList<>();
 
         for (int i = 0; i < files.size(); i++) {
@@ -56,6 +56,7 @@ public class ClientDocumentService {
             ClientDocument document = ClientDocument.builder()
                     .clientUuid(clientUuid)
                     .lawyerUuid(lawyerUuid)
+                    .caseUuid(caseUuid)
                     .documentType(documentType)
                     .fileName(file.getOriginalFilename())
                     .fileType(file.getContentType())

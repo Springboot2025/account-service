@@ -31,6 +31,7 @@ public class ClientDocumentController {
     public ResponseEntity<ApiResponse<List<ClientDocument>>> uploadDocuments(
             @RequestParam("clientUuid") UUID clientUuid,
             @RequestParam(value = "lawyerUuid", required = false) UUID lawyerUuid,
+            @RequestParam(value = "caseUuid", required = false) UUID caseUuid,
             @RequestParam("documentTypes") List<String> documentTypes,
             @RequestParam("files") List<MultipartFile> files,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -46,7 +47,7 @@ public class ClientDocumentController {
                     .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), "Each file must have a corresponding document type"));
         }
 
-        List<ClientDocument> savedDocuments = clientDocumentService.uploadDocuments(clientUuid, lawyerUuid, documentTypes, files);
+        List<ClientDocument> savedDocuments = clientDocumentService.uploadDocuments(clientUuid, lawyerUuid, caseUuid, documentTypes, files);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), "Documents uploaded successfully", savedDocuments));

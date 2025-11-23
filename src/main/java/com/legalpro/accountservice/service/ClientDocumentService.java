@@ -38,11 +38,6 @@ public class ClientDocumentService {
             String documentType = documentTypes.get(i);
             MultipartFile file = files.get(i);
 
-            // Check if client already has a document of this type
-            if (existsByClientAndDocumentType(clientUuid, documentType)) {
-                throw new RuntimeException("Client already has a document of type: " + documentType);
-            }
-
             // Generate unique filename
             String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
 

@@ -33,6 +33,7 @@ public class AccountService {
     private final ClientAnswerRepository clientAnswerRepository;
     private final CourtSupportMaterialRepository courtSupportMaterialRepository;
     private final ClientDocumentRepository clientDocumentRepository;
+    private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
     public AccountService(AccountRepository accountRepository,
                           RoleRepository roleRepository,
@@ -433,8 +434,6 @@ public class AccountService {
                 )
                 .toList();
 
-
-
         // 3️⃣ Get court support materials
         List<CourtSupportMaterialDto> courtMaterialDtos = courtSupportMaterialRepository
                 .findByClientUuidAndDeletedAtIsNull(clientUuid)
@@ -463,12 +462,14 @@ public class AccountService {
                         .lawyerUuid(doc.getLawyerUuid())
                         .fileName(doc.getFileName())
                         .fileType(doc.getFileType())
-                        .fileUrl(doc.getFileUrl())
+                        .fileUrl(convertGcsUrl(doc.getFileUrl()))
+                        .documentType(doc.getDocumentType())
                         .createdAt(doc.getCreatedAt())
                         .updatedAt(doc.getUpdatedAt())
                         .build()
                 )
                 .toList();
+
 
 
         // 5️⃣ Stitch everything into final response DTO
@@ -478,6 +479,13 @@ public class AccountService {
                 .courtSupportingMaterial(courtMaterialDtos)
                 .documents(documentDtos)
                 .build();
+    }
+
+    private String convertGcsUrl(String fileUrl) {
+        if (fileUrl != null && fileUrl.startsWith("gs://")) {
+            return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
+        }
+        return fileUrl;
     }
 
 }

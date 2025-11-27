@@ -3,9 +3,12 @@ package com.legalpro.accountservice.entity;
 import com.legalpro.accountservice.enums.QuoteStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -46,6 +49,10 @@ public class Quote {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private QuoteStatus status = QuoteStatus.REQUESTED;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "offence_list", columnDefinition = "text[]")
+    private List<String> offenceList;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

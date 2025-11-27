@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -25,6 +26,7 @@ public class QuoteDto {
     private BigDecimal expectedAmount;
     private BigDecimal quotedAmount;
     private String currency;
+    private List<String> offenceList;
 
     private QuoteStatus status;
 

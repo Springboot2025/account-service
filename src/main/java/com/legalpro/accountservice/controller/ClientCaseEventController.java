@@ -28,7 +28,7 @@ public class ClientCaseEventController {
             @PathVariable UUID caseUuid,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
-        List<CaseEventDto> response = caseEventService.getCaseEvents(
+        List<CaseEventDto> response = caseEventService.getClientCaseEvents(
                 caseUuid,
                 user.getUuid()
         );

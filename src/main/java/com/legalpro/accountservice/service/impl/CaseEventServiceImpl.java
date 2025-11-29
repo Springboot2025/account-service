@@ -75,7 +75,7 @@ public class CaseEventServiceImpl implements CaseEventService {
                 .orElseThrow(() -> new RuntimeException("Case not found"));
 
         if (!legalCase.getClientUuid().equals(clientUuid)) {
-            throw new AccessDeniedException("You can only view events for cases you own");
+            throw new AccessDeniedException("You can only view events for cases you own" + clientUuid + ":" + caseUuid);
         }
 
         return caseEventRepository

@@ -66,4 +66,22 @@ public class CaseEventServiceImpl implements CaseEventService {
                 .map(caseEventMapper::toDto)
                 .toList();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CaseEventDto> getClientCaseEvents(UUID caseUuid, UUID clientUuid) {
+
+        LegalCase legalCase = legalCaseRepository.findByUuid(caseUuid)
+                .orElseThrow(() -> new RuntimeException("Case not found"));
+
+        if (!legalCase.getClientUuid().equals(clientUuid)) {
+            throw new AccessDeniedException("You can only view events for cases you own");
+        }
+
+        return caseEventRepository
+                .findAllByCaseUuidAndDeletedAtIsNullOrderByEventDateDesc(caseUuid)
+                .stream()
+                .map(caseEventMapper::toDto)
+                .toList();
+    }
 }

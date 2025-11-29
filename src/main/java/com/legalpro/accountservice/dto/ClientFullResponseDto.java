@@ -17,4 +17,5 @@ public class ClientFullResponseDto {
     private List<CourtSupportMaterialDto> courtSupportingMaterial;
 
     private List<ClientDocumentDto> documents;
+    private List<QuoteDto> quotes;
 }

@@ -110,7 +110,7 @@ public class LawyerController {
                     ));
         }
 
-        ClientFullResponseDto dto = accountService.getClientFullDetails(clientUuid);
+        ClientFullResponseDto dto = accountService.getClientFullDetails(clientUuid, lawyerUuid);
 
         return ResponseEntity.ok(
                 ApiResponse.success(200, "Client fetched successfully", dto)

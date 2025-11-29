@@ -33,6 +33,7 @@ public class AccountService {
     private final ClientAnswerRepository clientAnswerRepository;
     private final CourtSupportMaterialRepository courtSupportMaterialRepository;
     private final ClientDocumentRepository clientDocumentRepository;
+    private final QuoteRepository quoteRepository;
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
     public AccountService(AccountRepository accountRepository,
@@ -44,7 +45,8 @@ public class AccountService {
                           CompanyInviteRepository companyInviteRepository,
                           ClientAnswerRepository clientAnswerRepository,
                           CourtSupportMaterialRepository courtSupportMaterialRepository,
-                          ClientDocumentRepository clientDocumentRepository) {
+                          ClientDocumentRepository clientDocumentRepository,
+                          QuoteRepository quoteRepository) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
@@ -55,6 +57,7 @@ public class AccountService {
         this.clientAnswerRepository = clientAnswerRepository;
         this.courtSupportMaterialRepository = courtSupportMaterialRepository;
         this.clientDocumentRepository = clientDocumentRepository;
+        this.quoteRepository = quoteRepository;
     }
 
     public Account register(RegisterRequest request) {
@@ -410,7 +413,7 @@ public class AccountService {
                 .collect(Collectors.toList());
     }
 
-    public ClientFullResponseDto getClientFullDetails(UUID clientUuid) {
+    public ClientFullResponseDto getClientFullDetails(UUID clientUuid, UUID lawyerUuid) {
 
         // 1️⃣ Get profile (Account → ClientDto)
         Account account = accountRepository.findByUuid(clientUuid)
@@ -470,7 +473,19 @@ public class AccountService {
                 )
                 .toList();
 
-
+        // Get quotes
+        List<QuoteDto> quoteDtos = quoteRepository
+                .findByClientUuidAndLawyerUuid(clientUuid, lawyerUuid)
+                .stream()
+                .map(quote -> QuoteDto.builder()
+                        .id(quote.getId())
+                        .uuid(quote.getUuid())
+                        .clientUuid(quote.getClientUuid())
+                        .lawyerUuid(quote.getLawyerUuid())
+                        .offenceList(quote.getOffenceList())
+                        .build()
+                )
+                .toList();
 
         // 5️⃣ Stitch everything into final response DTO
         return ClientFullResponseDto.builder()
@@ -478,6 +493,7 @@ public class AccountService {
                 .questions(questionDtos)
                 .courtSupportingMaterial(courtMaterialDtos)
                 .documents(documentDtos)
+                .quotes(quoteDtos)
                 .build();
     }
 

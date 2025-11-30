@@ -133,4 +133,18 @@ public class CourtSupportMaterialService {
         return repository.save(material);
     }
 
+    public List<CourtSupportMaterial> getMaterialsByCase(UUID clientUuid, UUID caseUuid) {
+        List<CourtSupportMaterial> materials = repository.findAllByClientUuidAndCaseUuidAndDeletedAtIsNull(clientUuid, caseUuid);
+
+        // Convert gs:// URLs to https:// URLs
+        for (CourtSupportMaterial material : materials) {
+            String fileUrl = material.getFileUrl();
+            if (fileUrl != null && fileUrl.startsWith("gs://")) {
+                String withoutScheme = fileUrl.substring("gs://".length());
+                material.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
+            }
+        }
+
+        return materials;
+    }
 }

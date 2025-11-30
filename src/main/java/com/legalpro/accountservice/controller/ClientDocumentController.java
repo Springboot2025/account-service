@@ -110,4 +110,13 @@ public class ClientDocumentController {
         List<ClientDocument> docs = clientDocumentService.getClientDocumentsByType(uuid, documentType);
         return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
     }
+
+    @GetMapping("/documents/{caseUuid}")
+    public ResponseEntity<ApiResponse<List<ClientDocument>>> getClientDocumentsByCase(
+            @PathVariable UUID caseUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        List<ClientDocument> docs = clientDocumentService.getClientDocumentsByCase(userDetails.getUuid(), caseUuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
+    }
 }

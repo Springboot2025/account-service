@@ -15,4 +15,5 @@ public interface CourtSupportMaterialRepository extends JpaRepository<CourtSuppo
 
     boolean existsByClientUuidAndFileName(UUID clientUuid, String fileName);
     List<CourtSupportMaterial> findByClientUuidAndDeletedAtIsNull(UUID clientUuid);
+    List<CourtSupportMaterial> findAllByClientUuidAndCaseUuidAndDeletedAtIsNull(UUID clientUuid, UUID caseUuid);
 }

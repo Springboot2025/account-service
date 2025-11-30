@@ -97,4 +97,13 @@ public class CourtSupportMaterialController {
         return ResponseEntity.ok(ApiResponse.success(200, "Support material deleted successfully", null));
     }
 
+    @GetMapping("/support-materials/{caseUuid}")
+    public ResponseEntity<ApiResponse<List<CourtSupportMaterial>>> getMaterialsByCase(
+            @PathVariable UUID caseUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        List<CourtSupportMaterial> materials = service.getMaterialsByCase(userDetails.getUuid(), caseUuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "Materials fetched successfully", materials));
+    }
+
 }

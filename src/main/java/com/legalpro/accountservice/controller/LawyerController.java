@@ -100,7 +100,7 @@ public class LawyerController {
     ) {
         UUID lawyerUuid = userDetails.getUuid();
 
-        boolean hasCase = legalCaseRepository.existsByClientUuidAndLawyerUuid(clientUuid, lawyerUuid);
+        /*boolean hasCase = legalCaseRepository.existsByClientUuidAndLawyerUuid(clientUuid, lawyerUuid);
 
         if (!hasCase) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -108,7 +108,7 @@ public class LawyerController {
                             HttpStatus.FORBIDDEN.value(),
                             "You are not assigned to this client. Access denied."
                     ));
-        }
+        }*/
 
         ClientFullResponseDto dto = accountService.getClientFullDetails(clientUuid, lawyerUuid);
 

@@ -41,6 +41,9 @@ public class Quote {
     @Column(columnDefinition = "TEXT")
     private String remarks;
 
+    @Column(name = "case_type_id")
+    private Long caseTypeId;
+
     @Column(name = "expected_amount")
     private BigDecimal expectedAmount;
 

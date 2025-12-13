@@ -100,6 +100,10 @@ public class QuoteServiceImpl implements QuoteService {
             entity.setQuotedAmount(dto.getQuotedAmount());
         }
 
+        if (dto.getCaseTypeId() != null) {
+            entity.setCaseTypeId(dto.getCaseTypeId());
+        }
+
         entity.setStatus(newStatus);
         entity.setUpdatedAt(LocalDateTime.now());
         entity.setRemarks(remarks != null ? remarks : "");

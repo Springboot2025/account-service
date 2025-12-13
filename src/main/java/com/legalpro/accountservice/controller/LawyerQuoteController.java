@@ -59,6 +59,10 @@ public class LawyerQuoteController {
         QuoteDto dto = new QuoteDto();
         dto.setQuotedAmount(request.getQuotedAmount());
 
+        if (request.getCaseTypeId() != null) {
+            dto.setCaseTypeId(dto.getCaseTypeId());
+        }
+
         QuoteDto updated = quoteService.updateQuoteStatus(
                 lawyerUuid,
                 quoteUuid,
@@ -76,6 +80,7 @@ public class LawyerQuoteController {
     public static class QuoteUpdateRequest {
         private QuoteStatus status;
         private String remarks;
+        private Long caseTypeId;
         private java.math.BigDecimal quotedAmount;
     }
 

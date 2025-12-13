@@ -60,7 +60,7 @@ public class LawyerQuoteController {
         dto.setQuotedAmount(request.getQuotedAmount());
 
         if (request.getCaseTypeId() != null) {
-            dto.setCaseTypeId(dto.getCaseTypeId());
+            dto.setCaseTypeId(request.getCaseTypeId());
         }
 
         QuoteDto updated = quoteService.updateQuoteStatus(

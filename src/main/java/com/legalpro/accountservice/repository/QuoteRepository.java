@@ -14,6 +14,7 @@ import java.util.UUID;
 public interface QuoteRepository extends JpaRepository<Quote, Long> {
 
     Optional<Quote> findByUuid(UUID uuid);
+    Optional<Quote> findByUuidAndClientUuid(UUID uuid, UUID clientUuid);
 
     List<Quote> findByLawyerUuid(UUID lawyerUuid);
 

@@ -47,6 +47,9 @@ public class LegalCase {
     @Column(nullable = false)
     private UUID lawyerUuid;
 
+    @Column(nullable = false)
+    private UUID quoteUuid;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;

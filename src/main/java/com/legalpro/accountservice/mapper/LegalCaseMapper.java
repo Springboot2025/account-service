@@ -26,6 +26,7 @@ public class LegalCaseMapper {
                 .caseTypeName(entity.getCaseType() != null ? entity.getCaseType().getName() : null)
                 .clientUuid(entity.getClientUuid())
                 .lawyerUuid(entity.getLawyerUuid())
+                .quoteUuid(entity.getQuoteUuid())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .deletedAt(entity.getDeletedAt())
@@ -50,6 +51,7 @@ public class LegalCaseMapper {
                 .followUp(dto.getFollowUp())
                 .clientUuid(dto.getClientUuid())
                 .lawyerUuid(dto.getLawyerUuid())
+                .quoteUuid(dto.getQuoteUuid())
                 .createdAt(dto.getCreatedAt())
                 .updatedAt(dto.getUpdatedAt())
                 .deletedAt(dto.getDeletedAt());

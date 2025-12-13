@@ -30,6 +30,7 @@ public class LegalCaseDto {
 
     private UUID clientUuid;
     private UUID lawyerUuid;
+    private UUID quoteUuid;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

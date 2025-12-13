@@ -4,11 +4,10 @@ import com.legalpro.accountservice.dto.LegalCaseDto;
 import com.legalpro.accountservice.entity.CaseStatus;
 import com.legalpro.accountservice.entity.CaseType;
 import com.legalpro.accountservice.entity.LegalCase;
+import com.legalpro.accountservice.entity.Quote;
+import com.legalpro.accountservice.enums.QuoteStatus;
 import com.legalpro.accountservice.mapper.LegalCaseMapper;
-import com.legalpro.accountservice.repository.AccountRepository;
-import com.legalpro.accountservice.repository.CaseStatusRepository;
-import com.legalpro.accountservice.repository.CaseTypeRepository;
-import com.legalpro.accountservice.repository.LegalCaseRepository;
+import com.legalpro.accountservice.repository.*;
 import com.legalpro.accountservice.service.LegalCaseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,6 +31,7 @@ public class LegalCaseServiceImpl implements LegalCaseService {
     private final CaseTypeRepository caseTypeRepository;
     private final LegalCaseMapper mapper;
     private final AccountRepository accountRepository;
+    private final QuoteRepository quoteRepository;
 
     // --- Helper: Generate case number ---
     private String generateCaseNumber(UUID lawyerUuid) {
@@ -200,6 +200,14 @@ public class LegalCaseServiceImpl implements LegalCaseService {
         accountRepository.findByUuid(dto.getLawyerUuid())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid lawyerUuid"));
 
+        if (dto.getQuoteUuid() == null) {
+            throw new IllegalArgumentException("quoteUuid is required");
+        }
+
+        Quote quote = quoteRepository.findByUuidAndClientUuid(dto.getQuoteUuid(), clientUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid quoteUuid for the client"));
+        quote.setStatus(QuoteStatus.BOOKED);
+
         String caseNumber = generateCaseNumber(dto.getLawyerUuid());
 
         CaseStatus status = caseStatusRepository.findByName("New")
@@ -219,6 +227,7 @@ public class LegalCaseServiceImpl implements LegalCaseService {
                 .name(clientName)
                 .lawyerUuid(dto.getLawyerUuid())
                 .clientUuid(clientUuid)
+                .quoteUuid(dto.getQuoteUuid())
                 .status(status)
                 .caseType(caseType)
                 .listing(dto.getListing())
@@ -230,6 +239,7 @@ public class LegalCaseServiceImpl implements LegalCaseService {
                 .build();
 
         legalCaseRepository.save(legalCase);
+        quoteRepository.save(quote);
         return mapper.toDto(legalCase);
     }
 

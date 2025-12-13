@@ -102,7 +102,7 @@ public class QuoteServiceImpl implements QuoteService {
 
         entity.setStatus(newStatus);
         entity.setUpdatedAt(LocalDateTime.now());
-        entity.setDescription(remarks != null ? remarks : entity.getDescription());
+        entity.setRemarks(remarks != null ? remarks : "");
 
         Quote saved = quoteRepository.save(entity);
         log.info("✅ Lawyer {} updated quote {} to status {}", lawyerUuid, quoteUuid, newStatus);

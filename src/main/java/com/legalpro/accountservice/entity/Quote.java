@@ -38,6 +38,9 @@ public class Quote {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(columnDefinition = "TEXT")
+    private String remarks;
+
     @Column(name = "expected_amount")
     private BigDecimal expectedAmount;
 

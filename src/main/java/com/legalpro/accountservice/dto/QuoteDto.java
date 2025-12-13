@@ -22,6 +22,7 @@ public class QuoteDto {
 
     private String title;
     private String description;
+    private String remarks;
 
     private BigDecimal expectedAmount;
     private BigDecimal quotedAmount;

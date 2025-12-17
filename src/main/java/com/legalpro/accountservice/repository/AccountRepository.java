@@ -15,10 +15,20 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpecificationExecutor<Account> {
+public interface AccountRepository
+        extends JpaRepository<Account, Long>, JpaSpecificationExecutor<Account> {
 
-    @Query("SELECT a FROM Account a JOIN a.roles r WHERE r.name = :roleName")
-    List<Account> findByRoleName(String roleName);
+    /* =========================
+       BASIC FINDERS
+       ========================= */
+
+    @Query("""
+        SELECT a
+        FROM Account a
+        JOIN a.roles r
+        WHERE r.name = :roleName
+    """)
+    List<Account> findByRoleName(@Param("roleName") String roleName);
 
     Optional<Account> findByEmail(String email);
     boolean existsByEmail(String email);
@@ -30,25 +40,30 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
 
     List<Account> findByCompanyUuid(UUID companyUuid);
 
-    // Get all accounts that are companies
     List<Account> findByIsCompanyTrue();
 
     List<Account> findByUuidIn(Set<UUID> uuids);
 
+    /* =========================
+       DASHBOARD COUNTS
+       ========================= */
+
     @Query("""
         SELECT COUNT(a)
         FROM Account a
-        WHERE a.role = 'LAWYER'
-          AND a.deletedAt IS NULL
+        JOIN a.roles r
+        WHERE r.name = 'Lawyer'
+          AND a.removedAt IS NULL
     """)
     long countLawyers();
 
     @Query("""
         SELECT COUNT(a)
         FROM Account a
-        WHERE a.role = 'LAWYER'
+        JOIN a.roles r
+        WHERE r.name = 'Lawyer'
           AND a.isActive = true
-          AND a.deletedAt IS NULL
+          AND a.removedAt IS NULL
     """)
     long countActiveLawyers();
 
@@ -56,7 +71,7 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
         SELECT COUNT(a)
         FROM Account a
         WHERE a.isCompany = true
-          AND a.deletedAt IS NULL
+          AND a.removedAt IS NULL
     """)
     long countFirms();
 
@@ -65,61 +80,34 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
         FROM Account a
         WHERE a.isCompany = true
           AND a.isActive = true
-          AND a.deletedAt IS NULL
+          AND a.removedAt IS NULL
     """)
     long countActiveFirms();
 
-    @Query("""
-        SELECT a
-        FROM Account a
-        WHERE a.role = 'LAWYER'
-          AND a.deletedAt IS NULL
-          AND (:active IS NULL OR a.isActive = :active)
-          AND (
-               :search IS NULL OR
-               LOWER(a.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR
-               LOWER(a.lastName) LIKE LOWER(CONCAT('%', :search, '%'))
-          )
-    """)
-    Page<Account> searchLawyers(
-            @Param("search") String search,
-            @Param("active") Boolean active,
-            Pageable pageable
-    );
-
-    @Query("""
-        SELECT
-          SUM(CASE WHEN cs.name = 'CLOSED' THEN 1 ELSE 0 END),
-          SUM(CASE WHEN cs.name IN ('OPEN','IN_PROGRESS') THEN 1 ELSE 0 END),
-          SUM(CASE WHEN cs.name = 'NEW' THEN 1 ELSE 0 END)
-        FROM Case c
-        JOIN c.status cs
-        WHERE c.lawyerUuid = :lawyerUuid
-    """)
-    CaseStatsProjection getCaseStatsForLawyer(UUID lawyerUuid);
-
+    /* =========================
+       ADMIN – LAWYER LIST
+       ========================= */
 
     @Query("""
         SELECT a
         FROM Account a
         JOIN a.roles r
         WHERE r.name = 'Lawyer'
-        AND (:search IS NULL OR
-             LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%')) OR
-             LOWER(a.personalDetails->>'firstName') LIKE LOWER(CONCAT('%', :search, '%')) OR
-             LOWER(a.personalDetails->>'lastName') LIKE LOWER(CONCAT('%', :search, '%'))
-        )
-        AND (:status IS NULL OR
-             (:status = 'ACTIVE' AND a.isActive = true AND a.removedAt IS NULL) OR
-             (:status = 'DEACTIVATED' AND a.isActive = false AND a.removedAt IS NULL) OR
-             (:status = 'DELETED' AND a.removedAt IS NOT NULL)
-        )
-        """)
+          AND (:search IS NULL OR
+               LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(a.personalDetails->>'firstName') LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(a.personalDetails->>'lastName') LIKE LOWER(CONCAT('%', :search, '%'))
+          )
+          AND (:status IS NULL OR
+               (:status = 'ACTIVE' AND a.isActive = true AND a.removedAt IS NULL) OR
+               (:status = 'DEACTIVATED' AND a.isActive = false AND a.removedAt IS NULL) OR
+               (:status = 'DELETED' AND a.removedAt IS NOT NULL)
+          )
+    """)
     Page<Account> findLawyers(
-            String search,
-            AdminLawyerStatus status,
+            @Param("search") String search,
+            @Param("status") AdminLawyerStatus status,
             Pageable pageable
     );
-
 
 }

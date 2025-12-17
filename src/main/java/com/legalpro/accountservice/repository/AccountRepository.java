@@ -102,29 +102,24 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
     @Query("""
         SELECT a
         FROM Account a
-        LEFT JOIN a.specializations s
-        WHERE a.role = 'LAWYER'
-          AND (
-               :search IS NULL OR
-               LOWER(a.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR
-               LOWER(a.lastName) LIKE LOWER(CONCAT('%', :search, '%')) OR
-               LOWER(s.name) LIKE LOWER(CONCAT('%', :search, '%'))
-          )
-          AND (
-               :category IS NULL OR s.name = :category
-          )
-          AND (
-               :status = 'ALL'
-            OR (:status = 'ACTIVE' AND a.isActive = true AND a.deletedAt IS NULL)
-            OR (:status = 'DEACTIVATED' AND a.isActive = false AND a.deletedAt IS NULL)
-            OR (:status = 'DELETED' AND a.deletedAt IS NOT NULL)
-          )
-    """)
+        JOIN a.roles r
+        WHERE r.name = 'Lawyer'
+        AND (:search IS NULL OR
+             LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%')) OR
+             LOWER(a.personalDetails->>'firstName') LIKE LOWER(CONCAT('%', :search, '%')) OR
+             LOWER(a.personalDetails->>'lastName') LIKE LOWER(CONCAT('%', :search, '%'))
+        )
+        AND (:status IS NULL OR
+             (:status = 'ACTIVE' AND a.isActive = true AND a.removedAt IS NULL) OR
+             (:status = 'DEACTIVATED' AND a.isActive = false AND a.removedAt IS NULL) OR
+             (:status = 'DELETED' AND a.removedAt IS NOT NULL)
+        )
+        """)
     Page<Account> findLawyers(
             String search,
             AdminLawyerStatus status,
-            String category,
             Pageable pageable
     );
+
 
 }

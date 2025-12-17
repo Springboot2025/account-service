@@ -71,7 +71,7 @@ public class SuperAdminService {
         Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
 
         Page<Account> lawyers =
-                accountRepository.findLawyers(search, status, category, pageable);
+                accountRepository.findLawyers(search, status, pageable);
 
         return lawyers.map(lawyer -> {
 

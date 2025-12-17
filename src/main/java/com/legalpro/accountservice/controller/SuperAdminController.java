@@ -2,6 +2,8 @@ package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.ApiResponse;
+import com.legalpro.accountservice.enums.AdminLawyerStatus;
+import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.service.ContactRequestService;
 import com.legalpro.accountservice.service.DisputeService;
 import com.legalpro.accountservice.service.SuperAdminService;
@@ -11,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/superadmin")
@@ -96,5 +99,48 @@ public class SuperAdminController {
                 )
         );
     }
+
+    @GetMapping("/dashboard/summary")
+    public ResponseEntity<ApiResponse<?>> getDashboardSummary() {
+
+        var summary = superAdminService.getDashboardSummary();
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Dashboard summary fetched successfully",
+                        summary
+                )
+        );
+    }
+
+    @GetMapping("/lawyers")
+    public ResponseEntity<ApiResponse<?>> getLawyers(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "ALL") AdminLawyerStatus status,
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "NEWEST_FIRST") AdminSortBy sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        var result = superAdminService.getLawyers(
+                search, status, category, sort, page, size
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Lawyers fetched successfully", result)
+        );
+    }
+
+
+    @PutMapping("/lawyers/{lawyerUuid}/status")
+    public ResponseEntity<ApiResponse<?>> updateLawyerStatus(
+            @PathVariable UUID lawyerUuid,
+            @RequestParam AdminLawyerStatus status
+    ) {
+        superAdminService.updateLawyerStatus(lawyerUuid, status);
+        return ResponseEntity.ok(ApiResponse.success(200, "Updated", null));
+    }
+
 
 }

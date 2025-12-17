@@ -1,8 +1,10 @@
 package com.legalpro.accountservice.repository;
 
 import com.legalpro.accountservice.entity.LegalCase;
+import com.legalpro.accountservice.repository.projection.CaseStatsProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -38,7 +40,7 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     List<LegalCase> findAllByLawyerUuidAndCaseType_NameIgnoreCase(UUID lawyerUuid, String typeName);
 
     @Query("""
-    SELECT t.name, COUNT(c)
+    SELECT t.name, COUNT(c.id)
     FROM CaseType t
     LEFT JOIN LegalCase c
       ON c.caseType = t AND c.lawyerUuid = :lawyerUuid
@@ -59,4 +61,26 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
 
     List<LegalCase> findAllByClientUuid(UUID clientUuid);
 
+    @Query("""
+        SELECT COUNT(c.id) > 0
+        FROM LegalCase c
+        JOIN c.status cs
+        WHERE c.lawyerUuid = :lawyerUuid
+          AND cs.name IN ('NEW', 'OPEN', 'IN_PROGRESS')
+          AND c.deletedAt IS NULL
+    """)
+    boolean existsActiveCasesForLawyer(@Param("lawyerUuid") UUID lawyerUuid);
+
+    // 🔹 Used for admin lawyers list (card counts)
+    @Query("""
+        SELECT
+            SUM(CASE WHEN cs.name = 'CLOSED' THEN 1 ELSE 0 END) AS closed,
+            SUM(CASE WHEN cs.name IN ('OPEN','IN_PROGRESS') THEN 1 ELSE 0 END) AS active,
+            SUM(CASE WHEN cs.name = 'NEW' THEN 1 ELSE 0 END) AS pending
+        FROM LegalCase c
+        JOIN c.status cs
+        WHERE c.lawyerUuid = :lawyerUuid
+          AND c.deletedAt IS NULL
+    """)
+    CaseStatsProjection getCaseStatsForLawyer(@Param("lawyerUuid") UUID lawyerUuid);
 }

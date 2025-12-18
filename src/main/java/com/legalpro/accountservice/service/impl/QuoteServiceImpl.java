@@ -148,7 +148,7 @@ public class QuoteServiceImpl implements QuoteService {
         List<Quote> quotes = quoteRepository.findByClientUuidAndLawyerUuid(clientUuid, lawyerUuid);
 
         return quotes.stream()
-                .map(this::toDto)
+                .map(quoteMapper::toDto)
                 .collect(Collectors.toList());
     }
 

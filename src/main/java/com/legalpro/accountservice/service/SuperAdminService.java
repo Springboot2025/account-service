@@ -100,8 +100,8 @@ public class SuperAdminService {
         return switch (sort) {
             case HIGHEST_RATING -> Sort.by("rating").descending();
             case LOWEST_RATING  -> Sort.by("rating").ascending();
-            case ALPHABETICAL  -> Sort.by("createdAt").ascending();
-            default            -> Sort.by("createdAt").descending();
+            case ALPHABETICAL  -> Sort.by("created_at").ascending();
+            default            -> Sort.by("created_at").descending();
         };
     }
 

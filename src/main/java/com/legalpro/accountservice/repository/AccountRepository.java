@@ -97,6 +97,7 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
                    (:status = 'DEACTIVATED' AND a.is_active = false AND a.removed_at IS NULL) OR
                    (:status = 'DELETED' AND a.removed_at IS NOT NULL)
               )
+              ORDER BY a.created_at DESC
             """,
             countQuery = """
             SELECT COUNT(DISTINCT a.id)

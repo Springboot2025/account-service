@@ -80,43 +80,46 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
 
     @Query(
             value = """
-            SELECT DISTINCT a.*
-            FROM accounts a
-            JOIN account_roles ar ON a.id = ar.account_id
-            JOIN roles r ON ar.role_id = r.id
-            WHERE r.name = 'Lawyer'
-              AND (
-                   :search IS NULL OR
-                   LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%')) OR
-                   LOWER(a.personal_details->>'firstName') LIKE LOWER(CONCAT('%', :search, '%')) OR
-                   LOWER(a.personal_details->>'lastName') LIKE LOWER(CONCAT('%', :search, '%'))
-              )
-              AND (
-                   :status IS NULL OR
-                   (:status = 'ACTIVE' AND a.is_active = true AND a.removed_at IS NULL) OR
-                   (:status = 'DEACTIVATED' AND a.is_active = false AND a.removed_at IS NULL) OR
-                   (:status = 'DELETED' AND a.removed_at IS NOT NULL)
-              )
-            """,
+        SELECT DISTINCT a.*
+        FROM accounts a
+        JOIN account_roles ar ON a.id = ar.account_id
+        JOIN roles r ON ar.role_id = r.id
+        WHERE LOWER(r.name) = 'lawyer'
+          AND a.removed_at IS NULL
+          AND (
+               :search IS NULL OR
+               LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(a.personal_details->>'firstName') LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(a.personal_details->>'lastName') LIKE LOWER(CONCAT('%', :search, '%'))
+          )
+          AND (
+               :status IS NULL OR
+               (:status = 'ACTIVE' AND a.is_active = true AND a.removed_at IS NULL) OR
+               (:status = 'DEACTIVATED' AND a.is_active = false AND a.removed_at IS NULL) OR
+               (:status = 'DELETED' AND a.removed_at IS NOT NULL)
+          )
+        ORDER BY a.created_at DESC
+        """,
             countQuery = """
-            SELECT COUNT(DISTINCT a.id)
-            FROM accounts a
-            JOIN account_roles ar ON a.id = ar.account_id
-            JOIN roles r ON ar.role_id = r.id
-            WHERE r.name = 'Lawyer'
-              AND (
-                   :search IS NULL OR
-                   LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%')) OR
-                   LOWER(a.personal_details->>'firstName') LIKE LOWER(CONCAT('%', :search, '%')) OR
-                   LOWER(a.personal_details->>'lastName') LIKE LOWER(CONCAT('%', :search, '%'))
-              )
-              AND (
-                   :status IS NULL OR
-                   (:status = 'ACTIVE' AND a.is_active = true AND a.removed_at IS NULL) OR
-                   (:status = 'DEACTIVATED' AND a.is_active = false AND a.removed_at IS NULL) OR
-                   (:status = 'DELETED' AND a.removed_at IS NOT NULL)
-              )
-            """,
+        SELECT COUNT(DISTINCT a.id)
+        FROM accounts a
+        JOIN account_roles ar ON a.id = ar.account_id
+        JOIN roles r ON ar.role_id = r.id
+        WHERE LOWER(r.name) = 'lawyer'
+          AND a.removed_at IS NULL
+          AND (
+               :search IS NULL OR
+               LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(a.personal_details->>'firstName') LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(a.personal_details->>'lastName') LIKE LOWER(CONCAT('%', :search, '%'))
+          )
+          AND (
+               :status IS NULL OR
+               (:status = 'ACTIVE' AND a.is_active = true AND a.removed_at IS NULL) OR
+               (:status = 'DEACTIVATED' AND a.is_active = false AND a.removed_at IS NULL) OR
+               (:status = 'DELETED' AND a.removed_at IS NOT NULL)
+          )
+        """,
             nativeQuery = true
     )
     Page<Account> findLawyers(
@@ -124,5 +127,6 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
             @Param("status") String status,
             Pageable pageable
     );
+
 
 }

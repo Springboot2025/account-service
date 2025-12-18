@@ -117,7 +117,7 @@ public class SuperAdminController {
     @GetMapping("/lawyers")
     public ResponseEntity<ApiResponse<?>> getLawyers(
             @RequestParam(required = false) String search,
-            @RequestParam(defaultValue = "ALL") AdminLawyerStatus status,
+            @RequestParam(required = false) AdminLawyerStatus status,
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "NEWEST_FIRST") AdminSortBy sort,
             @RequestParam(defaultValue = "0") int page,

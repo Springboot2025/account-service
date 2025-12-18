@@ -67,24 +67,28 @@ public class SuperAdminService {
             int page,
             int size
     ) {
-
         Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
+
+        AdminLawyerStatus effectiveStatus =
+                (status == null || status == AdminLawyerStatus.ALL)
+                        ? null
+                        : status;
 
         Page<Account> lawyers =
                 accountRepository.findLawyers(
                         search,
-                        status != null ? status.name() : null,
+                        effectiveStatus != null ? effectiveStatus.name() : null,
                         pageable
                 );
 
-        return lawyers.map(lawyer -> {
-
-            CaseStatsProjection stats =
-                    caseRepository.getCaseStatsForLawyer(lawyer.getUuid());
-
-            return AdminLawyerDto.from(lawyer, stats);
-        });
+        return lawyers.map(lawyer ->
+                AdminLawyerDto.from(
+                        lawyer,
+                        caseRepository.getCaseStatsForLawyer(lawyer.getUuid())
+                )
+        );
     }
+
 
     public DashboardSummaryDto getDashboardSummary() {
 

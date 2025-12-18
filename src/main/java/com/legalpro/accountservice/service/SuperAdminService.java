@@ -81,12 +81,16 @@ public class SuperAdminService {
                         pageable
                 );
 
-        return lawyers.map(lawyer ->
-                AdminLawyerDto.from(
-                        lawyer,
-                        caseRepository.getCaseStatsForLawyer(lawyer.getUuid())
-                )
-        );
+        return lawyers.map(lawyer -> {
+
+            CaseStatsProjection stats =
+                    caseRepository.getCaseStatsForLawyer(lawyer.getUuid());
+
+            return AdminLawyerDto.from(
+                    lawyer,
+                    stats
+            );
+        });
     }
 
 
@@ -135,6 +139,16 @@ public class SuperAdminService {
         }
 
         accountRepository.save(lawyer);
+    }
+
+    private static final String GCS_PUBLIC_BASE =
+            "https://storage.googleapis.com";
+
+    private String convertGcsUrl(String fileUrl) {
+        if (fileUrl != null && fileUrl.startsWith("gs://")) {
+            return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
+        }
+        return fileUrl;
     }
 
 }

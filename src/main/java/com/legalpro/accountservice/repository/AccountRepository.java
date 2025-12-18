@@ -1,9 +1,12 @@
 package com.legalpro.accountservice.repository;
 
 import com.legalpro.accountservice.entity.Account;
+import com.legalpro.accountservice.enums.AdminLawyerStatus;
+import com.legalpro.accountservice.repository.projection.CaseStatsProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -12,11 +15,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-public interface AccountRepository extends JpaRepository<Account, Long> {
+public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpecificationExecutor<Account> {
 
-    /* =========================
-       BASIC FINDERS
-       ========================= */
+    @Query("SELECT a FROM Account a JOIN a.roles r WHERE r.name = :roleName")
+    List<Account> findByRoleName(String roleName);
 
     Optional<Account> findByEmail(String email);
     boolean existsByEmail(String email);
@@ -27,12 +29,11 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     Optional<Account> findByForgotPasswordToken(UUID token);
 
     List<Account> findByCompanyUuid(UUID companyUuid);
-    List<Account> findByIsCompanyTrue();
-    List<Account> findByUuidIn(Set<UUID> uuids);
 
-    /* =========================
-       DASHBOARD COUNTS (NATIVE)
-       ========================= */
+    // Get all accounts that are companies
+    List<Account> findByIsCompanyTrue();
+
+    List<Account> findByUuidIn(Set<UUID> uuids);
 
     @Query(value = """
         SELECT COUNT(DISTINCT a.id)
@@ -123,4 +124,5 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
             @Param("status") String status,
             Pageable pageable
     );
+
 }

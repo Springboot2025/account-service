@@ -43,4 +43,6 @@ public interface DocumentTemplateCenterService {
             Long subheadingId
     );
 
+    void deleteSubheading(UUID lawyerUuid, Long subheadingId);
+
 }

@@ -201,4 +201,25 @@ public class DocumentTemplateCenterController {
         );
     }
 
+    // =========================================================
+// 8️⃣ Delete subheading (soft delete)
+// =========================================================
+    @DeleteMapping("/subheadings/{subheadingId}")
+    public ResponseEntity<ApiResponse<Void>> deleteSubheading(
+            @PathVariable Long subheadingId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+
+        documentService.deleteSubheading(lawyerUuid, subheadingId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Subheading deleted successfully",
+                        null
+                )
+        );
+    }
+
 }

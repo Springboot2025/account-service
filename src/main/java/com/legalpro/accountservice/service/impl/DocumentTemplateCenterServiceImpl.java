@@ -289,4 +289,19 @@ public class DocumentTemplateCenterServiceImpl
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public void deleteSubheading(UUID lawyerUuid, Long subheadingId) {
+
+        LawyerDocumentSubheading subheading =
+                subheadingRepository
+                        .findByIdAndLawyerUuidAndDeletedAtIsNull(subheadingId, lawyerUuid)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException("Subheading not found")
+                        );
+
+        subheading.setDeletedAt(LocalDateTime.now());
+        subheadingRepository.save(subheading);
+    }
+
 }

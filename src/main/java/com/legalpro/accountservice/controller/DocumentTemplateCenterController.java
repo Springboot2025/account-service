@@ -30,20 +30,35 @@ public class DocumentTemplateCenterController {
     // 1️⃣ Fetch system-defined categories
     // =========================================================
     @GetMapping("/categories")
-    public ResponseEntity<List<DocumentCategoryDto>> getCategories() {
-        return ResponseEntity.ok(documentService.getAllCategories());
+    public ResponseEntity<ApiResponse<List<DocumentCategoryDto>>> getCategories() {
+        List<DocumentCategoryDto> categories = documentService.getAllCategories();
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Categories fetched successfully",
+                        categories
+                )
+        );
     }
 
     // =========================================================
     // 2️⃣ Fetch subheadings grouped by category (lawyer)
     // =========================================================
     @GetMapping("/subheadings")
-    public ResponseEntity<List<CategoryWithSubheadingsDto>> getSubheadingsByCategory(
+    public ResponseEntity<ApiResponse<List<CategoryWithSubheadingsDto>>> getSubheadingsByCategory(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
+
+        List<CategoryWithSubheadingsDto> response =
+                documentService.getSubheadingsGroupedByCategory(lawyerUuid);
+
         return ResponseEntity.ok(
-                documentService.getSubheadingsGroupedByCategory(lawyerUuid)
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Subheadings fetched successfully",
+                        response
+                )
         );
     }
 
@@ -51,7 +66,7 @@ public class DocumentTemplateCenterController {
     // 3️⃣ Create new subheading
     // =========================================================
     @PostMapping("/subheadings")
-    public ResponseEntity<LawyerDocumentSubheadingDto> createSubheading(
+    public ResponseEntity<ApiResponse<LawyerDocumentSubheadingDto>> createSubheading(
             @RequestParam Long categoryId,
             @RequestParam String name,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -61,14 +76,21 @@ public class DocumentTemplateCenterController {
         LawyerDocumentSubheadingDto dto =
                 documentService.createSubheading(lawyerUuid, categoryId, name);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(
+                        ApiResponse.success(
+                                HttpStatus.CREATED.value(),
+                                "Subheading created successfully",
+                                dto
+                        )
+                );
     }
 
     // =========================================================
     // 4️⃣ Upload documents (existing OR new subheading)
     // =========================================================
     @PostMapping(value = "/documents", consumes = "multipart/form-data")
-    public ResponseEntity<List<DocumentTemplateCenterDto>> uploadDocuments(
+    public ResponseEntity<ApiResponse<List<DocumentTemplateCenterDto>>> uploadDocuments(
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long subheadingId,
             @RequestParam(required = false) String newSubheadingName,
@@ -86,17 +108,32 @@ public class DocumentTemplateCenterController {
                         files
                 );
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(
+                        ApiResponse.success(
+                                HttpStatus.CREATED.value(),
+                                "Documents uploaded successfully",
+                                response
+                        )
+                );
     }
 
+    // =========================================================
+    // 5️⃣ Delete document (UUID-based)
+    // =========================================================
     @DeleteMapping("/documents/{documentUuid}")
-    public ResponseEntity<Void> deleteDocument(
+    public ResponseEntity<ApiResponse<Void>> deleteDocument(
             @PathVariable UUID documentUuid,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         documentService.deleteDocument(userDetails.getUuid(), documentUuid);
-        return ResponseEntity.noContent().build();
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Document deleted successfully",
+                        null
+                )
+        );
     }
-
-
 }

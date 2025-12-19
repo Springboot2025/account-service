@@ -36,6 +36,8 @@ public class DocumentTemplateCenterServiceImpl
     private final LawyerDocumentSubheadingRepository subheadingRepository;
     private final DocumentTemplateCenterRepository documentRepository;
 
+    private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
+
     public DocumentTemplateCenterServiceImpl(
             DocumentCategoryRepository categoryRepository,
             LawyerDocumentSubheadingRepository subheadingRepository,
@@ -250,7 +252,13 @@ public class DocumentTemplateCenterServiceImpl
         return documentRepository
                 .findAllByLawyerUuidAndDeletedAtIsNull(lawyerUuid)
                 .stream()
-                .map(DocumentTemplateCenterMapper::toDto)
+                .map(doc -> {
+                    if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
+                        String withoutScheme = doc.getFileUrl().substring("gs://".length());
+                        doc.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
+                    }
+                    return DocumentTemplateCenterMapper.toDto(doc);
+                })
                 .toList();
     }
 
@@ -271,7 +279,13 @@ public class DocumentTemplateCenterServiceImpl
         return documentRepository
                 .findAllBySubheadingIdAndLawyerUuidAndDeletedAtIsNull(subheadingId, lawyerUuid)
                 .stream()
-                .map(DocumentTemplateCenterMapper::toDto)
+                .map(doc -> {
+                    if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
+                        String withoutScheme = doc.getFileUrl().substring("gs://".length());
+                        doc.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
+                    }
+                    return DocumentTemplateCenterMapper.toDto(doc);
+                })
                 .toList();
     }
 

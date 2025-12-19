@@ -254,4 +254,25 @@ public class DocumentTemplateCenterServiceImpl
                 .toList();
     }
 
+    @Override
+    public List<LawyerDocumentSubheadingDto> getSubheadingsByLawyer(UUID lawyerUuid) {
+        return subheadingRepository
+                .findAllByLawyerUuidAndDeletedAtIsNull(lawyerUuid)
+                .stream()
+                .map(LawyerDocumentSubheadingMapper::toDto)
+                .toList();
+    }
+
+    @Override
+    public List<DocumentTemplateCenterDto> getDocumentsBySubheading(
+            UUID lawyerUuid,
+            Long subheadingId
+    ) {
+        return documentRepository
+                .findAllBySubheadingIdAndLawyerUuidAndDeletedAtIsNull(subheadingId, lawyerUuid)
+                .stream()
+                .map(DocumentTemplateCenterMapper::toDto)
+                .toList();
+    }
+
 }

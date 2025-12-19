@@ -36,4 +36,11 @@ public interface DocumentTemplateCenterService {
 
     List<DocumentTemplateCenterDto> getDocumentsByLawyer(UUID lawyerUuid);
 
+    List<LawyerDocumentSubheadingDto> getSubheadingsByLawyer(UUID lawyerUuid);
+
+    List<DocumentTemplateCenterDto> getDocumentsBySubheading(
+            UUID lawyerUuid,
+            Long subheadingId
+    );
+
 }

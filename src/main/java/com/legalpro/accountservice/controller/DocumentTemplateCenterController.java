@@ -158,4 +158,47 @@ public class DocumentTemplateCenterController {
         );
     }
 
+    // =========================================================
+// 6️⃣ List subheadings for lawyer
+// =========================================================
+    @GetMapping("/subheadings/list")
+    public ResponseEntity<ApiResponse<List<LawyerDocumentSubheadingDto>>> listSubheadings(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+
+        List<LawyerDocumentSubheadingDto> subheadings =
+                documentService.getSubheadingsByLawyer(lawyerUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Subheadings fetched successfully",
+                        subheadings
+                )
+        );
+    }
+
+    // =========================================================
+// 7️⃣ List documents by subheading
+// =========================================================
+    @GetMapping("/subheadings/{subheadingId}/documents")
+    public ResponseEntity<ApiResponse<List<DocumentTemplateCenterDto>>> getDocumentsBySubheading(
+            @PathVariable Long subheadingId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+
+        List<DocumentTemplateCenterDto> documents =
+                documentService.getDocumentsBySubheading(lawyerUuid, subheadingId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Documents fetched successfully",
+                        documents
+                )
+        );
+    }
+
 }

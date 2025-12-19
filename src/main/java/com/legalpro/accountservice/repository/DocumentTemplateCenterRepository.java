@@ -30,4 +30,10 @@ public interface DocumentTemplateCenterRepository
     Optional<DocumentTemplateCenter>
     findByUuidAndLawyerUuidAndDeletedAtIsNull(UUID uuid, UUID lawyerUuid);
 
+    List<DocumentTemplateCenter>
+    findAllBySubheadingIdAndLawyerUuidAndDeletedAtIsNull(
+            Long subheadingId,
+            UUID lawyerUuid
+    );
+
 }

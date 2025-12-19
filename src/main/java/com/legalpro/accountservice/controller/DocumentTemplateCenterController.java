@@ -136,4 +136,26 @@ public class DocumentTemplateCenterController {
                 )
         );
     }
+
+    // =========================================================
+// 6️⃣ List documents for lawyer
+// =========================================================
+    @GetMapping("/documents")
+    public ResponseEntity<ApiResponse<List<DocumentTemplateCenterDto>>> getDocuments(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+
+        List<DocumentTemplateCenterDto> documents =
+                documentService.getDocumentsByLawyer(lawyerUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Documents fetched successfully",
+                        documents
+                )
+        );
+    }
+
 }

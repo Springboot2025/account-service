@@ -34,5 +34,6 @@ public interface DocumentTemplateCenterService {
 
     void deleteDocument(UUID lawyerUuid, UUID documentUuid);
 
+    List<DocumentTemplateCenterDto> getDocumentsByLawyer(UUID lawyerUuid);
 
 }

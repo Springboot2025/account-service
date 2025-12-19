@@ -245,5 +245,13 @@ public class DocumentTemplateCenterServiceImpl
         documentRepository.save(document);
     }
 
+    @Override
+    public List<DocumentTemplateCenterDto> getDocumentsByLawyer(UUID lawyerUuid) {
+        return documentRepository
+                .findAllByLawyerUuidAndDeletedAtIsNull(lawyerUuid)
+                .stream()
+                .map(DocumentTemplateCenterMapper::toDto)
+                .toList();
+    }
 
 }

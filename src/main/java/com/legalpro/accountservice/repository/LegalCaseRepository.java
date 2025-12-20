@@ -83,4 +83,11 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
           AND c.deletedAt IS NULL
     """)
     CaseStatsProjection getCaseStatsForLawyer(@Param("lawyerUuid") UUID lawyerUuid);
+
+    boolean existsByUuidAndLawyerUuidAndClientUuid(
+            UUID caseUuid,
+            UUID lawyerUuid,
+            UUID clientUuid
+    );
+
 }

@@ -3,6 +3,7 @@ package com.legalpro.accountservice.controller;
 import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.DocumentTemplateCenterService;
+import com.legalpro.accountservice.service.SharedDocumentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,11 +20,14 @@ import java.util.UUID;
 public class DocumentTemplateCenterController {
 
     private final DocumentTemplateCenterService documentService;
+    private final SharedDocumentService sharedDocumentService;
 
     public DocumentTemplateCenterController(
-            DocumentTemplateCenterService documentService
+            DocumentTemplateCenterService documentService,
+            SharedDocumentService sharedDocumentService
     ) {
         this.documentService = documentService;
+        this.sharedDocumentService = sharedDocumentService;
     }
 
     // =========================================================
@@ -242,6 +246,33 @@ public class DocumentTemplateCenterController {
                         response
                 )
         );
+    }
+
+    // =========================================================
+// 🔗 Share document with client(s) under case context
+// =========================================================
+    @PostMapping("/documents/{documentUuid}/share")
+    public ResponseEntity<ApiResponse<List<SharedDocumentResponseDto>>> shareDocument(
+            @PathVariable UUID documentUuid,
+            @RequestBody ShareDocumentRequestDto request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+
+        List<SharedDocumentResponseDto> response =
+                sharedDocumentService.shareDocument(
+                        userDetails.getUuid(),
+                        documentUuid,
+                        request
+                );
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(
+                        ApiResponse.success(
+                                HttpStatus.CREATED.value(),
+                                "Document shared successfully",
+                                response
+                        )
+                );
     }
 
 }

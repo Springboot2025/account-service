@@ -36,4 +36,7 @@ public interface DocumentTemplateCenterRepository
             UUID lawyerUuid
     );
 
+    boolean existsByUuidAndLawyerUuidAndDeletedAtIsNull(UUID uuid, UUID lawyerUuid);
+
+
 }

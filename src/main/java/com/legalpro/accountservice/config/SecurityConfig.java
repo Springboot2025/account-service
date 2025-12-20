@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.config;
 
+import com.legalpro.accountservice.security.CustomAccessDeniedHandler;
 import com.legalpro.accountservice.security.JwtAuthorizationFilter;
 import com.legalpro.accountservice.service.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
@@ -89,4 +90,16 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+        http
+                .exceptionHandling(ex -> ex
+                        .accessDeniedHandler(new CustomAccessDeniedHandler())
+                );
+
+        return http.build();
+    }
+
 }

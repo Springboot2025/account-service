@@ -222,4 +222,26 @@ public class DocumentTemplateCenterController {
         );
     }
 
+    // =========================================================
+// 9️⃣ Get full Document Template Center hierarchy
+// =========================================================
+    @GetMapping("/summary")
+    public ResponseEntity<ApiResponse<List<CategoryWithSubheadingsAndDocumentsDto>>>
+    getTemplateCenterHierarchy(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+
+        List<CategoryWithSubheadingsAndDocumentsDto> response =
+                documentService.getTemplateCenterHierarchy(lawyerUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Document template center data fetched successfully",
+                        response
+                )
+        );
+    }
+
 }

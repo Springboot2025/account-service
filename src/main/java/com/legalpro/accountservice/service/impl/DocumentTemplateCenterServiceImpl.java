@@ -1,9 +1,6 @@
 package com.legalpro.accountservice.service.impl;
 
-import com.legalpro.accountservice.dto.CategoryWithSubheadingsDto;
-import com.legalpro.accountservice.dto.DocumentCategoryDto;
-import com.legalpro.accountservice.dto.DocumentTemplateCenterDto;
-import com.legalpro.accountservice.dto.LawyerDocumentSubheadingDto;
+import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.entity.DocumentCategory;
 import com.legalpro.accountservice.entity.DocumentTemplateCenter;
 import com.legalpro.accountservice.entity.LawyerDocumentSubheading;
@@ -302,6 +299,91 @@ public class DocumentTemplateCenterServiceImpl
 
         subheading.setDeletedAt(LocalDateTime.now());
         subheadingRepository.save(subheading);
+    }
+
+    @Override
+    public List<CategoryWithSubheadingsAndDocumentsDto>
+    getTemplateCenterHierarchy(UUID lawyerUuid) {
+
+        // 1️⃣ Fetch all categories (system-defined)
+        List<DocumentCategory> categories =
+                categoryRepository.findAllByDeletedAtIsNullOrderByDisplayOrderAsc();
+
+        // 2️⃣ Fetch all subheadings for lawyer
+        List<LawyerDocumentSubheading> subheadings =
+                subheadingRepository.findAllByLawyerUuidAndDeletedAtIsNull(lawyerUuid);
+
+        // 3️⃣ Fetch all documents for lawyer
+        List<DocumentTemplateCenter> documents =
+                documentRepository.findAllByLawyerUuidAndDeletedAtIsNull(lawyerUuid);
+
+        // 4️⃣ Group documents by subheadingId
+        Map<Long, List<DocumentTemplateCenter>> documentsBySubheading =
+                documents.stream()
+                        .collect(Collectors.groupingBy(
+                                d -> d.getSubheading().getId()
+                        ));
+
+        // 5️⃣ Group subheadings by categoryId
+        Map<Long, List<LawyerDocumentSubheading>> subheadingsByCategory =
+                subheadings.stream()
+                        .collect(Collectors.groupingBy(
+                                s -> s.getCategory().getId()
+                        ));
+
+        // 6️⃣ Assemble hierarchy
+        List<CategoryWithSubheadingsAndDocumentsDto> response = new ArrayList<>();
+
+        for (DocumentCategory category : categories) {
+
+            List<LawyerDocumentSubheading> categorySubheadings =
+                    subheadingsByCategory.getOrDefault(category.getId(), List.of());
+
+            List<SubheadingWithDocumentsDto> subheadingDtos = new ArrayList<>();
+
+            for (LawyerDocumentSubheading subheading : categorySubheadings) {
+
+                List<DocumentTemplateCenter> subheadingDocs =
+                        documentsBySubheading.getOrDefault(subheading.getId(), List.of());
+
+                List<DocumentTemplateCenterDto> documentDtos =
+                        subheadingDocs.stream()
+                                .map(doc -> {
+                                    // 🔁 reuse existing public URL conversion
+                                    convertToPublicUrl(doc);
+                                    return DocumentTemplateCenterMapper.toDto(doc);
+                                })
+                                .toList();
+
+                subheadingDtos.add(
+                        SubheadingWithDocumentsDto.builder()
+                                .subheadingId(subheading.getId())
+                                .subheadingUuid(subheading.getUuid())
+                                .subheadingName(subheading.getName())
+                                .documents(documentDtos)
+                                .build()
+                );
+            }
+
+            response.add(
+                    CategoryWithSubheadingsAndDocumentsDto.builder()
+                            .categoryId(category.getId())
+                            .categoryKey(category.getKey())
+                            .categoryName(category.getDisplayName())
+                            .displayOrder(category.getDisplayOrder())
+                            .subheadings(subheadingDtos)
+                            .build()
+            );
+        }
+
+        return response;
+    }
+
+    private void convertToPublicUrl(DocumentTemplateCenter doc) {
+        if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
+            String withoutScheme = doc.getFileUrl().substring("gs://".length());
+            doc.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
+        }
     }
 
 }

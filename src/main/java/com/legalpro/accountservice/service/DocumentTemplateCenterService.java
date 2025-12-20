@@ -1,9 +1,6 @@
 package com.legalpro.accountservice.service;
 
-import com.legalpro.accountservice.dto.CategoryWithSubheadingsDto;
-import com.legalpro.accountservice.dto.DocumentCategoryDto;
-import com.legalpro.accountservice.dto.DocumentTemplateCenterDto;
-import com.legalpro.accountservice.dto.LawyerDocumentSubheadingDto;
+import com.legalpro.accountservice.dto.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -44,5 +41,8 @@ public interface DocumentTemplateCenterService {
     );
 
     void deleteSubheading(UUID lawyerUuid, Long subheadingId);
+
+    List<CategoryWithSubheadingsAndDocumentsDto>
+    getTemplateCenterHierarchy(UUID lawyerUuid);
 
 }

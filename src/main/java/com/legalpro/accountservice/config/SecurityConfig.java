@@ -1,6 +1,5 @@
 package com.legalpro.accountservice.config;
 
-import com.legalpro.accountservice.security.CustomAccessDeniedHandler;
 import com.legalpro.accountservice.security.JwtAuthorizationFilter;
 import com.legalpro.accountservice.service.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
@@ -39,9 +38,6 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {}) // picks up corsConfigurationSource()
-                .exceptionHandling(ex -> ex
-                        .accessDeniedHandler(customAccessDeniedHandler())
-                )
                 .authorizeHttpRequests(auth -> auth
                         // ✅ Allow preflight OPTIONS requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
@@ -93,10 +89,4 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-
-    @Bean
-    public CustomAccessDeniedHandler customAccessDeniedHandler() {
-        return new CustomAccessDeniedHandler();
-    }
-
 }

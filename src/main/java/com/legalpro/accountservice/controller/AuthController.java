@@ -141,7 +141,8 @@ public class AuthController {
                     Map.of(
                             "accessToken", accessToken,
                             "email", account.getEmail(),
-                            "uuid", account.getUuid().toString()
+                            "uuid", account.getUuid().toString(),
+                            "profilePictureUrl", account.getProfilePictureUrl()
                     )
             );
 

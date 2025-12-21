@@ -275,18 +275,4 @@ public class DocumentTemplateCenterController {
                 );
     }
 
-    @PostMapping("/test-post")
-    public ResponseEntity<ApiResponse<String>> testPost(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        200,
-                        "POST reached controller successfully",
-                        "lawyerUuid=" + userDetails.getUuid()
-                )
-        );
-    }
-
-
 }

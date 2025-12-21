@@ -94,5 +94,13 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
 
     List<LegalCase> findAllByLawyerUuidAndDeletedAtIsNull(UUID lawyerUuid);
 
+    @Query("""
+        SELECT c
+        FROM LegalCase c
+        LEFT JOIN FETCH c.caseType
+        WHERE c.lawyerUuid = :lawyerUuid
+          AND c.deletedAt IS NULL
+    """)
+    List<LegalCase> findAllForLawyerWithCaseType(UUID lawyerUuid);
 
 }

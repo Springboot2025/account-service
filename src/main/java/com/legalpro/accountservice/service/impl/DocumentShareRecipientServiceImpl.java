@@ -21,7 +21,7 @@ public class DocumentShareRecipientServiceImpl implements DocumentShareRecipient
 
         // 1️⃣ Fetch all active cases for lawyer
         List<LegalCase> cases =
-                legalCaseRepository.findAllByLawyerUuidAndDeletedAtIsNull(lawyerUuid);
+                legalCaseRepository.findAllForLawyerWithCaseType(lawyerUuid);
 
         // 2️⃣ Group cases by client
         Map<UUID, List<LegalCase>> casesByClient =

@@ -91,4 +91,8 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     );
 
     Optional<LegalCase> findByUuidAndDeletedAtIsNull(UUID uuid);
+
+    List<LegalCase> findAllByLawyerUuidAndDeletedAtIsNull(UUID lawyerUuid);
+
+
 }

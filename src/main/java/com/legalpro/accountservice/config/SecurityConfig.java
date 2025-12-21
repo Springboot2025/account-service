@@ -39,6 +39,9 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {}) // picks up corsConfigurationSource()
+                .exceptionHandling(ex -> ex
+                        .accessDeniedHandler(new CustomAccessDeniedHandler())
+                )
                 .authorizeHttpRequests(auth -> auth
                         // ✅ Allow preflight OPTIONS requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
@@ -90,16 +93,4 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
-        http
-                .exceptionHandling(ex -> ex
-                        .accessDeniedHandler(new CustomAccessDeniedHandler())
-                );
-
-        return http.build();
-    }
-
 }

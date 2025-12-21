@@ -16,6 +16,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/lawyer/document-template-center")
+@PreAuthorize("hasRole('Lawyer')")
 public class DocumentTemplateCenterController {
 
     private final DocumentTemplateCenterService documentService;
@@ -273,5 +274,19 @@ public class DocumentTemplateCenterController {
                         )
                 );
     }
+
+    @PostMapping("/test-post")
+    public ResponseEntity<ApiResponse<String>> testPost(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "POST reached controller successfully",
+                        "lawyerUuid=" + userDetails.getUuid()
+                )
+        );
+    }
+
 
 }

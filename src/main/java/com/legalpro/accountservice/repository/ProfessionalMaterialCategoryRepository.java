@@ -12,4 +12,5 @@ public interface ProfessionalMaterialCategoryRepository
     Optional<ProfessionalMaterialCategory> findByNameIgnoreCaseAndDeletedAtIsNull(String name);
 
     List<ProfessionalMaterialCategory> findAllByDeletedAtIsNull();
+    Optional<ProfessionalMaterialCategory> findByIdAndDeletedAtIsNull(Long id);
 }

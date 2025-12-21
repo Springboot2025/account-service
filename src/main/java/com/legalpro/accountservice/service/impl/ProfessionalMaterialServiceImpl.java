@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.service.impl;
 
+import com.legalpro.accountservice.dto.ClientProfessionalMaterialsResponseDto;
 import com.legalpro.accountservice.dto.ProfessionalMaterialCategoryDto;
 import com.legalpro.accountservice.dto.ProfessionalMaterialResponseDto;
 import com.legalpro.accountservice.entity.LegalCase;
@@ -18,7 +19,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ProfessionalMaterialServiceImpl implements ProfessionalMaterialService {
@@ -132,5 +138,78 @@ public class ProfessionalMaterialServiceImpl implements ProfessionalMaterialServ
         );
 
         return response;
+    }
+
+    @Override
+    public List<ClientProfessionalMaterialsResponseDto>
+    getClientProfessionalMaterials(UUID clientUuid, UUID caseUuid) {
+
+        // 1️⃣ Validate case
+        LegalCase legalCase = legalCaseRepository
+                .findByUuidAndDeletedAtIsNull(caseUuid)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Case not found"));
+
+        // 2️⃣ Ownership check (client)
+        if (!legalCase.getClientUuid().equals(clientUuid)) {
+            throw new IllegalStateException("You are not allowed to access this case");
+        }
+
+        // 3️⃣ Fetch materials (category already fetched via JOIN FETCH)
+        List<ProfessionalMaterial> materials =
+                materialRepository.findAllByCaseUuid(caseUuid);
+
+        // 4️⃣ Group by category
+        Map<Long, List<ProfessionalMaterial>> groupedByCategory =
+                materials.stream()
+                        .collect(Collectors.groupingBy(
+                                pm -> pm.getCategory().getId()
+                        ));
+
+        // 5️⃣ Build response
+        List<ClientProfessionalMaterialsResponseDto> response = new ArrayList<>();
+
+        for (Map.Entry<Long, List<ProfessionalMaterial>> entry : groupedByCategory.entrySet()) {
+
+            ProfessionalMaterial first = entry.getValue().get(0);
+
+            ClientProfessionalMaterialsResponseDto categoryDto =
+                    ClientProfessionalMaterialsResponseDto.builder()
+                            .categoryId(first.getCategory().getId())
+                            .categoryName(first.getCategory().getName())
+                            .documents(new ArrayList<>())
+                            .build();
+
+            for (ProfessionalMaterial material : entry.getValue()) {
+
+                ClientProfessionalMaterialsResponseDto.DocumentDto docDto =
+                        ClientProfessionalMaterialsResponseDto.DocumentDto.builder()
+                                .uuid(material.getUuid().toString())
+                                .fileName(material.getFileName())
+                                .fileType(material.getFileType())
+                                .followUp(material.getFollowUp())
+                                .description(material.getDescription())
+                                .createdAt(
+                                        material.getCreatedAt()
+                                                .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                                )
+                                .fileUrl(toPublicUrl(material.getFileUrl()))
+                                .build();
+
+                categoryDto.getDocuments().add(docDto);
+            }
+
+            response.add(categoryDto);
+        }
+
+        return response;
+    }
+
+    // 🔁 gs:// → https://storage.googleapis.com
+    private String toPublicUrl(String fileUrl) {
+        if (fileUrl != null && fileUrl.startsWith("gs://")) {
+            return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
+        }
+        return fileUrl;
     }
 }

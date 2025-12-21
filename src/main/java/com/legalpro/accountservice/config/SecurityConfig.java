@@ -40,7 +40,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {}) // picks up corsConfigurationSource()
                 .exceptionHandling(ex -> ex
-                        .accessDeniedHandler(new CustomAccessDeniedHandler())
+                        .accessDeniedHandler(customAccessDeniedHandler())
                 )
                 .authorizeHttpRequests(auth -> auth
                         // ✅ Allow preflight OPTIONS requests
@@ -93,4 +93,10 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+
+    @Bean
+    public CustomAccessDeniedHandler customAccessDeniedHandler() {
+        return new CustomAccessDeniedHandler();
+    }
+
 }

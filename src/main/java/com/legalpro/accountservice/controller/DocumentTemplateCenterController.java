@@ -16,7 +16,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/lawyer/document-template-center")
-@PreAuthorize("hasRole('Lawyer')")
 public class DocumentTemplateCenterController {
 
     private final DocumentTemplateCenterService documentService;

@@ -141,6 +141,7 @@ public class AuthController {
                     Map.of(
                             "accessToken", accessToken,
                             "email", account.getEmail(),
+                            "profilePictureUrl", Optional.ofNullable(account.getProfilePictureUrl()).orElse(""),
                             "uuid", account.getUuid().toString()
                     )
             );

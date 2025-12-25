@@ -120,7 +120,7 @@ public class QuoteServiceImpl implements QuoteService {
         List<Quote> quotes = quoteRepository.findByLawyerUuidAndClientUuid(lawyerUuid, clientUuid);
 
         return quotes.stream()
-                .map(this::toDto)
+                .map(quoteMapper::toDto)
                 .collect(Collectors.toList());
     }
 

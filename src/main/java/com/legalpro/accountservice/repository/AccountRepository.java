@@ -132,21 +132,21 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
         SELECT a FROM Account a
         JOIN a.roles r
         WHERE r.name = 'Client'
-          AND (:search IS NULL 
+          AND (:search IS NULL
                OR LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))
           )
-          AND (:status IS NULL OR a.active = 
-               CASE 
-                   WHEN :status = 'ACTIVE' THEN true
-                   WHEN :status = 'DEACTIVATED' THEN false
-               END
+          AND (
+               :status IS NULL
+               OR (:status = 'ACTIVE' AND a.isActive = true AND a.removedAt IS NULL)
+               OR (:status = 'DEACTIVATED' AND a.isActive = false AND a.removedAt IS NULL)
+               OR (:status = 'DELETED' AND a.removedAt IS NOT NULL)
           )
-          AND a.removedAt IS NULL
     """)
     Page<Account> findClients(
             @Param("search") String search,
             @Param("status") String status,
             Pageable pageable
     );
+
 
 }

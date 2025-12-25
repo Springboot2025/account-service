@@ -128,5 +128,25 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
             Pageable pageable
     );
 
+    @Query("""
+        SELECT a FROM Account a
+        JOIN a.roles r
+        WHERE r.name = 'Client'
+          AND (:search IS NULL 
+               OR LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))
+          )
+          AND (:status IS NULL OR a.active = 
+               CASE 
+                   WHEN :status = 'ACTIVE' THEN true
+                   WHEN :status = 'DEACTIVATED' THEN false
+               END
+          )
+          AND a.removedAt IS NULL
+    """)
+    Page<Account> findClients(
+            @Param("search") String search,
+            @Param("status") String status,
+            Pageable pageable
+    );
 
 }

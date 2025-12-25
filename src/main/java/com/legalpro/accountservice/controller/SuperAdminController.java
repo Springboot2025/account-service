@@ -142,5 +142,18 @@ public class SuperAdminController {
         return ResponseEntity.ok(ApiResponse.success(200, "Updated", null));
     }
 
+    @GetMapping("/users")
+    public ResponseEntity<ApiResponse<?>> getUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) AdminLawyerStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        var result = superAdminService.getClients(search, status, page, size);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Users fetched successfully", result)
+        );
+    }
 
 }

@@ -2,8 +2,10 @@ package com.legalpro.accountservice.service;
 
 import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.AdminLawyerDto;
+import com.legalpro.accountservice.dto.AdminUserDto;
 import com.legalpro.accountservice.dto.DashboardSummaryDto;
 import com.legalpro.accountservice.entity.Account;
+import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.repository.AccountRepository;
@@ -149,6 +151,55 @@ public class SuperAdminService {
             return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
         }
         return fileUrl;
+    }
+
+    public Page<AdminUserDto> getClients(
+            String search,
+            AdminLawyerStatus status,
+            int page,
+            int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        Page<Account> clients =
+                accountRepository.findClients(
+                        search,
+                        status != null ? status.name() : null,
+                        pageable
+                );
+
+        return clients.map(client -> {
+
+            LegalCase latestCase = caseRepository
+                    .findLatestCaseForClient(
+                            client.getUuid(),
+                            PageRequest.of(0, 1)
+                    )
+                    .stream()
+                    .findFirst()
+                    .orElse(null);
+
+            return AdminUserDto.builder()
+                    .userUuid(client.getUuid())
+                    .email(client.getEmail())
+                    .active(client.isActive())
+                    .latestCaseUuid(latestCase != null ? latestCase.getUuid() : null)
+                    .latestCaseNumber(latestCase != null ? latestCase.getCaseNumber() : null)
+                    .latestCaseCategory(
+                            latestCase != null && latestCase.getCaseType() != null
+                                    ? latestCase.getCaseType().getName()
+                                    : null
+                    )
+                    .latestCaseStatus(
+                            latestCase != null && latestCase.getStatus() != null
+                                    ? latestCase.getStatus().getName()
+                                    : null
+                    )
+                    .latestCaseCreatedAt(
+                            latestCase != null ? latestCase.getCreatedAt() : null
+                    )
+                    .build();
+        });
     }
 
 }

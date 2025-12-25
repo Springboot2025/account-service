@@ -2,6 +2,7 @@ package com.legalpro.accountservice.repository;
 
 import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.repository.projection.CaseStatsProjection;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -102,5 +103,16 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
           AND c.deletedAt IS NULL
     """)
     List<LegalCase> findAllForLawyerWithCaseType(UUID lawyerUuid);
+
+    @Query("""
+        SELECT c FROM LegalCase c
+        WHERE c.clientUuid = :clientUuid
+          AND c.deletedAt IS NULL
+        ORDER BY c.createdAt DESC
+    """)
+    List<LegalCase> findLatestCaseForClient(
+            @Param("clientUuid") UUID clientUuid,
+            Pageable pageable
+    );
 
 }

@@ -40,7 +40,7 @@ public class SuperAdminController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/users")
+    /*@GetMapping("/users")
     public ResponseEntity<ApiResponse<List<AccountDto>>> getUsersByType(
             @RequestParam(name = "type") String userType) {
 
@@ -61,7 +61,7 @@ public class SuperAdminController {
                     ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Something went wrong")
             );
         }
-    }
+    }*/
 
     @GetMapping("/contacts")
     public ResponseEntity<ApiResponse<?>> listContactRequests() {

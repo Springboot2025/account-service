@@ -3,15 +3,19 @@ package com.legalpro.accountservice.specification;
 import com.legalpro.accountservice.dto.LawyerSearchRequestDto;
 import com.legalpro.accountservice.entity.Account;
 import org.springframework.data.jpa.domain.Specification;
+import com.legalpro.accountservice.entity.Role;
+import jakarta.persistence.criteria.Join;
 
 public class LawyerSpecification {
 
     public static Specification<Account> build(LawyerSearchRequestDto request) {
         return (root, query, cb) -> {
             var predicate = cb.conjunction();
+            Join<Account, Role> roleJoin = root.join("roles");
 
             // Only Lawyers
-            predicate.getExpressions().add(root.join("roles").get("name").in("Lawyer"));
+            predicate.getExpressions().add(cb.equal(roleJoin.get("name"), "Lawyer"));
+            query.distinct(true);
 
             // --- Helper lambda to add JSONB filters ---
             java.util.function.BiConsumer<String, String> jsonFilter = (field, value) -> {

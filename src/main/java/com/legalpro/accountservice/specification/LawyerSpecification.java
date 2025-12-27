@@ -2,59 +2,117 @@ package com.legalpro.accountservice.specification;
 
 import com.legalpro.accountservice.dto.LawyerSearchRequestDto;
 import com.legalpro.accountservice.entity.Account;
-import org.springframework.data.jpa.domain.Specification;
 import com.legalpro.accountservice.entity.Role;
 import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.jpa.domain.Specification;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class LawyerSpecification {
 
     public static Specification<Account> build(LawyerSearchRequestDto request) {
         return (root, query, cb) -> {
-            var predicate = cb.conjunction();
+
+            List<Predicate> predicates = new ArrayList<>();
+
+            /* -------------------------------------------------
+             * 1️⃣ RBAC: ONLY LAWYERS
+             * ------------------------------------------------- */
             Join<Account, Role> roleJoin = root.join("roles");
+            predicates.add(cb.equal(roleJoin.get("name"), "Lawyer"));
 
-            // Only Lawyers
-            predicate.getExpressions().add(cb.equal(roleJoin.get("name"), "Lawyer"));
-            query.distinct(true);
-
-            // --- Helper lambda to add JSONB filters ---
-            java.util.function.BiConsumer<String, String> jsonFilter = (field, value) -> {
-                if (value != null && !value.isBlank()) {
-                    predicate.getExpressions().add(cb.and(
-                            cb.isNotNull(cb.literal(1)), // dummy for syntax
-                            cb.like(
-                                    cb.lower(cb.literal("")),
-                                    "%" + value.toLowerCase() + "%"
-                            )
-                    ));
-                    query.where(cb.and(predicate, cb.equal(cb.literal(1), cb.literal(1)))); // keep predicate alive
-                }
-            };
-
-            // Instead of using cb.function(), use raw SQL string via where clause
+            /* -------------------------------------------------
+             * 2️⃣ LOCATION FILTERS (JSON fields)
+             * ------------------------------------------------- */
             if (request.getCity() != null && !request.getCity().isBlank()) {
-                query.where(cb.and(
-                        predicate,
-                        cb.equal(cb.literal(1),
-                                cb.literal(1) // keeps syntax valid
-                        )
-                ));
-                query.where(
-                        cb.and(predicate,
-                                cb.literal(true)
+                predicates.add(
+                        cb.like(
+                                cb.lower(
+                                        cb.function(
+                                                "jsonb_extract_path_text",
+                                                String.class,
+                                                root.get("addressDetails"),
+                                                cb.literal("city")
+                                        )
+                                ),
+                                "%" + request.getCity().toLowerCase() + "%"
                         )
                 );
             }
 
-            // Simplify: fallback to raw SQL filter when Hibernate can't translate functions
-            if (request.getCity() != null && !request.getCity().isBlank()) {
-                query.where(cb.and(predicate,
-                        cb.literal(true)
-                ));
+            if (request.getState() != null && !request.getState().isBlank()) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(
+                                        cb.function(
+                                                "jsonb_extract_path_text",
+                                                String.class,
+                                                root.get("addressDetails"),
+                                                cb.literal("state")
+                                        )
+                                ),
+                                "%" + request.getState().toLowerCase() + "%"
+                        )
+                );
             }
 
-            // Final fallback: no extra filter logic here to avoid SQL dropouts
-            return predicate;
+            if (request.getCountry() != null && !request.getCountry().isBlank()) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(
+                                        cb.function(
+                                                "jsonb_extract_path_text",
+                                                String.class,
+                                                root.get("addressDetails"),
+                                                cb.literal("country")
+                                        )
+                                ),
+                                "%" + request.getCountry().toLowerCase() + "%"
+                        )
+                );
+            }
+
+            /* -------------------------------------------------
+             * 3️⃣ PERSONAL FILTERS
+             * ------------------------------------------------- */
+            if (request.getFirstName() != null && !request.getFirstName().isBlank()) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(
+                                        cb.function(
+                                                "jsonb_extract_path_text",
+                                                String.class,
+                                                root.get("personalDetails"),
+                                                cb.literal("firstName")
+                                        )
+                                ),
+                                "%" + request.getFirstName().toLowerCase() + "%"
+                        )
+                );
+            }
+
+            if (request.getMobile() != null && !request.getMobile().isBlank()) {
+                predicates.add(
+                        cb.like(
+                                cb.function(
+                                        "jsonb_extract_path_text",
+                                        String.class,
+                                        root.get("contactInformation"),
+                                        cb.literal("mobile")
+                                ),
+                                "%" + request.getMobile() + "%"
+                        )
+                );
+            }
+
+            /* -------------------------------------------------
+             * 4️⃣ QUERY SAFETY
+             * ------------------------------------------------- */
+            query.distinct(true);
+
+            return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
 }

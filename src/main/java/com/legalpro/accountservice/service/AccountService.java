@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +35,8 @@ public class AccountService {
     private final CourtSupportMaterialRepository courtSupportMaterialRepository;
     private final ClientDocumentRepository clientDocumentRepository;
     private final QuoteRepository quoteRepository;
+
+    private final LawyerRatingRepository lawyerRatingRepository;
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
     public AccountService(AccountRepository accountRepository,
@@ -46,7 +49,8 @@ public class AccountService {
                           ClientAnswerRepository clientAnswerRepository,
                           CourtSupportMaterialRepository courtSupportMaterialRepository,
                           ClientDocumentRepository clientDocumentRepository,
-                          QuoteRepository quoteRepository) {
+                          QuoteRepository quoteRepository,
+                          LawyerRatingRepository lawyerRatingRepository) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
@@ -58,6 +62,7 @@ public class AccountService {
         this.courtSupportMaterialRepository = courtSupportMaterialRepository;
         this.clientDocumentRepository = clientDocumentRepository;
         this.quoteRepository = quoteRepository;
+        this.lawyerRatingRepository = lawyerRatingRepository;
     }
 
     public Account register(RegisterRequest request) {
@@ -510,6 +515,45 @@ public class AccountService {
             return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
         }
         return fileUrl;
+    }
+
+    @Transactional(readOnly = true)
+    public PublicLawyerProfileDto getPublicLawyerProfile(UUID lawyerUuid) {
+
+        // 1️⃣ Fetch account
+        Account account = accountRepository.findByUuid(lawyerUuid)
+                .orElseThrow(() -> new RuntimeException("Lawyer not found"));
+
+        // 2️⃣ Ensure this account is a LAWYER
+        boolean isLawyer = account.getRoles()
+                .stream()
+                .anyMatch(role -> "Lawyer".equalsIgnoreCase(role.getName()));
+
+        if (!isLawyer) {
+            throw new RuntimeException("Account is not a lawyer");
+        }
+
+        // 3️⃣ Rating summary
+        BigDecimal averageRating =
+                lawyerRatingRepository.findAverageRatingByLawyerUuid(lawyerUuid);
+
+        if (averageRating == null) {
+            averageRating = BigDecimal.ZERO;
+        }
+
+        int reviewCount = lawyerRatingRepository
+                .findAllByLawyerUuid(lawyerUuid)
+                .stream()
+                .filter(r -> r.getDeletedAt() == null)
+                .toList()
+                .size();
+
+        // 4️⃣ Build public DTO
+        return PublicLawyerProfileDto.from(
+                account,
+                averageRating,
+                reviewCount
+        );
     }
 
 }

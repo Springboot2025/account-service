@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -147,6 +148,38 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
             @Param("status") String status,
             Pageable pageable
     );
+
+    @Query(value = """
+        SELECT COUNT(DISTINCT a.id)
+        FROM accounts a
+        JOIN roles r ON r.name = 'Client'
+        JOIN account_roles ar ON ar.role_id = r.id AND ar.account_id = a.id
+        JOIN cases c ON c.client_uuid = a.uuid
+        WHERE c.lawyer_uuid = :lawyerUuid
+          AND a.removed_at IS NULL
+          AND c.deleted_at IS NULL
+    """, nativeQuery = true)
+        int countTotalClientsForLawyer(@Param("lawyerUuid") UUID lawyerUuid);
+
+
+
+    @Query(value = """
+        SELECT COUNT(DISTINCT a.id)
+        FROM accounts a
+        JOIN roles r ON r.name = 'Client'
+        JOIN account_roles ar ON ar.role_id = r.id AND ar.account_id = a.id
+        JOIN cases c ON c.client_uuid = a.uuid
+        WHERE c.lawyer_uuid = :lawyerUuid
+          AND a.removed_at IS NULL
+          AND c.deleted_at IS NULL
+          AND c.created_at >= :start
+          AND c.created_at < :end
+    """, nativeQuery = true)
+        int countNewClientsForLawyerInPeriod(
+                @Param("lawyerUuid") UUID lawyerUuid,
+                @Param("start") LocalDateTime start,
+                @Param("end") LocalDateTime end
+        );
 
 
 }

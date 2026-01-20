@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -114,5 +115,21 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
             @Param("clientUuid") UUID clientUuid,
             Pageable pageable
     );
+
+    @Query("""
+        SELECT COUNT(c)
+        FROM LegalCase c
+        JOIN c.status s
+        WHERE c.lawyerUuid = :lawyerUuid
+          AND s.name = 'Active'
+          AND c.deletedAt IS NULL
+          AND c.createdAt >= :start
+          AND c.createdAt < :end
+    """)
+        int countActiveCasesForPeriod(
+                @Param("lawyerUuid") UUID lawyerUuid,
+                @Param("start") LocalDateTime start,
+                @Param("end") LocalDateTime end
+        );
 
 }

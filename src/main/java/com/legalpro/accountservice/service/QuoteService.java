@@ -46,4 +46,6 @@ public interface QuoteService {
     List<QuoteDto> getQuotesForClient(UUID lawyerUuid, UUID clientUuid);
     List<QuoteDto> getQuotesForClientAndLawyer(UUID clientUuid, UUID lawyerUuid);
 
+    List<QuoteDto> getRecentQuotesForLawyer(UUID lawyerUuid, Integer limit);
+
 }

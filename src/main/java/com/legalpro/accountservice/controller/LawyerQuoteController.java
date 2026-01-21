@@ -99,4 +99,19 @@ public class LawyerQuoteController {
         );
     }
 
+    // === Get recent quote requests for dashboard ===
+    @GetMapping("/recent")
+    public ResponseEntity<ApiResponse<List<QuoteDto>>> getRecentRequests(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(required = false) Integer limit
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+
+        List<QuoteDto> quotes = quoteService.getRecentQuotesForLawyer(lawyerUuid, limit);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Recent requests fetched successfully", quotes)
+        );
+    }
+
 }

@@ -2,6 +2,7 @@ package com.legalpro.accountservice.repository;
 
 import com.legalpro.accountservice.entity.Quote;
 import com.legalpro.accountservice.enums.QuoteStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -51,5 +52,15 @@ public interface QuoteRepository extends JpaRepository<Quote, Long> {
                 @Param("start") LocalDateTime start,
                 @Param("end") LocalDateTime end
         );
+
+    @Query("""
+        SELECT q
+        FROM Quote q
+        WHERE q.lawyerUuid = :lawyerUuid
+          AND q.deletedAt IS NULL
+        ORDER BY q.createdAt DESC
+    """)
+        List<Quote> findRecentQuotesForLawyer(UUID lawyerUuid, Pageable pageable);
+
 
 }

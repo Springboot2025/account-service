@@ -10,6 +10,8 @@ import com.legalpro.accountservice.service.LegalCaseService;
 import com.legalpro.accountservice.service.QuoteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -148,6 +150,19 @@ public class QuoteServiceImpl implements QuoteService {
         List<Quote> quotes = quoteRepository.findByClientUuidAndLawyerUuid(clientUuid, lawyerUuid);
 
         return quotes.stream()
+                .map(quoteMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<QuoteDto> getRecentQuotesForLawyer(UUID lawyerUuid, Integer limit) {
+
+        Pageable pageable = (limit != null && limit > 0)
+                ? PageRequest.of(0, limit)
+                : Pageable.unpaged();
+
+        return quoteRepository.findRecentQuotesForLawyer(lawyerUuid, pageable)
+                .stream()
                 .map(quoteMapper::toDto)
                 .collect(Collectors.toList());
     }

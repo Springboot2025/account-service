@@ -9,7 +9,9 @@ import com.legalpro.accountservice.repository.QuoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.DayOfWeek;
 import java.util.UUID;
 
 @Service
@@ -22,24 +24,36 @@ public class LawyerDashboardService {
 
     public LawyerDashboardSummaryDto getDashboardSummary(UUID lawyerUuid) {
 
-    /* =====================
-       DATE WINDOWS
-    ===================== */
+        /* =============================
+           DATE WINDOWS
+        ============================= */
+
         LocalDateTime now = LocalDateTime.now();
 
-        // Monthly ranges
-        LocalDateTime thisMonthStart = now.withDayOfMonth(1).toLocalDate().atStartOfDay();
+        // MONTHLY RANGE
+        LocalDate firstDayThisMonth = LocalDate.now().withDayOfMonth(1);
+        LocalDateTime thisMonthStart = firstDayThisMonth.atStartOfDay();
         LocalDateTime nextMonthStart = thisMonthStart.plusMonths(1);
         LocalDateTime lastMonthStart = thisMonthStart.minusMonths(1);
 
-        // Weekly ranges
-        LocalDateTime thisWeekStart = now.with(java.time.DayOfWeek.MONDAY).toLocalDate().atStartOfDay();
+        // WEEKLY RANGE (Monday start)
+        LocalDate today = LocalDate.now();
+        LocalDate thisWeekMonday = today.with(DayOfWeek.MONDAY);
+
+        LocalDateTime thisWeekStart = thisWeekMonday.atStartOfDay();
         LocalDateTime nextWeekStart = thisWeekStart.plusWeeks(1);
         LocalDateTime lastWeekStart = thisWeekStart.minusWeeks(1);
 
-    /* =====================
-       ACTIVE CASES
-    ===================== */
+        /* =============================
+           ACTIVE CASES
+        ============================= */
+
+        // Correct: total active cases RIGHT NOW (not based on month)
+        int activeTotal = legalCaseRepository
+                .findAllByLawyerUuidAndStatusNameIgnoreCase(lawyerUuid, "Active")
+                .size();
+
+        // For growth: compare this month vs last month
         int activeThisMonth = legalCaseRepository.countActiveCasesForPeriod(
                 lawyerUuid, thisMonthStart, nextMonthStart);
 
@@ -49,14 +63,15 @@ public class LawyerDashboardService {
         int activeGrowth = calculateGrowth(activeThisMonth, activeLastMonth);
 
         SummaryCardDto activeCard = new SummaryCardDto(
-                activeThisMonth,
+                activeTotal,
                 activeGrowth,
                 "from last month"
         );
 
-    /* =====================
-       NEW REQUESTS (QUOTES)
-    ===================== */
+        /* =============================
+           NEW REQUESTS (QUOTES)
+        ============================= */
+
         int newRequestsThisWeek = quoteRepository.countNewRequestsForPeriod(
                 lawyerUuid, thisWeekStart, nextWeekStart);
 
@@ -65,15 +80,16 @@ public class LawyerDashboardService {
 
         int newRequestsGrowth = calculateGrowth(newRequestsThisWeek, newRequestsLastWeek);
 
-        SummaryCardDto requestsCard = new SummaryCardDto(
+        SummaryCardDto requestCard = new SummaryCardDto(
                 newRequestsThisWeek,
                 newRequestsGrowth,
                 "this week"
         );
 
-    /* =====================
-       TOTAL CLIENTS
-    ===================== */
+        /* =============================
+           TOTAL CLIENTS
+        ============================= */
+
         int totalClients = accountRepository.countTotalClientsForLawyer(lawyerUuid);
 
         int newClientsThisMonth = accountRepository.countNewClientsForLawyerInPeriod(
@@ -84,40 +100,51 @@ public class LawyerDashboardService {
 
         int clientGrowth = calculateGrowth(newClientsThisMonth, newClientsLastMonth);
 
-        SummaryCardDto clientsCard = new SummaryCardDto(
+        SummaryCardDto clientCard = new SummaryCardDto(
                 totalClients,
                 clientGrowth,
                 "this month"
         );
 
-    /* =====================
-       WIN RATE (Not implemented)
-    ===================== */
+        /* =============================
+           WIN RATE (Not implemented yet)
+        ============================= */
+
         WinRateCardDto winCard = new WinRateCardDto(
                 null,
                 null,
                 "this year"
         );
 
-    /* =====================
-       FINAL DTO
-    ===================== */
+        /* =============================
+           FINAL DTO
+        ============================= */
+
         return new LawyerDashboardSummaryDto(
                 activeCard,
-                requestsCard,
-                clientsCard,
+                requestCard,
+                clientCard,
                 winCard
         );
     }
 
-    /* ==========================
-       Helper: Growth Calculator
-    ========================== */
+    /* ===================================
+       Growth Calculator (No Negative)
+    =================================== */
     private int calculateGrowth(int current, int previous) {
-        if (previous == 0) {
-            return current > 0 ? 100 : 0;
-        }
-        return (int) (((double) (current - previous) / previous) * 100);
-    }
 
+        // No negative values ever shown
+        if (current <= previous) {
+            return 0;
+        }
+
+        // If previous = 0 and current > 0 → 100%
+        if (previous == 0) {
+            return 100;
+        }
+
+        double growth = ((double) (current - previous) / previous) * 100;
+
+        return Math.max((int) growth, 0);
+    }
 }

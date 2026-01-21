@@ -21,7 +21,7 @@ public interface CaseEventRepository extends JpaRepository<CaseEvent, Long> {
         JOIN LegalCase c ON c.uuid = e.caseUuid
         WHERE c.lawyerUuid = :lawyerUuid
           AND e.date >= :today
-          AND (e.deletedAt IS NULL OR e.deletedAt IS NULL)   -- if deletedAt exists
+          AND e.deletedAt IS NULL
         ORDER BY e.date ASC
     """)
         List<CaseEvent> findUpcomingEvents(
@@ -29,5 +29,6 @@ public interface CaseEventRepository extends JpaRepository<CaseEvent, Long> {
                 @Param("today") LocalDate today,
                 Pageable pageable
         );
+
 
 }

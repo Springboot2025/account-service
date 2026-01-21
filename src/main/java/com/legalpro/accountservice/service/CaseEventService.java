@@ -11,4 +11,6 @@ public interface CaseEventService {
 
     List<CaseEventDto> getCaseEvents(UUID caseUuid, UUID lawyerUuid);
     List<CaseEventDto> getClientCaseEvents(UUID caseUuid, UUID clientUuid);
+    List<CaseEventDto> getUpcomingEvents(UUID lawyerUuid, Integer limit);
+
 }

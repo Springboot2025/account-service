@@ -7,10 +7,13 @@ import com.legalpro.accountservice.mapper.CaseEventMapper;
 import com.legalpro.accountservice.repository.CaseEventRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.service.CaseEventService;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -84,4 +87,23 @@ public class CaseEventServiceImpl implements CaseEventService {
                 .map(caseEventMapper::toDto)
                 .toList();
     }
+
+    @Override
+    public List<CaseEventDto> getUpcomingEvents(UUID lawyerUuid, Integer limit) {
+
+        Pageable pageable = (limit != null && limit > 0)
+                ? PageRequest.of(0, limit)
+                : Pageable.unpaged();
+
+        List<CaseEvent> events = caseEventRepository.findUpcomingEvents(
+                lawyerUuid,
+                LocalDateTime.now(),
+                pageable
+        );
+
+        return events.stream()
+                .map(caseEventMapper::toDto)
+                .toList();
+    }
+
 }

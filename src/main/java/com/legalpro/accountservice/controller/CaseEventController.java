@@ -66,11 +66,7 @@ public class CaseEventController {
                 caseEventService.getUpcomingEvents(lawyerUuid, limit);
 
         return ResponseEntity.ok(
-                ApiResponse.success(
-                        200,
-                        "Upcoming events fetched successfully",
-                        response
-                )
+                ApiResponse.success(200, "Upcoming events fetched successfully", response)
         );
     }
 

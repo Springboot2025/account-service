@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,19 +15,18 @@ import java.util.UUID;
 public interface CaseEventRepository extends JpaRepository<CaseEvent, Long> {
 
     List<CaseEvent> findAllByCaseUuidAndDeletedAtIsNullOrderByEventDateDesc(UUID caseUuid);
-
     @Query("""
         SELECT e
         FROM CaseEvent e
         JOIN LegalCase c ON c.uuid = e.caseUuid
         WHERE c.lawyerUuid = :lawyerUuid
-          AND e.eventDate >= :now
-          AND e.deletedAt IS NULL
-        ORDER BY e.eventDate ASC
+          AND e.date >= :today
+          AND (e.deletedAt IS NULL OR e.deletedAt IS NULL)   -- if deletedAt exists
+        ORDER BY e.date ASC
     """)
         List<CaseEvent> findUpcomingEvents(
                 @Param("lawyerUuid") UUID lawyerUuid,
-                @Param("now") LocalDateTime now,
+                @Param("today") LocalDate today,
                 Pageable pageable
         );
 

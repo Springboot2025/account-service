@@ -18,17 +18,22 @@ public interface CaseEventRepository extends JpaRepository<CaseEvent, Long> {
     @Query("""
         SELECT e
         FROM CaseEvent e
-        JOIN LegalCase c ON c.uuid = e.caseUuid
-        WHERE c.lawyerUuid = :lawyerUuid
-          AND e.date >= :today
+        WHERE e.caseUuid IN (
+            SELECT c.uuid
+            FROM LegalCase c
+            WHERE c.lawyerUuid = :lawyerUuid
+              AND c.deletedAt IS NULL
+        )
+          AND e.eventDate >= :today
           AND e.deletedAt IS NULL
-        ORDER BY e.date ASC
+        ORDER BY e.eventDate ASC
     """)
         List<CaseEvent> findUpcomingEvents(
                 @Param("lawyerUuid") UUID lawyerUuid,
                 @Param("today") LocalDate today,
                 Pageable pageable
         );
+
 
 
 }

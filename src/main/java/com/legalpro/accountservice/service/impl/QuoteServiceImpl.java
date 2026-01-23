@@ -6,6 +6,7 @@ import com.legalpro.accountservice.entity.Quote;
 import com.legalpro.accountservice.enums.QuoteStatus;
 import com.legalpro.accountservice.mapper.QuoteMapper;
 import com.legalpro.accountservice.repository.QuoteRepository;
+import com.legalpro.accountservice.service.ActivityLogService;
 import com.legalpro.accountservice.service.LegalCaseService;
 import com.legalpro.accountservice.service.QuoteService;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class QuoteServiceImpl implements QuoteService {
     private final QuoteRepository quoteRepository;
     private final QuoteMapper quoteMapper;
     private final LegalCaseService legalCaseService;
+    private final ActivityLogService activityLogService;
 
     // === Client Actions ===
 
@@ -112,7 +114,22 @@ public class QuoteServiceImpl implements QuoteService {
 
         Quote saved = quoteRepository.save(entity);
         log.info("✅ Lawyer {} updated quote {} to status {}", lawyerUuid, quoteUuid, newStatus);
-        
+
+        // 🔔 Activity Log — New Client Accepted
+        if (newStatus == QuoteStatus.ACCEPTED) {
+
+            activityLogService.logActivity(
+                    "QUOTE_ACCEPTED",
+                    "Quote accepted by lawyer",
+                    lawyerUuid,                 // actorUuid
+                    lawyerUuid,                 // lawyerUuid
+                    entity.getClientUuid(),     // clientUuid
+                    null,                       // caseUuid (NO CASE YET)
+                    entity.getUuid(),           // referenceUuid (quote)
+                    null                        // metadata
+            );
+        }
+
         return quoteMapper.toDto(saved);
     }
 

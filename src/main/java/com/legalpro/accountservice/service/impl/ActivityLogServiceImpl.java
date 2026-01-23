@@ -24,7 +24,6 @@ public class ActivityLogServiceImpl implements ActivityLogService {
             String activityType,
             String description,
             UUID actorUuid,
-            String actorName,
             UUID lawyerUuid,
             UUID clientUuid,
             UUID caseUuid,
@@ -35,7 +34,6 @@ public class ActivityLogServiceImpl implements ActivityLogService {
                 .activityType(activityType)
                 .description(description)
                 .actorUuid(actorUuid)
-                .actorName(actorName)
                 .lawyerUuid(lawyerUuid)
                 .clientUuid(clientUuid)
                 .caseUuid(caseUuid)
@@ -51,7 +49,7 @@ public class ActivityLogServiceImpl implements ActivityLogService {
         try {
             return objectMapper.writeValueAsString(metadata);
         } catch (Exception e) {
-            return null; // never break business flow
+            return null; // avoid breaking business workflow
         }
     }
 }

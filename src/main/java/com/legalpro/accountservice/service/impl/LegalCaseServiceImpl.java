@@ -8,6 +8,7 @@ import com.legalpro.accountservice.entity.Quote;
 import com.legalpro.accountservice.enums.QuoteStatus;
 import com.legalpro.accountservice.mapper.LegalCaseMapper;
 import com.legalpro.accountservice.repository.*;
+import com.legalpro.accountservice.service.ActivityLogService;
 import com.legalpro.accountservice.service.LegalCaseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ public class LegalCaseServiceImpl implements LegalCaseService {
     private final LegalCaseMapper mapper;
     private final AccountRepository accountRepository;
     private final QuoteRepository quoteRepository;
+    private final ActivityLogService activityLogService;
 
     // --- Helper: Generate case number ---
     private String generateCaseNumber(UUID lawyerUuid) {
@@ -76,6 +78,38 @@ public class LegalCaseServiceImpl implements LegalCaseService {
                 .build();
 
         legalCaseRepository.save(legalCase);
+        
+        String description = clientName + " - " +
+                (caseType != null ? caseType.getName() : dto.getListing()) +
+                " accepted and added to active cases";
+
+        boolean isFirstCase = !legalCaseRepository
+                .existsByClientUuidAndLawyerUuid(dto.getClientUuid(), lawyerUuid);
+
+        if (isFirstCase) {
+            activityLogService.logActivity(
+                    "NEW_CLIENT_ACCEPTED",
+                    description,
+                    lawyerUuid,
+                    lawyerUuid,
+                    dto.getClientUuid(),
+                    legalCase.getUuid(),
+                    null,
+                    null
+            );
+        }
+
+        activityLogService.logActivity(
+                "CASE_CREATED",
+                description,
+                lawyerUuid,
+                lawyerUuid,
+                dto.getClientUuid(),
+                legalCase.getUuid(),
+                null,
+                null
+        );
+
         return mapper.toDto(legalCase);
     }
 

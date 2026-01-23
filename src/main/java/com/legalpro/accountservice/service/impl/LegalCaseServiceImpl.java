@@ -78,7 +78,7 @@ public class LegalCaseServiceImpl implements LegalCaseService {
                 .build();
 
         legalCaseRepository.save(legalCase);
-        
+
         String description = clientName + " - " +
                 (caseType != null ? caseType.getName() : dto.getListing()) +
                 " accepted and added to active cases";

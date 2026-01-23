@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/lawyer/dashboard/recent-activity")
+@RequestMapping("/api/lawyer/dashboard")
 @PreAuthorize("hasRole('Lawyer')")
 @RequiredArgsConstructor
 public class ActivityLogController {

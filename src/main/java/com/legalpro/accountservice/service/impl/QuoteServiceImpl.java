@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -46,6 +47,22 @@ public class QuoteServiceImpl implements QuoteService {
 
         Quote saved = quoteRepository.save(entity);
         log.info("✅ Quote request created by client {} for lawyer {}", clientUuid, lawyerUuid);
+
+        activityLogService.logActivity(
+                "QUOTE_REQUESTED",
+                "Client requested a quote",
+                clientUuid,                // actorUuid
+                lawyerUuid,                // lawyerUuid
+                clientUuid,                // clientUuid
+                null,                      // caseUuid (not created yet)
+                saved.getUuid(),           // referenceUuid (quote UUID)
+                Map.of(                    // metadata (optional, safe, clean)
+                        "title", dto.getTitle(),
+                        "expectedAmount", dto.getExpectedAmount(),
+                        "offenceList", dto.getOffenceList()
+                )
+        );
+
         return quoteMapper.toDto(saved);
     }
 

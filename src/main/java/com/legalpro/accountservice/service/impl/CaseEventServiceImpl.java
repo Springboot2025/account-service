@@ -6,6 +6,7 @@ import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.mapper.CaseEventMapper;
 import com.legalpro.accountservice.repository.CaseEventRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
+import com.legalpro.accountservice.service.ActivityLogService;
 import com.legalpro.accountservice.service.CaseEventService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -25,13 +27,16 @@ public class CaseEventServiceImpl implements CaseEventService {
     private final LegalCaseRepository legalCaseRepository;
     private final CaseEventRepository caseEventRepository;
     private final CaseEventMapper caseEventMapper;
+    private final ActivityLogService activityLogService;
 
     public CaseEventServiceImpl(LegalCaseRepository legalCaseRepository,
                                 CaseEventRepository caseEventRepository,
-                                CaseEventMapper caseEventMapper) {
+                                CaseEventMapper caseEventMapper,
+                                ActivityLogService activityLogService) {
         this.legalCaseRepository = legalCaseRepository;
         this.caseEventRepository = caseEventRepository;
         this.caseEventMapper = caseEventMapper;
+        this.activityLogService = activityLogService;
     }
 
     @Override
@@ -49,6 +54,23 @@ public class CaseEventServiceImpl implements CaseEventService {
         entity.setUserName(lawyerName);
 
         CaseEvent saved = caseEventRepository.save(entity);
+
+        activityLogService.logActivity(
+                "CASE_EVENT_ADDED",
+                "New case event added",
+                lawyerUuid,                        // actorUuid
+                lawyerUuid,                        // lawyerUuid
+                legalCase.getClientUuid(),         // clientUuid
+                caseUuid,                          // caseUuid
+                saved.getUuid(),                   // referenceUuid
+                Map.of(                             // metadata
+                        "eventType", saved.getEventType(),
+                        "title", saved.getTitle(),
+                        "status", saved.getStatus(),
+                        "eventDate", saved.getEventDate()
+                )
+        );
+
 
         return caseEventMapper.toDto(saved);
     }

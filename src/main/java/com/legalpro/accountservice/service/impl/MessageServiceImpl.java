@@ -1,8 +1,11 @@
 package com.legalpro.accountservice.service.impl;
 
 import com.legalpro.accountservice.dto.MessageDto;
+import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Message;
+import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.MessageRepository;
+import com.legalpro.accountservice.service.ActivityLogService;
 import com.legalpro.accountservice.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -10,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -19,6 +23,8 @@ import java.util.stream.Collectors;
 public class MessageServiceImpl implements MessageService {
 
     private final MessageRepository messageRepository;
+    private final ActivityLogService activityLogService;
+    private final AccountRepository accountRepository;
 
     @Override
     public MessageDto sendMessage(UUID senderUuid, UUID receiverUuid, String content) {
@@ -31,6 +37,41 @@ public class MessageServiceImpl implements MessageService {
                 .build();
 
         Message saved = messageRepository.save(message);
+
+        UUID lawyerUuid = null;
+        UUID clientUuid = null;
+
+        Account sender = accountRepository.findByUuid(senderUuid)
+                .orElseThrow(() -> new RuntimeException("Sender not found"));
+
+        Account receiver = accountRepository.findByUuid(receiverUuid)
+                .orElseThrow(() -> new RuntimeException("Receiver not found"));
+
+        if (sender.getRoles().stream().anyMatch(r -> r.getName().equalsIgnoreCase("Lawyer"))) {
+            lawyerUuid = senderUuid;
+        } else {
+            clientUuid = senderUuid;
+        }
+
+        if (receiver.getRoles().stream().anyMatch(r -> r.getName().equalsIgnoreCase("Lawyer"))) {
+            lawyerUuid = receiverUuid;
+        } else {
+            clientUuid = receiverUuid;
+        }
+
+        String preview = content.length() > 50 ? content.substring(0, 50) + "..." : content;
+
+        activityLogService.logActivity(
+                "MESSAGE_SENT",
+                "New message sent",
+                senderUuid,                 // actorUuid
+                lawyerUuid,                 // lawyerUuid (if applicable)
+                clientUuid,                 // clientUuid (if applicable)
+                null,                       // caseUuid (no case link)
+                saved.getUuid(),            // referenceUuid
+                Map.of("preview", preview)  // metadata
+        );
+
         return toDto(saved);
     }
 

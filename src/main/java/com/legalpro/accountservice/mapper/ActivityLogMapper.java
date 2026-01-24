@@ -20,11 +20,7 @@ public class ActivityLogMapper {
                 .clientUuid(log.getClientUuid())
                 .lawyerUuid(log.getLawyerUuid())
                 .referenceUuid(log.getReferenceUuid())
-                .metadata(
-                        log.getMetadata() != null
-                                ? toJson(log.getMetadata())
-                                : null
-                )
+                .metadata(log.getMetadata() != null ? log.getMetadata().toString() : null)
                 .build();
     }
 

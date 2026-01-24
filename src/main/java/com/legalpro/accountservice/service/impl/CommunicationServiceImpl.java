@@ -29,7 +29,7 @@ public class CommunicationServiceImpl implements CommunicationService {
     private final QuoteRepository quoteRepository;
     private final AppointmentRepository appointmentRepository;
     private final AccountRepository accountRepository;
-
+    private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com/legalpro";
 
     @Override
     public List<ClientCommunicationSummaryDto> getLawyerCommunications(UUID lawyerUuid, String search) {
@@ -100,12 +100,14 @@ public class CommunicationServiceImpl implements CommunicationService {
             if (clientAcc != null) {
                 dto.setClientName(extractNameFromAccount(clientAcc));
                 dto.setClientEmail(clientAcc.getEmail());
+                dto.setClientProfilePictureUrl(convertGcsUrl(clientAcc.getProfilePictureUrl()));
             }
 
             Account lawyerAcc = accounts.get(lawyerUuid);
             if (lawyerAcc != null) {
                 dto.setLawyerName(extractNameFromAccount(lawyerAcc));
                 dto.setLawyerEmail(lawyerAcc.getEmail());
+                dto.setLawyerProfilePictureUrl(convertGcsUrl(lawyerAcc.getProfilePictureUrl()));
             }
         });
 
@@ -249,5 +251,14 @@ public class CommunicationServiceImpl implements CommunicationService {
                 .notes(a.getNotes())
                 .createdAt(a.getCreatedAt())
                 .build();
+    }
+
+    private static String convertGcsUrl(String fileUrl) {
+        if (fileUrl == null) return null;
+
+        if (fileUrl.startsWith("gs://")) {
+            return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
+        }
+        return fileUrl;
     }
 }

@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legalpro.accountservice.entity.ActivityLog;
 import com.legalpro.accountservice.repository.ActivityLogRepository;
@@ -45,11 +46,11 @@ public class ActivityLogServiceImpl implements ActivityLogService {
         activityLogRepository.save(log);
     }
 
-    private String serialize(Object metadata) {
+    private JsonNode serialize(Object metadata) {
         try {
-            return objectMapper.writeValueAsString(metadata);
+            return objectMapper.valueToTree(metadata);
         } catch (Exception e) {
-            return null; // avoid breaking business workflow
+            return null;
         }
     }
 }

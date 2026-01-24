@@ -14,6 +14,7 @@ public class ContactSummaryDto {
     private UUID clientUuid;
     private String contactName;
     private String caseNumber;
+    private String profilePictureUrl;
     private String caseStatus;
     private String contactInfo; // extracted from Account.contactInformation JSON
     private Instant lastContactDate; // from Message

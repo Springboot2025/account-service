@@ -28,6 +28,8 @@ public class ContactServiceImpl implements ContactService {
     private final LegalCaseRepository legalCaseRepository;
     private final MessageRepository messageRepository;
 
+    private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
+
     @Override
     @Transactional(readOnly = true)
     public Page<ContactSummaryDto> getContactsForLawyer(UUID lawyerUuid, String search, String filter, Pageable pageable) {
@@ -69,6 +71,7 @@ public class ContactServiceImpl implements ContactService {
                             .contactInfo(contactInfo)
                             .lastContactDate(lastContact)
                             .reminder(legalCase.getFollowUp())
+                            .profilePictureUrl(convertGcsUrl(client.getProfilePictureUrl()))
                             .build();
                 })
                 .filter(Objects::nonNull)
@@ -146,4 +149,14 @@ public class ContactServiceImpl implements ContactService {
         String email = contactInfo.has("email") ? contactInfo.get("email").asText() : "";
         return String.join(" / ", Arrays.asList(phone, email).stream().filter(s -> !s.isBlank()).toList());
     }
+
+    private static String convertGcsUrl(String fileUrl) {
+        if (fileUrl == null) return null;
+
+        if (fileUrl.startsWith("gs://")) {
+            return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
+        }
+        return fileUrl;
+    }
+
 }

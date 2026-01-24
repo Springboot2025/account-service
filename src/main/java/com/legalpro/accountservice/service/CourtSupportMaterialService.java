@@ -1,10 +1,12 @@
 package com.legalpro.accountservice.service;
 
 import com.legalpro.accountservice.entity.CourtSupportMaterial;
+import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.repository.CourtSupportMaterialRepository;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import com.legalpro.accountservice.repository.LegalCaseRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,13 +19,19 @@ import java.util.*;
 public class CourtSupportMaterialService {
 
     private final CourtSupportMaterialRepository repository;
+    private final LegalCaseRepository legalCaseRepository;
+    private final ActivityLogService activityLogService;
     private final Storage storage;
     private final String bucketName = "legalpro-client-docs"; // ✅ dedicated bucket
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
-    public CourtSupportMaterialService(CourtSupportMaterialRepository repository) {
+    public CourtSupportMaterialService(CourtSupportMaterialRepository repository,
+                                       LegalCaseRepository legalCaseRepository,
+                                       ActivityLogService activityLogService) {
         this.repository = repository;
         this.storage = StorageOptions.getDefaultInstance().getService();
+        this.legalCaseRepository = legalCaseRepository;
+        this.activityLogService = activityLogService;
     }
 
     // --- Upload court support materials ---
@@ -121,6 +129,7 @@ public class CourtSupportMaterialService {
 
         // Save metadata in DB
         CourtSupportMaterial material = CourtSupportMaterial.builder()
+                .uuid(UUID.randomUUID())
                 .clientUuid(clientUuid)
                 .caseUuid(caseUuid)
                 .fileName(file.getOriginalFilename())
@@ -130,7 +139,29 @@ public class CourtSupportMaterialService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        return repository.save(material);
+        material = repository.save(material);
+
+        // Fetch lawyerUuid using caseUuid (if case present)
+        UUID lawyerUuid = null;
+
+        if (caseUuid != null) {
+            LegalCase caseEntity = legalCaseRepository.findByUuid(caseUuid)
+                    .orElseThrow(() -> new RuntimeException("Case not found"));
+            lawyerUuid = caseEntity.getLawyerUuid();
+        }
+
+        activityLogService.logActivity(
+                "DOCUMENT_UPLOADED",
+                material.getFileName() + " uploaded",
+                clientUuid,                // actorUuid (client)
+                lawyerUuid,                // lawyerUuid
+                clientUuid,                // clientUuid
+                caseUuid,                  // caseUuid
+                material.getUuid(),        // referenceUuid
+                null                       // metadata
+        );
+
+        return material;
     }
 
     public List<CourtSupportMaterial> getMaterialsByCase(UUID clientUuid, UUID caseUuid) {

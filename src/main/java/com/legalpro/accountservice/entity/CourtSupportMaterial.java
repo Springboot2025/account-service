@@ -24,6 +24,9 @@ public class CourtSupportMaterial {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true, updatable = false)
+    private UUID uuid = UUID.randomUUID();
+
     @Column(name = "client_uuid", nullable = false)
     private UUID clientUuid;
 

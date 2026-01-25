@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -19,70 +20,90 @@ public class AddressController {
     private final RestTemplate restTemplate = new RestTemplate();
 
     @GetMapping("/autocomplete")
-    public ResponseEntity<String> autocomplete(@RequestParam String input) {
+    public ResponseEntity<Map<String, Object>> autocomplete(@RequestParam String input) {
+
         String url = "https://places.googleapis.com/v1/places:autocomplete";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Goog-Api-Key", googleApiKey);
-        headers.set("X-Goog-FieldMask", "suggestions.placePrediction.placeId,suggestions.placePrediction.text.text");
 
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("input", input);
-        requestBody.put("regionCode", "AU");
-        requestBody.put("languageCode", "en-AU");
+        headers.set(
+                "X-Goog-FieldMask",
+                "suggestions.placePrediction.placeId," +
+                        "suggestions.placePrediction.structuredFormat.mainText," +
+                        "suggestions.placePrediction.structuredFormat.secondaryText"
+        );
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+        Map<String, Object> body = new HashMap<>();
+        body.put("input", input);
+        body.put("regionCode", "AU");
+        body.put("languageCode", "en-AU");
+        body.put("types", List.of("address"));     // ⭐ Address only
 
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        // ⭐ Strict AU-only bounding box
+        Map<String, Object> low = Map.of("latitude", -44.0, "longitude", 112.0);
+        Map<String, Object> high = Map.of("latitude", -10.0, "longitude", 154.0);
+        Map<String, Object> rect = Map.of("low", low, "high", high);
+        body.put("locationRestriction", Map.of("rectangle", rect));
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        ResponseEntity<Map> response =
+                restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+
         return ResponseEntity.ok(response.getBody());
     }
 
     @GetMapping("/details")
     public ResponseEntity<AddressDetailsDto> getPlaceDetails(@RequestParam String placeId) {
 
-        String url = "https://places.googleapis.com/v1/places/" + placeId
-                + "?fields=formattedAddress,addressComponents";
+        String url = "https://places.googleapis.com/v1/places/" + placeId +
+                "?fields=formattedAddress,addressComponents";
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Goog-Api-Key", googleApiKey);
         headers.set("X-Goog-FieldMask", "formattedAddress,addressComponents");
 
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
+        ResponseEntity<Map> response = restTemplate.exchange(
+                url, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
 
-        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
-
-        Map body = response.getBody();
-        AddressDetailsDto dto = parseAddressDetails(body);
+        AddressDetailsDto dto = parseAddress(response.getBody());
 
         return ResponseEntity.ok(dto);
     }
 
     @SuppressWarnings("unchecked")
-    private AddressDetailsDto parseAddressDetails(Map body) {
+    private AddressDetailsDto parseAddress(Map body) {
 
         AddressDetailsDto dto = new AddressDetailsDto();
 
         dto.setFormattedAddress((String) body.get("formattedAddress"));
 
-        var components = (java.util.List<Map<String, Object>>) body.get("addressComponents");
+        List<Map<String, Object>> comps =
+                (List<Map<String, Object>>) body.get("addressComponents");
 
         String streetNumber = null;
         String route = null;
+        String unit = null;
 
-        if (components != null) {
-            for (Map<String, Object> comp : components) {
+        if (comps != null) {
+            for (Map<String, Object> comp : comps) {
+
                 String longText = (String) comp.get("longText");
                 String shortText = (String) comp.get("shortText");
-                var types = (java.util.List<String>) comp.get("types");
+                List<String> types = (List<String>) comp.get("types");
 
                 if (types.contains("street_number")) {
-                    streetNumber = longText;   // e.g., 70
+                    streetNumber = longText;
                 }
                 if (types.contains("route")) {
-                    route = longText;         // e.g., Southbank Boulevard
+                    route = longText;
                 }
-                if (types.contains("locality") || types.contains("sublocality") || types.contains("postal_town")) {
+                if (types.contains("subpremise")) {
+                    unit = longText;   // Apartment / Level / Unit
+                }
+                if (types.contains("locality") || types.contains("postal_town") || types.contains("sublocality")) {
                     dto.setCity(longText);
                 }
                 if (types.contains("administrative_area_level_1")) {
@@ -97,14 +118,14 @@ public class AddressController {
             }
         }
 
-        // Build street address correctly
+        // Build final street address (matches UI)
         if (streetNumber != null && route != null) {
             dto.setStreetAddress(streetNumber + " " + route);
-        } else if (route != null) {
+        } else {
             dto.setStreetAddress(route);
         }
 
-        dto.setUnit(null); // Only set if building has apartment/suite — Google rarely gives this
+        dto.setUnit(unit);
 
         return dto;
     }

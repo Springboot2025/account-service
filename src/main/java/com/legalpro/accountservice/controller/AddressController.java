@@ -67,21 +67,22 @@ public class AddressController {
 
         var components = (java.util.List<Map<String, Object>>) body.get("addressComponents");
 
+        String streetNumber = null;
+        String route = null;
+
         if (components != null) {
             for (Map<String, Object> comp : components) {
                 String longText = (String) comp.get("longText");
                 String shortText = (String) comp.get("shortText");
                 var types = (java.util.List<String>) comp.get("types");
 
-                if (types.contains("route")) {
-                    // Street name
-                    dto.setStreetAddress(longText);
-                }
                 if (types.contains("street_number")) {
-                    // Attach street number
-                    dto.setStreetAddress(longText + " " + dto.getStreetAddress());
+                    streetNumber = longText;   // e.g., 70
                 }
-                if (types.contains("locality") || types.contains("postal_town") || types.contains("sublocality")) {
+                if (types.contains("route")) {
+                    route = longText;         // e.g., Southbank Boulevard
+                }
+                if (types.contains("locality") || types.contains("sublocality") || types.contains("postal_town")) {
                     dto.setCity(longText);
                 }
                 if (types.contains("administrative_area_level_1")) {
@@ -95,6 +96,15 @@ public class AddressController {
                 }
             }
         }
+
+        // Build street address correctly
+        if (streetNumber != null && route != null) {
+            dto.setStreetAddress(streetNumber + " " + route);
+        } else if (route != null) {
+            dto.setStreetAddress(route);
+        }
+
+        dto.setUnit(null); // Only set if building has apartment/suite — Google rarely gives this
 
         return dto;
     }

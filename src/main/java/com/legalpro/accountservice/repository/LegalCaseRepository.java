@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -131,5 +132,11 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
                 @Param("start") LocalDateTime start,
                 @Param("end") LocalDateTime end
         );
+
+    long countByLawyerUuidAndStatus_Name(UUID lawyerUuid, String statusName);
+
+    List<LegalCase> findByLawyerUuidAndCourtDateBetween(UUID lawyerUuid,
+                                                        LocalDate start,
+                                                        LocalDate end);
 
 }

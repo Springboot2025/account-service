@@ -20,43 +20,42 @@ public class AddressController {
     private final RestTemplate restTemplate = new RestTemplate();
 
     @GetMapping("/autocomplete")
-    public ResponseEntity<Map<String, Object>> autocomplete(@RequestParam String input) {
+    public ResponseEntity<Map> searchAddress(@RequestParam String input) {
 
-        String url = "https://places.googleapis.com/v1/places:autocomplete";
+        String url = "https://places.googleapis.com/v1/places:searchText";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Goog-Api-Key", googleApiKey);
 
+        // allowed mask for searchText
         headers.set("X-Goog-FieldMask",
-                "suggestions.placePrediction.placeId," +
-                        "suggestions.placePrediction.structuredFormat.mainText," +
-                        "suggestions.placePrediction.structuredFormat.secondaryText," +
-                        "suggestions.placePrediction.placeTypes," +
-                        "suggestions.placePrediction.location"
+                "places.id," +
+                        "places.displayName," +
+                        "places.formattedAddress," +
+                        "places.location," +
+                        "places.addressComponents"
         );
 
         Map<String, Object> body = new HashMap<>();
-        body.put("input", input);
+        body.put("textQuery", input);
         body.put("regionCode", "AU");
         body.put("languageCode", "en-AU");
 
-        // AU bounding box
+        // ⭐ Filter to street addresses only (supported!)
+        body.put("includedTypes", List.of("street_address"));
+
+        // ⭐ Strict Australia-only bounding box
         Map<String, Object> low = Map.of("latitude", -44.0, "longitude", 112.0);
         Map<String, Object> high = Map.of("latitude", -10.0, "longitude", 154.0);
-        Map<String, Object> rect = Map.of("low", low, "high", high);
-        body.put("locationRestriction", Map.of("rectangle", rect));
+        body.put("locationRestriction", Map.of("rectangle", Map.of("low", low, "high", high)));
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         ResponseEntity<Map> response =
                 restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
 
-        // ⭐ Filter results manually (address-only + AU-only)
-        Map<String, Object> filtered = filterAutocompleteResults(response.getBody());
-
-        return ResponseEntity.ok(filtered);
+        return ResponseEntity.ok(response.getBody());
     }
-
 
     @GetMapping("/details")
     public ResponseEntity<AddressDetailsDto> getPlaceDetails(@RequestParam String placeId) {
@@ -131,33 +130,5 @@ public class AddressController {
         dto.setUnit(unit);
 
         return dto;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> filterAutocompleteResults(Map<String, Object> original) {
-
-        List<Map<String, Object>> suggestions = (List<Map<String, Object>>) original.get("suggestions");
-
-        if (suggestions == null) return original;
-
-        List<Map<String, Object>> filteredList = suggestions.stream()
-                .filter(s -> {
-                    Map<String, Object> pred = (Map<String, Object>) s.get("placePrediction");
-
-                    List<String> types = (List<String>) pred.get("placeTypes");
-                    if (types == null) return false;
-
-                    // ⭐ Accept ONLY these types (AU-address match UI)
-                    return types.contains("street_address")
-                            || types.contains("route")
-                            || types.contains("premise")      // building with address
-                            || types.contains("subpremise");  // apartment/unit
-                })
-                .toList();
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("suggestions", filteredList);
-
-        return result;
     }
 }

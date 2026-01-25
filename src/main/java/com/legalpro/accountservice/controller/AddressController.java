@@ -37,17 +37,17 @@ public class AddressController {
         );
 
         Map<String, Object> body = new HashMap<>();
-        body.put("textQuery", input);
+
+        // ⭐ Forces AU-only + address-only
+        body.put("textQuery", "address in Australia " + input);
+
         body.put("regionCode", "AU");
         body.put("languageCode", "en-AU");
 
-        // ⭐ Strict Australia-only bounding box
+        // ⭐ Strict bounding box for Australia
         Map<String, Object> low = Map.of("latitude", -44.0, "longitude", 112.0);
         Map<String, Object> high = Map.of("latitude", -10.0, "longitude", 154.0);
         body.put("locationRestriction", Map.of("rectangle", Map.of("low", low, "high", high)));
-
-        // ⭐ Filter to address-only (SUPPORTED IN SEARCH TEXT)
-        body.put("includedTypes", List.of("street_address"));
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
@@ -56,7 +56,6 @@ public class AddressController {
 
         return ResponseEntity.ok(response.getBody());
     }
-
 
     @GetMapping("/details")
     public ResponseEntity<AddressDetailsDto> getPlaceDetails(@RequestParam String placeId) {

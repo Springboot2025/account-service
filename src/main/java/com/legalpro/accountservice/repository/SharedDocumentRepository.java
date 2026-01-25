@@ -49,4 +49,5 @@ public interface SharedDocumentRepository extends JpaRepository<SharedDocument, 
     """)
     List<ClientLetterView> findLettersForClient(UUID clientUuid);
 
+    long countByLawyerUuidAndDeletedAtIsNull(UUID lawyerUuid);
 }

@@ -275,4 +275,22 @@ public class DocumentTemplateCenterController {
                 );
     }
 
+    @GetMapping("/summary-cards")
+    public ResponseEntity<ApiResponse<DocumentTemplateCenterSummaryDto>> getSummaryCards(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+
+        DocumentTemplateCenterSummaryDto summary =
+                documentService.getSummary(lawyerUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Document summary fetched successfully",
+                        summary
+                )
+        );
+    }
+
 }

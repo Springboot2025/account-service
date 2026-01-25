@@ -10,6 +10,7 @@ import com.legalpro.accountservice.mapper.LawyerDocumentSubheadingMapper;
 import com.legalpro.accountservice.repository.DocumentCategoryRepository;
 import com.legalpro.accountservice.repository.LawyerDocumentSubheadingRepository;
 import com.legalpro.accountservice.repository.DocumentTemplateCenterRepository;
+import com.legalpro.accountservice.repository.SharedDocumentRepository;
 import com.legalpro.accountservice.service.DocumentTemplateCenterService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ import com.google.cloud.storage.StorageOptions;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import java.util.*;
@@ -32,17 +34,20 @@ public class DocumentTemplateCenterServiceImpl
     private final DocumentCategoryRepository categoryRepository;
     private final LawyerDocumentSubheadingRepository subheadingRepository;
     private final DocumentTemplateCenterRepository documentRepository;
+    private final SharedDocumentRepository sharedDocumentRepository;
 
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
     public DocumentTemplateCenterServiceImpl(
             DocumentCategoryRepository categoryRepository,
             LawyerDocumentSubheadingRepository subheadingRepository,
-            DocumentTemplateCenterRepository documentRepository
+            DocumentTemplateCenterRepository documentRepository,
+            SharedDocumentRepository sharedDocumentRepository
     ) {
         this.categoryRepository = categoryRepository;
         this.subheadingRepository = subheadingRepository;
         this.documentRepository = documentRepository;
+        this.sharedDocumentRepository = sharedDocumentRepository;
     }
 
     // =========================================================
@@ -386,4 +391,23 @@ public class DocumentTemplateCenterServiceImpl
         }
     }
 
+    public DocumentTemplateCenterSummaryDto getSummary(UUID lawyerUuid) {
+
+        LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime endOfMonth = LocalDate.now().plusMonths(1).withDayOfMonth(1).atStartOfDay();
+
+        long totalDocs = documentRepository.countByLawyerUuidAndDeletedAtIsNull(lawyerUuid);
+
+        long docsThisMonth = documentRepository.countByLawyerUuidAndCreatedAtBetweenAndDeletedAtIsNull(
+                lawyerUuid, startOfMonth, endOfMonth
+        );
+
+        long sharedDocs = sharedDocumentRepository.countByLawyerUuidAndDeletedAtIsNull(lawyerUuid);
+
+        return DocumentTemplateCenterSummaryDto.builder()
+                .totalDocuments(totalDocs)
+                .documentsThisMonth(docsThisMonth)
+                .sharedDocuments(sharedDocs)
+                .build();
+    }
 }

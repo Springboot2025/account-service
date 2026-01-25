@@ -45,4 +45,5 @@ public interface DocumentTemplateCenterService {
     List<CategoryWithSubheadingsAndDocumentsDto>
     getTemplateCenterHierarchy(UUID lawyerUuid);
 
+    DocumentTemplateCenterSummaryDto getSummary(UUID lawyerUuid);
 }

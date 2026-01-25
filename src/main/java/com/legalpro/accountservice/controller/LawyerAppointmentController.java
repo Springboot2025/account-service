@@ -2,6 +2,7 @@ package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.AppointmentDto;
+import com.legalpro.accountservice.dto.AppointmentRequestsSummaryDto;
 import com.legalpro.accountservice.enums.AppointmentStatus;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.AppointmentService;
@@ -105,6 +106,17 @@ public class LawyerAppointmentController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(200, "Appointments for this client fetched successfully", appointments)
+        );
+    }
+
+    @GetMapping("/summary")
+    public ResponseEntity<ApiResponse<AppointmentRequestsSummaryDto>> getAppointmentSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+        AppointmentRequestsSummaryDto summary = appointmentService.getSummary(lawyerUuid);
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Appointment summary fetched successfully", summary)
         );
     }
 

@@ -1,6 +1,7 @@
 package com.legalpro.accountservice.service;
 
 import com.legalpro.accountservice.dto.AppointmentDto;
+import com.legalpro.accountservice.dto.AppointmentRequestsSummaryDto;
 import com.legalpro.accountservice.enums.AppointmentStatus;
 
 import java.util.List;
@@ -51,5 +52,7 @@ public interface AppointmentService {
     List<AppointmentDto> getAppointmentsForLawyerAndClient(UUID lawyerUuid, UUID clientUuid);
 
     List<AppointmentDto> getAppointmentsForClientAndLawyer(UUID clientUuid, UUID lawyerUuid);
+
+    AppointmentRequestsSummaryDto getSummary(UUID lawyerUuid);
 
 }

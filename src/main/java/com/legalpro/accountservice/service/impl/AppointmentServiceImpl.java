@@ -1,6 +1,7 @@
 package com.legalpro.accountservice.service.impl;
 
 import com.legalpro.accountservice.dto.AppointmentDto;
+import com.legalpro.accountservice.dto.AppointmentRequestsSummaryDto;
 import com.legalpro.accountservice.entity.Appointment;
 import com.legalpro.accountservice.enums.AppointmentStatus;
 import com.legalpro.accountservice.mapper.AppointmentMapper;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -166,5 +168,54 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .build();
     }
 
+    @Override
+    public AppointmentRequestsSummaryDto getSummary(UUID lawyerUuid) {
 
+        LocalDate today = LocalDate.now();
+        LocalDate sevenDaysLater = today.plusDays(7);
+
+        // 1️⃣ Pending appointments
+        long pending = appointmentRepository.countByLawyerUuidAndStatus(
+                lawyerUuid,
+                AppointmentStatus.PENDING
+        );
+
+        // 2️⃣ Today’s appointments
+        long todayCount = appointmentRepository.countByLawyerUuidAndAppointmentDate(
+                lawyerUuid,
+                today
+        );
+
+        // 3️⃣ Next 7 days (exclude today)
+        long upcoming = appointmentRepository
+                .findByLawyerUuidAndAppointmentDateBetween(
+                        lawyerUuid,
+                        today.plusDays(1),
+                        sevenDaysLater
+                )
+                .stream()
+                .filter(a -> a.getStatus() != AppointmentStatus.CANCELLED)
+                .count();
+
+        // 4️⃣ This month
+        LocalDate firstDay = today.withDayOfMonth(1);
+        LocalDate lastDay = today.withDayOfMonth(today.lengthOfMonth());
+
+        long thisMonth = appointmentRepository
+                .findByLawyerUuidAndAppointmentDateBetween(
+                        lawyerUuid,
+                        firstDay,
+                        lastDay
+                )
+                .stream()
+                .filter(a -> a.getStatus() != AppointmentStatus.CANCELLED)
+                .count();
+
+        return AppointmentRequestsSummaryDto.builder()
+                .pending(pending)
+                .today(todayCount)
+                .upcoming(upcoming)
+                .thisMonth(thisMonth)
+                .build();
+    }
 }

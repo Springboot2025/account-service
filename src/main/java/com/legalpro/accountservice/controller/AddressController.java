@@ -40,21 +40,23 @@ public class AddressController {
         body.put("input", input);
         body.put("regionCode", "AU");
         body.put("languageCode", "en-AU");
-        body.put("types", List.of("address"));
 
-        // ⭐ Hard restrict to Australia
+        // AU bounding box
         Map<String, Object> low = Map.of("latitude", -44.0, "longitude", 112.0);
         Map<String, Object> high = Map.of("latitude", -10.0, "longitude", 154.0);
         Map<String, Object> rect = Map.of("low", low, "high", high);
         body.put("locationRestriction", Map.of("rectangle", rect));
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-
         ResponseEntity<Map> response =
                 restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
 
-        return ResponseEntity.ok(response.getBody());
+        // ⭐ Filter results manually (address-only + AU-only)
+        Map<String, Object> filtered = filterAutocompleteResults(response.getBody());
+
+        return ResponseEntity.ok(filtered);
     }
+
 
     @GetMapping("/details")
     public ResponseEntity<AddressDetailsDto> getPlaceDetails(@RequestParam String placeId) {
@@ -129,5 +131,33 @@ public class AddressController {
         dto.setUnit(unit);
 
         return dto;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> filterAutocompleteResults(Map<String, Object> original) {
+
+        List<Map<String, Object>> suggestions = (List<Map<String, Object>>) original.get("suggestions");
+
+        if (suggestions == null) return original;
+
+        List<Map<String, Object>> filteredList = suggestions.stream()
+                .filter(s -> {
+                    Map<String, Object> pred = (Map<String, Object>) s.get("placePrediction");
+
+                    List<String> types = (List<String>) pred.get("placeTypes");
+                    if (types == null) return false;
+
+                    // ⭐ Accept ONLY these types (AU-address match UI)
+                    return types.contains("street_address")
+                            || types.contains("route")
+                            || types.contains("premise")      // building with address
+                            || types.contains("subpremise");  // apartment/unit
+                })
+                .toList();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("suggestions", filteredList);
+
+        return result;
     }
 }

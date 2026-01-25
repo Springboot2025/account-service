@@ -28,7 +28,7 @@ public class LawyerDto {
     private List<Map<String, Object>> awardsAppreciations;
 
     private Map<String, Object> consultationRates;
-    private Map<String, Object> languages;
+    private List<Map<String, Object>> languages;
 
     private boolean isCompany;
     private UUID companyUuid;

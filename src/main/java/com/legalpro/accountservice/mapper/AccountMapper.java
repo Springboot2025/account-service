@@ -48,7 +48,7 @@ public class AccountMapper {
                 .profilePictureUrl(account.getProfilePictureUrl())
                 .isCompany(account.isCompany())
                 .consultationRates(toMap(account.getConsultationRates()))
-                .languages(toMap(account.getLanguages()))
+                .languages(toList(account.getLanguages()))
                 .companyUuid(account.getCompanyUuid())
                 .build();
     }

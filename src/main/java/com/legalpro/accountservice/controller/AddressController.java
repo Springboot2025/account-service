@@ -20,39 +20,43 @@ public class AddressController {
     private final RestTemplate restTemplate = new RestTemplate();
 
     @GetMapping("/autocomplete")
-    public ResponseEntity<String> autocomplete(@RequestParam String input) {
+    public ResponseEntity<Map> searchAddress(@RequestParam String input) {
 
-        String url = "https://places.googleapis.com/v1/places:autocomplete";
+        String url = "https://places.googleapis.com/v1/places:searchText";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Goog-Api-Key", googleApiKey);
+
         headers.set("X-Goog-FieldMask",
-                "suggestions.placePrediction.placeId," +
-                        "suggestions.placePrediction.structuredFormat.mainText," +
-                        "suggestions.placePrediction.structuredFormat.secondaryText"
+                "places.id," +
+                        "places.displayName.text," +
+                        "places.formattedAddress," +
+                        "places.location," +
+                        "places.addressComponents"
         );
 
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("input", input);
-        requestBody.put("regionCode", "AU");
-        requestBody.put("languageCode", "en-AU");
+        Map<String, Object> body = new HashMap<>();
+        body.put("textQuery", input);
+        body.put("regionCode", "AU");
+        body.put("languageCode", "en-AU");
 
-        // ⭐ Australia-only bounding box restriction
+        // ⭐ Strict Australia-only bounding box
         Map<String, Object> low = Map.of("latitude", -44.0, "longitude", 112.0);
         Map<String, Object> high = Map.of("latitude", -10.0, "longitude", 154.0);
-        Map<String, Object> rect = Map.of("low", low, "high", high);
-        requestBody.put("locationRestriction", Map.of("rectangle", rect));
+        body.put("locationRestriction", Map.of("rectangle", Map.of("low", low, "high", high)));
 
-        // ⭐ Filter: only real addresses (no business names)
-        requestBody.put("types", List.of("address"));
+        // ⭐ Filter to address-only (SUPPORTED IN SEARCH TEXT)
+        body.put("includedTypes", List.of("street_address"));
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-        ResponseEntity<String> response =
-                restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        ResponseEntity<Map> response =
+                restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
 
         return ResponseEntity.ok(response.getBody());
     }
+
 
     @GetMapping("/details")
     public ResponseEntity<AddressDetailsDto> getPlaceDetails(@RequestParam String placeId) {

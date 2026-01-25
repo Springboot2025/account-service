@@ -341,6 +341,16 @@ public class AccountService {
             account.setAwardsAppreciations(awardsAppreciations);
         }
 
+        if (dto.getConsultationRates() != null) {
+            JsonNode consultationRates = objectMapper.convertValue(dto.getConsultationRates(), JsonNode.class);
+            account.setConsultationRates(consultationRates);
+        }
+
+        if (dto.getLanguages() != null) {
+            JsonNode languages = objectMapper.convertValue(dto.getLanguages(), JsonNode.class);
+            account.setLanguages(languages);
+        }
+
         return accountRepository.save(account);
     }
 

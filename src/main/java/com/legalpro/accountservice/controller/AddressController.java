@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.controller;
 
+import com.legalpro.accountservice.dto.AddressDetailsDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -38,17 +39,63 @@ public class AddressController {
     }
 
     @GetMapping("/details")
-    public ResponseEntity<String> getPlaceDetails(@RequestParam String placeId) {
+    public ResponseEntity<AddressDetailsDto> getPlaceDetails(@RequestParam String placeId) {
+
         String url = "https://places.googleapis.com/v1/places/" + placeId
-                + "?fields=formattedAddress,addressComponents,location";
+                + "?fields=formattedAddress,addressComponents";
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Goog-Api-Key", googleApiKey);
-        headers.set("X-Goog-FieldMask", "formattedAddress,addressComponents,location");
+        headers.set("X-Goog-FieldMask", "formattedAddress,addressComponents");
 
         HttpEntity<Void> entity = new HttpEntity<>(headers);
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
-        return ResponseEntity.ok(response.getBody());
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+
+        Map body = response.getBody();
+        AddressDetailsDto dto = parseAddressDetails(body);
+
+        return ResponseEntity.ok(dto);
+    }
+
+    @SuppressWarnings("unchecked")
+    private AddressDetailsDto parseAddressDetails(Map body) {
+
+        AddressDetailsDto dto = new AddressDetailsDto();
+
+        dto.setFormattedAddress((String) body.get("formattedAddress"));
+
+        var components = (java.util.List<Map<String, Object>>) body.get("addressComponents");
+
+        if (components != null) {
+            for (Map<String, Object> comp : components) {
+                String longText = (String) comp.get("longText");
+                String shortText = (String) comp.get("shortText");
+                var types = (java.util.List<String>) comp.get("types");
+
+                if (types.contains("route")) {
+                    // Street name
+                    dto.setStreetAddress(longText);
+                }
+                if (types.contains("street_number")) {
+                    // Attach street number
+                    dto.setStreetAddress(longText + " " + dto.getStreetAddress());
+                }
+                if (types.contains("locality") || types.contains("postal_town") || types.contains("sublocality")) {
+                    dto.setCity(longText);
+                }
+                if (types.contains("administrative_area_level_1")) {
+                    dto.setState(shortText);
+                }
+                if (types.contains("postal_code")) {
+                    dto.setPostcode(longText);
+                }
+                if (types.contains("country")) {
+                    dto.setCountry(longText);
+                }
+            }
+        }
+
+        return dto;
     }
 }

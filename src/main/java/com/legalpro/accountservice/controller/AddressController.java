@@ -28,20 +28,21 @@ public class AddressController {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Goog-Api-Key", googleApiKey);
 
-        headers.set(
-                "X-Goog-FieldMask",
+        headers.set("X-Goog-FieldMask",
                 "suggestions.placePrediction.placeId," +
                         "suggestions.placePrediction.structuredFormat.mainText," +
-                        "suggestions.placePrediction.structuredFormat.secondaryText"
+                        "suggestions.placePrediction.structuredFormat.secondaryText," +
+                        "suggestions.placePrediction.placeTypes," +
+                        "suggestions.placePrediction.location"
         );
 
         Map<String, Object> body = new HashMap<>();
         body.put("input", input);
         body.put("regionCode", "AU");
         body.put("languageCode", "en-AU");
-        body.put("types", List.of("address"));     // ⭐ Address only
+        body.put("types", List.of("address"));
 
-        // ⭐ Strict AU-only bounding box
+        // ⭐ Hard restrict to Australia
         Map<String, Object> low = Map.of("latitude", -44.0, "longitude", 112.0);
         Map<String, Object> high = Map.of("latitude", -10.0, "longitude", 154.0);
         Map<String, Object> rect = Map.of("low", low, "high", high);

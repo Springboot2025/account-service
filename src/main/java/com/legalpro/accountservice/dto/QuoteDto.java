@@ -32,6 +32,9 @@ public class QuoteDto {
 
     private QuoteStatus status;
 
+    private String clientProfilePictureUrl;
+    private String lawyerProfilePictureUrl;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;

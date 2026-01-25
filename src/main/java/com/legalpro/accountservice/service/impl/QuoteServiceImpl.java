@@ -2,12 +2,14 @@ package com.legalpro.accountservice.service.impl;
 
 import com.legalpro.accountservice.dto.LegalCaseDto;
 import com.legalpro.accountservice.dto.QuoteDto;
+import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Quote;
 import com.legalpro.accountservice.enums.QuoteStatus;
 import com.legalpro.accountservice.mapper.QuoteMapper;
 import com.legalpro.accountservice.repository.QuoteRepository;
 import com.legalpro.accountservice.service.ActivityLogService;
 import com.legalpro.accountservice.service.LegalCaseService;
+import com.legalpro.accountservice.service.ProfileService;
 import com.legalpro.accountservice.service.QuoteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,9 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,6 +32,7 @@ public class QuoteServiceImpl implements QuoteService {
     private final QuoteMapper quoteMapper;
     private final LegalCaseService legalCaseService;
     private final ActivityLogService activityLogService;
+    private final ProfileService profileService;
 
     // === Client Actions ===
 
@@ -89,10 +90,31 @@ public class QuoteServiceImpl implements QuoteService {
 
     @Override
     public List<QuoteDto> getQuotesForLawyer(UUID lawyerUuid) {
-        return quoteRepository.findByLawyerUuid(lawyerUuid)
-                .stream()
-                .map(quoteMapper::toDto)
-                .collect(Collectors.toList());
+        List<Quote> list = quoteRepository.findByLawyerUuid(lawyerUuid);
+
+        // Collect all UUIDs needed
+        Set<UUID> uuids = new HashSet<>();
+        uuids.add(lawyerUuid);
+        list.forEach(q -> uuids.add(q.getClientUuid()));
+
+        // Load all accounts in one DB call
+        Map<UUID, Account> accounts = profileService.loadAccounts(uuids);
+
+        return list.stream().map(q -> {
+            QuoteDto dto = quoteMapper.toDto(q);
+
+            Account clientAcc = accounts.get(q.getClientUuid());
+            dto.setClientProfilePictureUrl(
+                    profileService.getProfilePicture(clientAcc)
+            );
+
+            Account lawyerAcc = accounts.get(q.getLawyerUuid());
+            dto.setLawyerProfilePictureUrl(
+                    profileService.getProfilePicture(lawyerAcc)
+            );
+
+            return dto;
+        }).toList();
     }
 
     @Override

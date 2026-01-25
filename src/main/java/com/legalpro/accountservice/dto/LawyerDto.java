@@ -27,6 +27,9 @@ public class LawyerDto {
     private List<Map<String, Object>> experienceStaff;
     private List<Map<String, Object>> awardsAppreciations;
 
+    private Map<String, Object> consultationRates;
+    private List<String> languages;
+
     private boolean isCompany;
     private UUID companyUuid;
     private BigDecimal averageRating;

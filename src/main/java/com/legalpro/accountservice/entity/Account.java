@@ -98,6 +98,14 @@ public class Account {
     @Column(name = "profile_picture_url", columnDefinition = "TEXT")
     private String profilePictureUrl;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "consultation_rates", columnDefinition = "jsonb", nullable = true)
+    private JsonNode consultationRates;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "languages", columnDefinition = "jsonb", nullable = true)
+    private JsonNode languages;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "account_roles",

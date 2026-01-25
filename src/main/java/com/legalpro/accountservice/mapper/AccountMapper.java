@@ -8,6 +8,7 @@ import com.legalpro.accountservice.entity.Account;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Map;
+import java.util.List;
 
 public class AccountMapper {
     private static ObjectMapper objectMapper = new ObjectMapper();
@@ -46,6 +47,8 @@ public class AccountMapper {
                 .awardsAppreciations(toList(account.getAwardsAppreciations()))
                 .profilePictureUrl(account.getProfilePictureUrl())
                 .isCompany(account.isCompany())
+                .consultationRates(toMap(account.getConsultationRates()))
+                .languages(toListOfStrings(account.getLanguages()))
                 .companyUuid(account.getCompanyUuid())
                 .build();
     }
@@ -73,5 +76,14 @@ public class AccountMapper {
         return java.util.List.of(single);
     }
 
+    private static List<String> toListOfStrings(JsonNode node) {
+        if (node == null) return null;
 
+        if (node.isArray()) {
+            return objectMapper.convertValue(node, new TypeReference<List<String>>() {});
+        }
+
+        // If a single string was saved instead of array
+        return List.of(node.asText());
+    }
 }

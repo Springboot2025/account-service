@@ -62,5 +62,18 @@ public interface QuoteRepository extends JpaRepository<Quote, Long> {
     """)
         List<Quote> findRecentQuotesForLawyer(UUID lawyerUuid, Pageable pageable);
 
+    long countByLawyerUuidAndStatus(UUID lawyerUuid, QuoteStatus status);
 
+    long countByLawyerUuidAndStatusAndUpdatedAtBetween(
+            UUID lawyerUuid,
+            QuoteStatus status,
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
+    long countByLawyerUuidAndCreatedAtBetween(
+            UUID lawyerUuid,
+            LocalDateTime start,
+            LocalDateTime end
+    );
 }

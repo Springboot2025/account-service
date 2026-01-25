@@ -32,6 +32,9 @@ public class LegalCaseDto {
     private UUID lawyerUuid;
     private UUID quoteUuid;
 
+    private String clientProfilePictureUrl;
+    private String lawyerProfilePictureUrl;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;

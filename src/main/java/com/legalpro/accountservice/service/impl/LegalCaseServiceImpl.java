@@ -1,10 +1,7 @@
 package com.legalpro.accountservice.service.impl;
 
 import com.legalpro.accountservice.dto.LegalCaseDto;
-import com.legalpro.accountservice.entity.CaseStatus;
-import com.legalpro.accountservice.entity.CaseType;
-import com.legalpro.accountservice.entity.LegalCase;
-import com.legalpro.accountservice.entity.Quote;
+import com.legalpro.accountservice.entity.*;
 import com.legalpro.accountservice.enums.QuoteStatus;
 import com.legalpro.accountservice.mapper.LegalCaseMapper;
 import com.legalpro.accountservice.repository.*;
@@ -16,11 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.LinkedHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +28,8 @@ public class LegalCaseServiceImpl implements LegalCaseService {
     private final AccountRepository accountRepository;
     private final QuoteRepository quoteRepository;
     private final ActivityLogService activityLogService;
+
+    private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com/legalpro";
 
     // --- Helper: Generate case number ---
     private String generateCaseNumber(UUID lawyerUuid) {
@@ -152,10 +148,35 @@ public class LegalCaseServiceImpl implements LegalCaseService {
 
     @Override
     public List<LegalCaseDto> getCasesForLawyer(UUID lawyerUuid) {
-        return legalCaseRepository.findAllByLawyerUuid(lawyerUuid)
-                .stream()
-                .map(mapper::toDto)
-                .collect(Collectors.toList());
+        List<LegalCase> cases = legalCaseRepository.findAllByLawyerUuid(lawyerUuid);
+
+        // Collect all client UUIDs
+        Set<UUID> clientUuids = cases.stream()
+                .map(LegalCase::getClientUuid)
+                .collect(Collectors.toSet());
+
+        // Add lawyer UUID for bulk load
+        clientUuids.add(lawyerUuid);
+
+        // Load all accounts in one call
+        Map<UUID, Account> accounts = accountRepository.findByUuidIn(clientUuids)
+                .stream().collect(Collectors.toMap(Account::getUuid, a -> a));
+
+        return cases.stream().map(c -> {
+            LegalCaseDto dto = mapper.toDto(c);
+
+            Account clientAcc = accounts.get(c.getClientUuid());
+            if (clientAcc != null) {
+                dto.setClientProfilePictureUrl(convertGcsUrl(clientAcc.getProfilePictureUrl()));
+            }
+
+            Account lawyerAcc = accounts.get(c.getLawyerUuid());
+            if (lawyerAcc != null) {
+                dto.setLawyerProfilePictureUrl(convertGcsUrl(lawyerAcc.getProfilePictureUrl()));
+            }
+
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     @Override
@@ -381,4 +402,12 @@ public class LegalCaseServiceImpl implements LegalCaseService {
         return mapper.toDto(existing);
     }
 
+    private static String convertGcsUrl(String fileUrl) {
+        if (fileUrl == null) return null;
+
+        if (fileUrl.startsWith("gs://")) {
+            return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
+        }
+        return fileUrl;
+    }
 }

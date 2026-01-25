@@ -134,9 +134,48 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
         );
 
     long countByLawyerUuidAndStatus_Name(UUID lawyerUuid, String statusName);
+    List<LegalCase> findByLawyerUuidAndCourtDateBetween(UUID lawyerUuid, LocalDate start, LocalDate end);
 
-    List<LegalCase> findByLawyerUuidAndCourtDateBetween(UUID lawyerUuid,
-                                                        LocalDate start,
-                                                        LocalDate end);
+    @Query("""
+        SELECT COUNT(DISTINCT c.clientUuid)
+        FROM LegalCase c
+        WHERE c.lawyerUuid = :lawyerUuid
+    """)
+        long countDistinctClients(@Param("lawyerUuid") UUID lawyerUuid);
+
+    @Query("""
+        SELECT COUNT(DISTINCT c.clientUuid)
+        FROM LegalCase c
+        WHERE c.lawyerUuid = :lawyerUuid
+          AND c.createdAt BETWEEN :start AND :end
+    """)
+        long countDistinctClientsByMonth(
+                @Param("lawyerUuid") UUID lawyerUuid,
+                @Param("start") LocalDateTime start,
+                @Param("end") LocalDateTime end
+        );
+
+    @Query("""
+        SELECT COUNT(c)
+        FROM LegalCase c
+        WHERE c.lawyerUuid = :lawyerUuid
+          AND c.status.name = :status
+          AND c.createdAt BETWEEN :start AND :end
+    """)
+        long countCasesByStatusAndMonth(
+                @Param("lawyerUuid") UUID lawyerUuid,
+                @Param("status") String status,
+                @Param("start") LocalDateTime start,
+                @Param("end") LocalDateTime end
+        );
+
+    @Query("""
+        SELECT COUNT(c)
+        FROM LegalCase c
+        WHERE c.lawyerUuid = :lawyerUuid
+          AND c.followUp IS NOT NULL
+          AND c.followUp <> ''
+    """)
+        long countPendingReminders(@Param("lawyerUuid") UUID lawyerUuid);
 
 }

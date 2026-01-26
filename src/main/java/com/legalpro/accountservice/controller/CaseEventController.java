@@ -70,4 +70,32 @@ public class CaseEventController {
         );
     }
 
+    @PutMapping("/{eventUuid}")
+    public ResponseEntity<ApiResponse<CaseEventDto>> updateCaseEvent(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable UUID eventUuid,
+            @RequestBody CaseEventDto dto
+    ) {
+        CaseEventDto updated = caseEventService.updateCaseEvent(
+                eventUuid,
+                user.getUuid(),
+                dto
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Case event updated successfully", updated)
+        );
+    }
+
+    @DeleteMapping("/{eventUuid}")
+    public ResponseEntity<ApiResponse<Void>> deleteCaseEvent(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable UUID eventUuid
+    ) {
+        caseEventService.deleteCaseEvent(eventUuid, user.getUuid());
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Case event deleted successfully", null)
+        );
+    }
 }

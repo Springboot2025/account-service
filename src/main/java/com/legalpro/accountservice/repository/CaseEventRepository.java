@@ -3,12 +3,14 @@ package com.legalpro.accountservice.repository;
 import com.legalpro.accountservice.entity.CaseEvent;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -34,6 +36,10 @@ public interface CaseEventRepository extends JpaRepository<CaseEvent, Long> {
                 Pageable pageable
         );
 
+    Optional<CaseEvent> findByUuidAndDeletedAtIsNull(UUID uuid);
 
+    @Modifying
+    @Query("UPDATE CaseEvent ce SET ce.deletedAt = CURRENT_TIMESTAMP WHERE ce.uuid = :uuid")
+    void softDeleteByUuid(UUID uuid);
 
 }

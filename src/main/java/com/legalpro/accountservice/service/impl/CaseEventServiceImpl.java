@@ -129,5 +129,32 @@ public class CaseEventServiceImpl implements CaseEventService {
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public CaseEventDto updateCaseEvent(UUID eventUuid, UUID lawyerUuid, CaseEventDto dto) {
+
+        CaseEvent event = caseEventRepository.findByUuidAndDeletedAtIsNull(eventUuid)
+                .orElseThrow(() -> new RuntimeException("Case event not found"));
+
+        event.setEventDate(dto.getDate());
+        event.setEventType(dto.getType());
+        event.setTitle(dto.getTitle());
+        event.setDetails(dto.getDetails());
+        event.setStatus(dto.getStatus());
+        event.setRelatedDate(dto.getRelatedDate());
+
+        CaseEvent saved = caseEventRepository.save(event);
+        return caseEventMapper.toDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteCaseEvent(UUID eventUuid, UUID lawyerUuid) {
+
+        CaseEvent event = caseEventRepository.findByUuidAndDeletedAtIsNull(eventUuid)
+                .orElseThrow(() -> new RuntimeException("Case event not found"));
+
+        caseEventRepository.softDeleteByUuid(eventUuid);
+    }
 
 }

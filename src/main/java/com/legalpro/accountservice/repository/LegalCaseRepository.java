@@ -178,4 +178,21 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     """)
         long countPendingReminders(@Param("lawyerUuid") UUID lawyerUuid);
 
+    long countByClientUuidAndStatus_NameNotInAndDeletedAtIsNull(
+            UUID clientUuid,
+            List<String> excludedStatuses
+    );
+
+    long countByClientUuidAndCreatedAtBetweenAndDeletedAtIsNull(
+            UUID clientUuid,
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
+    long countByClientUuidAndCourtDateBetweenAndDeletedAtIsNull(
+            UUID clientUuid,
+            LocalDate start,
+            LocalDate end
+    );
+
 }

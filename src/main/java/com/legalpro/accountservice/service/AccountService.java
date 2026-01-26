@@ -280,6 +280,11 @@ public class AccountService {
             account.setEmergencyContact(emergencyContact);
         }
 
+        if (dto.getLanguages() != null) {
+            JsonNode languages = objectMapper.convertValue(dto.getLanguages(), JsonNode.class);
+            account.setLanguages(languages);
+        }
+
         return accountRepository.save(account);
     }
 

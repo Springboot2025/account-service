@@ -2,6 +2,7 @@ package com.legalpro.accountservice.dto;
 
 import lombok.*;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -19,4 +20,5 @@ public class ClientDto {
     private Map<String, Object> preferences;
     private Map<String, Object> emergencyContact;
     private String profilePictureUrl;
+    private List<Map<String, Object>> languages;
 }

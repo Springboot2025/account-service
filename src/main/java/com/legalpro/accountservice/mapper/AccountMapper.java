@@ -26,6 +26,7 @@ public class AccountMapper {
                 .preferences(toMap(account.getPreferences()))
                 .emergencyContact(toMap(account.getEmergencyContact()))
                 .profilePictureUrl(account.getProfilePictureUrl())
+                .languages(toList(account.getLanguages()))
                 .build();
     }
 

@@ -24,30 +24,18 @@ public interface SharedDocumentRepository extends JpaRepository<SharedDocument, 
     List<SharedDocument> findAllByDocumentUuidAndDeletedAtIsNull(UUID documentUuid);
 
     @Query("""
-        SELECT
-            sd.uuid            AS sharedUuid,
-
-            c.uuid             AS caseUuid,
-            c.caseNumber       AS caseNumber,
-            COALESCE(c.listing, c.name) AS caseTitle,
-
-            d.uuid             AS documentUuid,
-            d.fileName         AS documentName,
-            d.fileType         AS fileType,
-            d.fileUrl          AS fileUrl,
-
-            sd.createdAt       AS sentDate,
-            sd.remarks         AS remarks
+        SELECT sd, c, d
         FROM SharedDocument sd
         JOIN LegalCase c ON c.uuid = sd.caseUuid
         JOIN DocumentTemplateCenter d ON d.uuid = sd.documentUuid
-        WHERE
-            sd.clientUuid = :clientUuid
-            AND sd.deletedAt IS NULL
-            AND c.deletedAt IS NULL
+        WHERE sd.clientUuid = :clientUuid
+          AND sd.deletedAt IS NULL
+          AND c.deletedAt IS NULL
         ORDER BY sd.createdAt DESC
     """)
-    List<ClientLetterView> findLettersForClient(UUID clientUuid);
+        List<Object[]> findLettersForClient(UUID clientUuid);
+
+
 
     long countByLawyerUuidAndDeletedAtIsNull(UUID lawyerUuid);
 }

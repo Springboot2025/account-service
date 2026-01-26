@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.LoginRequest;
 import com.legalpro.accountservice.dto.RegisterRequest;
@@ -83,6 +84,19 @@ public class AuthController {
             Account account = accountService.findByEmail(userDetails.getUsername())
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
+            String fullName = "";
+
+            if (account.getPersonalDetails() != null) {
+                JsonNode pd = account.getPersonalDetails();
+                String firstName = pd.hasNonNull("firstName")
+                        ? pd.get("firstName").asText()
+                        : "";
+                String lastName = pd.hasNonNull("lastName")
+                        ? pd.get("lastName").asText()
+                        : "";
+                fullName = (firstName + " " + lastName).trim();
+            }
+
             boolean isSubscribed = subscriberRepository.findByEmail(account.getEmail())
                     .map(sub -> Boolean.TRUE.equals(sub.getIsActive()))
                     .orElse(false);
@@ -142,7 +156,8 @@ public class AuthController {
                             "accessToken", accessToken,
                             "email", account.getEmail(),
                             "profilePictureUrl", Optional.ofNullable(account.getProfilePictureUrl()).orElse(""),
-                            "uuid", account.getUuid().toString()
+                            "uuid", account.getUuid().toString(),
+                            "fullName", fullName
                     )
             );
 

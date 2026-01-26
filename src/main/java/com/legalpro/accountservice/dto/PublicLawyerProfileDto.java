@@ -27,7 +27,8 @@ public record PublicLawyerProfileDto(
 
         JsonNode educationQualification,
         JsonNode awardsAppreciations,
-
+        JsonNode consultationRates,
+        JsonNode languages,
         BigDecimal averageRating,
         int reviewCount
 
@@ -91,6 +92,8 @@ public record PublicLawyerProfileDto(
                 account.getAddressDetails(),
                 account.getEducationQualification(),
                 account.getAwardsAppreciations(),
+                account.getConsultationRates(),
+                account.getLanguages(),
                 averageRating,
                 reviewCount
         );

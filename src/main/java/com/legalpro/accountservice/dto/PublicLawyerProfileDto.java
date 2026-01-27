@@ -23,6 +23,8 @@ public record PublicLawyerProfileDto(
         JsonNode professionalDetails,
 
         JsonNode contactInformation,
+        JsonNode personalDetails,
+        JsonNode experienceStaff,
         JsonNode addressDetails,
 
         JsonNode educationQualification,
@@ -89,6 +91,8 @@ public record PublicLawyerProfileDto(
                 specialization,
                 account.getProfessionalDetails(),
                 account.getContactInformation(),
+                account.getPersonalDetails(),
+                account.getExperienceStaff(),
                 account.getAddressDetails(),
                 account.getEducationQualification(),
                 account.getAwardsAppreciations(),

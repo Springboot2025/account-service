@@ -36,4 +36,22 @@ public class DashboardServiceImpl implements DashboardService {
                 .map(ActivityLogMapper::toDto)
                 .toList();
     }
+
+    @Override
+    public List<ActivityLogDto> getClientRecentActivities(UUID clientUuid, Integer limit) {
+
+        int size = (limit != null && limit > 0) ? limit : 10;
+
+        Pageable pageable = PageRequest.of(0, size);
+
+        List<ActivityLog> logs =
+                activityLogRepository.findByClientUuidOrderByTimestampDesc(
+                        clientUuid,
+                        pageable
+                );
+
+        return logs.stream()
+                .map(ActivityLogMapper::toDto)
+                .toList();
+    }
 }

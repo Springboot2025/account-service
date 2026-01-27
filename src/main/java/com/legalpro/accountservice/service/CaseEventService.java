@@ -16,4 +16,5 @@ public interface CaseEventService {
     CaseEventDto updateCaseEvent(UUID eventUuid, UUID lawyerUuid, CaseEventDto dto);
     void deleteCaseEvent(UUID eventUuid, UUID lawyerUuid);
 
+    List<CaseEventDto> getClientUpcomingEvents(UUID clientUuid, Integer limit);
 }

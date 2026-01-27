@@ -42,4 +42,17 @@ public interface CaseEventRepository extends JpaRepository<CaseEvent, Long> {
     @Query("UPDATE CaseEvent ce SET ce.deletedAt = CURRENT_TIMESTAMP WHERE ce.uuid = :uuid")
     void softDeleteByUuid(UUID uuid);
 
+    @Query("""
+        SELECT e
+        FROM CaseEvent e
+        JOIN LegalCase c ON c.uuid = e.caseUuid
+        WHERE c.clientUuid = :clientUuid
+          AND e.deletedAt IS NULL
+          AND c.deletedAt IS NULL
+        ORDER BY e.relatedDate DESC
+    """)
+        List<CaseEvent> findUpcomingEventsForClient(
+                UUID clientUuid,
+                Pageable pageable
+        );
 }

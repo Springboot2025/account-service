@@ -37,4 +37,19 @@ public class ClientCaseEventController {
                 ApiResponse.success(200, "Case events fetched successfully", response)
         );
     }
+
+    @GetMapping("/upcoming")
+    public ResponseEntity<ApiResponse<List<CaseEventDto>>> getUpcomingEvents(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam(required = false) Integer limit
+    ) {
+        UUID clientUuid = user.getUuid();
+
+        List<CaseEventDto> response =
+                caseEventService.getClientUpcomingEvents(clientUuid, limit);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Upcoming case events fetched successfully", response)
+        );
+    }
 }

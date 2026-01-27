@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -157,4 +158,18 @@ public class CaseEventServiceImpl implements CaseEventService {
         caseEventRepository.softDeleteByUuid(eventUuid);
     }
 
+    @Override
+    public List<CaseEventDto> getClientUpcomingEvents(UUID clientUuid, Integer limit) {
+
+        int finalLimit = (limit == null || limit <= 0) ? 5 : limit;
+
+        Pageable pageable = PageRequest.of(0, finalLimit);
+
+        List<CaseEvent> events =
+                caseEventRepository.findUpcomingEventsForClient(clientUuid, pageable);
+
+        return events.stream()
+                .map(caseEventMapper::toDto)
+                .collect(Collectors.toList());
+    }
 }

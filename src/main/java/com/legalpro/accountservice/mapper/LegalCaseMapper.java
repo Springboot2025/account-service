@@ -3,13 +3,23 @@ package com.legalpro.accountservice.mapper;
 import com.legalpro.accountservice.dto.LegalCaseDto;
 import com.legalpro.accountservice.entity.CaseStatus;
 import com.legalpro.accountservice.entity.LegalCase;
+import com.legalpro.accountservice.entity.Quote;
+import com.legalpro.accountservice.repository.QuoteRepository;
 import org.springframework.stereotype.Component;
 
 @Component
 public class LegalCaseMapper {
+    private final QuoteRepository quoteRepository;
+
+    public LegalCaseMapper(QuoteRepository quoteRepository) {
+        this.quoteRepository = quoteRepository;
+    }
 
     public LegalCaseDto toDto(LegalCase entity) {
         if (entity == null) return null;
+
+        Quote quote = quoteRepository.findByUuid(entity.getQuoteUuid())
+                .orElse(null);
 
         return LegalCaseDto.builder()
                 .id(entity.getId())
@@ -27,6 +37,8 @@ public class LegalCaseMapper {
                 .clientUuid(entity.getClientUuid())
                 .lawyerUuid(entity.getLawyerUuid())
                 .quoteUuid(entity.getQuoteUuid())
+                .title(quote != null ? quote.getTitle() : null)
+                .offenceList(quote != null ? quote.getOffenceList() : null)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .deletedAt(entity.getDeletedAt())

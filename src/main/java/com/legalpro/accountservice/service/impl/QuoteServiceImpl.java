@@ -217,10 +217,39 @@ public class QuoteServiceImpl implements QuoteService {
                 ? PageRequest.of(0, limit)
                 : Pageable.unpaged();
 
-        return quoteRepository.findRecentQuotesForLawyer(lawyerUuid, pageable)
-                .stream()
-                .map(quoteMapper::toDto)
-                .collect(Collectors.toList());
+        List<Quote> quotes = quoteRepository.findRecentQuotesForLawyer(lawyerUuid, pageable);
+
+        if (quotes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 1️⃣ Collect all relevant UUIDs
+        Set<UUID> uuids = new HashSet<>();
+        uuids.add(lawyerUuid);
+        quotes.forEach(q -> {
+            uuids.add(q.getClientUuid());
+            uuids.add(q.getLawyerUuid());
+        });
+
+        // 2️⃣ Load all accounts in one DB call (optimised)
+        Map<UUID, Account> accounts = profileService.loadAccounts(uuids);
+
+        // 3️⃣ Map quotes + add profile picture URLs
+        return quotes.stream().map(q -> {
+            QuoteDto dto = quoteMapper.toDto(q);
+
+            Account clientAcc = accounts.get(q.getClientUuid());
+            dto.setClientProfilePictureUrl(
+                    profileService.getProfilePicture(clientAcc)
+            );
+
+            Account lawyerAcc = accounts.get(q.getLawyerUuid());
+            dto.setLawyerProfilePictureUrl(
+                    profileService.getProfilePicture(lawyerAcc)
+            );
+
+            return dto;
+        }).toList();
     }
 
 }

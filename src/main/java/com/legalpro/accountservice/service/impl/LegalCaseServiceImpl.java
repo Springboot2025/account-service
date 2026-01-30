@@ -143,7 +143,29 @@ public class LegalCaseServiceImpl implements LegalCaseService {
             throw new SecurityException("Access denied");
         }
 
-        return mapper.toDto(legalCase);
+        // Map case data (mapper loads Quote title + offenceList)
+        LegalCaseDto dto = mapper.toDto(legalCase);
+
+        // Load BOTH accounts at once
+        Set<UUID> uuids = Set.of(legalCase.getClientUuid(), legalCase.getLawyerUuid());
+
+        Map<UUID, Account> accounts = accountRepository.findByUuidIn(uuids)
+                .stream()
+                .collect(Collectors.toMap(Account::getUuid, a -> a));
+
+        // Set client pic
+        Account clientAcc = accounts.get(legalCase.getClientUuid());
+        if (clientAcc != null) {
+            dto.setClientProfilePictureUrl(convertGcsUrl(clientAcc.getProfilePictureUrl()));
+        }
+
+        // Set lawyer pic
+        Account lawyerAcc = accounts.get(legalCase.getLawyerUuid());
+        if (lawyerAcc != null) {
+            dto.setLawyerProfilePictureUrl(convertGcsUrl(lawyerAcc.getProfilePictureUrl()));
+        }
+
+        return dto;
     }
 
     @Override

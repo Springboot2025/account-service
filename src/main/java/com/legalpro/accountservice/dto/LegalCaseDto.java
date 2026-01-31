@@ -38,6 +38,7 @@ public class LegalCaseDto {
 
     private List<String> offenceList;
     private String title;
+    private String lawyerName;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

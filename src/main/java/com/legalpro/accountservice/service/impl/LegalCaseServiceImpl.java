@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.legalpro.accountservice.dto.LegalCaseDto;
 import com.legalpro.accountservice.entity.*;
 import com.legalpro.accountservice.enums.QuoteStatus;
@@ -322,10 +323,36 @@ public class LegalCaseServiceImpl implements LegalCaseService {
 
     @Override
     public List<LegalCaseDto> getCasesForClient(UUID clientUuid) {
-        return legalCaseRepository.findAllByClientUuid(clientUuid)
-                .stream()
-                .map(mapper::toDto)
-                .collect(Collectors.toList());
+        List<LegalCase> cases = legalCaseRepository.findAllByClientUuid(clientUuid);
+
+        // Collect all lawyer UUIDs
+        Set<UUID> lawyerUuids = cases.stream()
+                .map(LegalCase::getLawyerUuid)
+                .collect(Collectors.toSet());
+
+        // Add client UUID for bulk load
+        lawyerUuids.add(clientUuid);
+
+        // Load all accounts in one call
+        Map<UUID, Account> accounts = accountRepository.findByUuidIn(lawyerUuids)
+                .stream().collect(Collectors.toMap(Account::getUuid, a -> a));
+
+        return cases.stream().map(c -> {
+            LegalCaseDto dto = mapper.toDto(c);
+
+            Account clientAcc = accounts.get(c.getClientUuid());
+            if (clientAcc != null) {
+                dto.setClientProfilePictureUrl(convertGcsUrl(clientAcc.getProfilePictureUrl()));
+            }
+
+            Account lawyerAcc = accounts.get(c.getLawyerUuid());
+            if (lawyerAcc != null) {
+                dto.setLawyerProfilePictureUrl(convertGcsUrl(lawyerAcc.getProfilePictureUrl()));
+                dto.setLawyerName(extractFullName(lawyerAcc));
+            }
+
+            return dto;
+        }).collect(Collectors.toList());
     }
 
 
@@ -431,5 +458,17 @@ public class LegalCaseServiceImpl implements LegalCaseService {
             return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
         }
         return fileUrl;
+    }
+
+    private String extractFullName(Account account) {
+        if (account == null || account.getPersonalDetails() == null) {
+            return "";
+        }
+
+        JsonNode pd = account.getPersonalDetails();
+        String first = pd.hasNonNull("firstName") ? pd.get("firstName").asText() : "";
+        String last  = pd.hasNonNull("lastName")  ? pd.get("lastName").asText()  : "";
+
+        return (first + " " + last).trim();
     }
 }

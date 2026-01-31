@@ -26,6 +26,7 @@ public class AppointmentDto {
 
     private String meetingType;
     private String notes;
+    private String clientName;
 
     private AppointmentStatus status;
     private UUID rescheduledFrom;

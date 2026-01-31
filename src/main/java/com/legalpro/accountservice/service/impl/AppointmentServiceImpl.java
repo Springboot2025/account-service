@@ -1,12 +1,15 @@
 package com.legalpro.accountservice.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.legalpro.accountservice.dto.AppointmentDto;
 import com.legalpro.accountservice.dto.AppointmentRequestsSummaryDto;
+import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Appointment;
 import com.legalpro.accountservice.enums.AppointmentStatus;
 import com.legalpro.accountservice.mapper.AppointmentMapper;
 import com.legalpro.accountservice.repository.AppointmentRepository;
 import com.legalpro.accountservice.service.AppointmentService;
+import com.legalpro.accountservice.service.ProfileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -14,6 +17,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -24,6 +29,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final AppointmentMapper appointmentMapper;
+    private final ProfileService profileService;
 
     // === Client Actions ===
 
@@ -70,10 +76,30 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     public List<AppointmentDto> getAppointmentsForLawyer(UUID lawyerUuid) {
-        return appointmentRepository.findByLawyerUuid(lawyerUuid)
-                .stream()
-                .map(appointmentMapper::toDto)
-                .collect(Collectors.toList());
+
+        List<Appointment> appointments = appointmentRepository.findByLawyerUuid(lawyerUuid);
+
+        if (appointments.isEmpty()) return List.of();
+
+        // 1️⃣ Collect client UUIDs
+        Set<UUID> clientUuids = appointments.stream()
+                .map(Appointment::getClientUuid)
+                .collect(Collectors.toSet());
+
+        // 2️⃣ Load all accounts in one DB query
+        Map<UUID, Account> accounts = profileService.loadAccounts(clientUuids);
+
+        // 3️⃣ Map + inject clientName
+        return appointments.stream().map(a -> {
+            AppointmentDto dto = appointmentMapper.toDto(a);
+
+            Account clientAcc = accounts.get(a.getClientUuid());
+            if (clientAcc != null) {
+                dto.setClientName(extractFullName(clientAcc));
+            }
+
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     @Override
@@ -217,5 +243,15 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .upcoming(upcoming)
                 .thisMonth(thisMonth)
                 .build();
+    }
+
+    private String extractFullName(Account account) {
+        if (account == null || account.getPersonalDetails() == null) return "";
+
+        JsonNode pd = account.getPersonalDetails();
+        String first = pd.hasNonNull("firstName") ? pd.get("firstName").asText() : "";
+        String last  = pd.hasNonNull("lastName")  ? pd.get("lastName").asText()  : "";
+
+        return (first + " " + last).trim();
     }
 }

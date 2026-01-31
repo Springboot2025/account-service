@@ -23,5 +23,9 @@ public class ActivityLogDto {
     private UUID lawyerUuid;
     private UUID referenceUuid;
 
+    private String actorProfilePictureUrl;
+    private String clientProfilePictureUrl;
+    private String lawyerProfilePictureUrl;
+
     private Object metadata;
 }

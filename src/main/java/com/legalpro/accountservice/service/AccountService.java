@@ -466,7 +466,7 @@ public class AccountService {
                         .clientUuid(item.getClientUuid())
                         .fileName(item.getFileName())
                         .fileType(item.getFileType())
-                        .fileUrl(item.getFileUrl())
+                        .fileUrl(convertGcsUrl(item.getFileUrl()))
                         .description(item.getDescription())
                         .createdAt(item.getCreatedAt())
                         .updatedAt(item.getUpdatedAt())

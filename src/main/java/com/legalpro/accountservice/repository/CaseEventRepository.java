@@ -49,6 +49,8 @@ public interface CaseEventRepository extends JpaRepository<CaseEvent, Long> {
         WHERE c.clientUuid = :clientUuid
           AND e.deletedAt IS NULL
           AND c.deletedAt IS NULL
+          AND e.relatedDate IS NOT NULL
+          AND e.relatedDate >= CURRENT_DATE
         ORDER BY e.relatedDate DESC
     """)
         List<CaseEvent> findUpcomingEventsForClient(

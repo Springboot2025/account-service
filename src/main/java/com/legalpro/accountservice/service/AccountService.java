@@ -9,11 +9,16 @@ import com.legalpro.accountservice.entity.CompanyInvite;
 import com.legalpro.accountservice.entity.Role;
 import com.legalpro.accountservice.mapper.AccountMapper;
 import com.legalpro.accountservice.repository.*;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -65,7 +70,7 @@ public class AccountService {
         this.lawyerRatingRepository = lawyerRatingRepository;
     }
 
-    public Account register(RegisterRequest request) {
+    public Account register(RegisterRequest request) throws IOException {
 
         // --- 🔹 0. If inviteToken exists → validate invite ---
         CompanyInvite invite = null;
@@ -212,11 +217,21 @@ public class AccountService {
         // 7. Send verification email
         String verificationUrl = "https://lawproject-nu.vercel.app/set-password?token=" + account.getVerificationToken();
 
-        String bodyHtml =
+        /*String bodyHtml =
                 "<p>Hello " + account.getEmail() + ",</p>"
                         + "<p>Thanks for signing up to Boss Law Online Services.</p>"
                         + "<p>Click below to verify your email:</p>"
-                        + "<a href=\"" + verificationUrl + "\">Verify your email</a>";
+                        + "<a href=\"" + verificationUrl + "\">Verify your email</a>";*/
+
+        ClassPathResource resource = new ClassPathResource("templates/register.html");
+        String template = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+
+        String fullName = extractFullName(account);
+
+        String bodyHtml = template
+                .replace("${userEmail}", account.getEmail())
+                .replace("${verificationLink}", verificationUrl)
+                .replace("${userName}", fullName);
 
         emailService.sendEmail(account.getEmail(), "Boss Law Verification", bodyHtml);
 
@@ -571,4 +586,13 @@ public class AccountService {
         );
     }
 
+    private String extractFullName(Account account) {
+        if (account == null || account.getPersonalDetails() == null) return "";
+
+        JsonNode pd = account.getPersonalDetails();
+        String first = pd.hasNonNull("firstName") ? pd.get("firstName").asText() : "";
+        String last  = pd.hasNonNull("lastName")  ? pd.get("lastName").asText()  : "";
+
+        return (first + " " + last).trim();
+    }
 }

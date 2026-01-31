@@ -30,6 +30,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import com.legalpro.accountservice.entity.Company;
 
 import jakarta.validation.Valid;
+
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -194,6 +196,8 @@ public class AuthController {
             ApiResponse<Map<String, String>> response =
                     ApiResponse.error(HttpStatus.BAD_REQUEST.value(), e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 

@@ -14,7 +14,7 @@ public class CaseEventDto {
     private Long id;
     private UUID uuid;
     private UUID caseUuid;
-
+    private Long caseId;
     private LocalDate date;
     private String type;
     private String title;

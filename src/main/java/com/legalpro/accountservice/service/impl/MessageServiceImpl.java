@@ -7,14 +7,13 @@ import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.MessageRepository;
 import com.legalpro.accountservice.service.ActivityLogService;
 import com.legalpro.accountservice.service.MessageService;
+import com.legalpro.accountservice.service.ProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,6 +24,7 @@ public class MessageServiceImpl implements MessageService {
     private final MessageRepository messageRepository;
     private final ActivityLogService activityLogService;
     private final AccountRepository accountRepository;
+    private final ProfileService profileService;
 
     @Override
     public MessageDto sendMessage(UUID senderUuid, UUID receiverUuid, String content) {
@@ -77,10 +77,39 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public List<MessageDto> getConversation(UUID user1, UUID user2) {
-        return messageRepository.findConversation(user1, user2)
-                .stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+
+        List<Message> messages = messageRepository.findConversation(user1, user2);
+
+        if (messages.isEmpty()) {
+            return List.of();
+        }
+
+        // 1️⃣ Collect all sender + receiver UUIDs
+        Set<UUID> accountIds = new HashSet<>();
+        messages.forEach(m -> {
+            accountIds.add(m.getSenderUuid());
+            accountIds.add(m.getReceiverUuid());
+        });
+
+        // 2️⃣ Load ALL accounts in one go
+        Map<UUID, Account> accounts = profileService.loadAccounts(accountIds);
+
+        // 3️⃣ Convert to DTO + inject profile pictures
+        return messages.stream().map(m -> {
+            MessageDto dto = toDto(m);
+
+            Account senderAcc = accounts.get(m.getSenderUuid());
+            dto.setSenderProfilePictureUrl(
+                    profileService.getProfilePicture(senderAcc)
+            );
+
+            Account receiverAcc = accounts.get(m.getReceiverUuid());
+            dto.setReceiverProfilePictureUrl(
+                    profileService.getProfilePicture(receiverAcc)
+            );
+
+            return dto;
+        }).toList();
     }
 
     @Override

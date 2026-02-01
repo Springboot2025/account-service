@@ -16,4 +16,7 @@ public class MessageDto {
     private String content;
     private Instant createdAt;
     private boolean read;
+
+    private String senderProfilePictureUrl;
+    private String receiverProfilePictureUrl;
 }

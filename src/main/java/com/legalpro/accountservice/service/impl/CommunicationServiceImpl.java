@@ -188,12 +188,14 @@ public class CommunicationServiceImpl implements CommunicationService {
             if (clientAcc != null) {
                 dto.setClientName(extractNameFromAccount(clientAcc));
                 dto.setClientEmail(clientAcc.getEmail());
+                dto.setClientProfilePictureUrl(convertGcsUrl(clientAcc.getProfilePictureUrl()));
             }
 
             Account lawyerAcc = accounts.get(lawyerUuid);
             if (lawyerAcc != null) {
                 dto.setLawyerName(extractNameFromAccount(lawyerAcc));
                 dto.setLawyerEmail(lawyerAcc.getEmail());
+                dto.setLawyerProfilePictureUrl(convertGcsUrl(lawyerAcc.getProfilePictureUrl()));
             }
         });
 

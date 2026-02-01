@@ -195,4 +195,6 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
             LocalDate end
     );
 
+    List<LegalCase> findAllByLawyerUuidAndCasePriority(UUID lawyerUuid, int priority);
+    List<LegalCase> findAllByLawyerUuidAndCaseFinalStatus(UUID lawyerUuid, int finalStatus);
 }

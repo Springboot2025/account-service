@@ -474,4 +474,20 @@ public class LegalCaseServiceImpl implements LegalCaseService {
 
         return (first + " " + last).trim();
     }
+
+    @Override
+    public List<LegalCaseDto> getCasesByCasePriority(UUID lawyerUuid, int priority) {
+        return legalCaseRepository.findAllByLawyerUuidAndCasePriority(lawyerUuid, priority)
+                .stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<LegalCaseDto> getCasesByCaseFinalStatus(UUID lawyerUuid, int finalStatus) {
+        return legalCaseRepository.findAllByLawyerUuidAndCaseFinalStatus(lawyerUuid, finalStatus)
+                .stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
+    }
 }

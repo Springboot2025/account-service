@@ -138,4 +138,23 @@ public class LegalCaseController {
         return ResponseEntity.ok(ApiResponse.success(200, "Cases fetched successfully", cases));
     }
 
+    @GetMapping("/priority/{priority}")
+    public ResponseEntity<ApiResponse<List<LegalCaseDto>>> getCasesByPriority(
+            @PathVariable int priority,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+        List<LegalCaseDto> cases = legalCaseService.getCasesByCasePriority(lawyerUuid, priority);
+        return ResponseEntity.ok(ApiResponse.success(200, "Cases fetched successfully", cases));
+    }
+
+    @GetMapping("/final-status/{finalStatus}")
+    public ResponseEntity<ApiResponse<List<LegalCaseDto>>> getCasesByFinalStatus(
+            @PathVariable int finalStatus,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+        List<LegalCaseDto> cases = legalCaseService.getCasesByCaseFinalStatus(lawyerUuid, finalStatus);
+        return ResponseEntity.ok(ApiResponse.success(200, "Cases fetched successfully", cases));
+    }
 }

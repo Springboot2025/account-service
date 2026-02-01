@@ -103,10 +103,7 @@ public class CourtSupportMaterialService {
 
     // --- Soft delete material ---
     public void softDeleteMaterial(Long id) {
-        repository.findByIdAndDeletedAtIsNull(id).ifPresent(material -> {
-            material.setDeletedAt(LocalDateTime.now());
-            repository.save(material);
-        });
+        repository.deleteById(id);
     }
 
     // --- Upload a single file with description ---

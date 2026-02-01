@@ -130,6 +130,9 @@ public class LegalCaseServiceImpl implements LegalCaseService {
             existing.setStatus(status);
         }
 
+        if (dto.getCasePriority() != null) existing.setCasePriority(dto.getCasePriority());
+        if (dto.getCaseFinalStatus() != null) existing.setCaseFinalStatus(dto.getCaseFinalStatus());
+
         existing.setUpdatedAt(LocalDateTime.now());
         legalCaseRepository.save(existing);
         return mapper.toDto(existing);

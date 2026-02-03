@@ -11,6 +11,7 @@ import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.repository.MessageRepository;
 import com.legalpro.accountservice.service.ContactService;
+import com.legalpro.accountservice.service.ProfileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
@@ -30,6 +31,7 @@ public class ContactServiceImpl implements ContactService {
     private final LegalCaseRepository legalCaseRepository;
     private final MessageRepository messageRepository;
     private final LegalCaseMapper legalCaseMapper;
+    private final ProfileService profileService;
 
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
@@ -46,10 +48,7 @@ public class ContactServiceImpl implements ContactService {
                 .map(LegalCase::getClientUuid)
                 .collect(Collectors.toSet());
 
-        Map<UUID, Account> clients = clientUuids.stream()
-                .map(uuid -> accountRepository.findByUuid(uuid).orElse(null))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(Account::getUuid, acc -> acc));
+        Map<UUID, Account> clients = profileService.loadAccounts(clientUuids);
 
         List<ContactSummaryDto> summaries = cases.stream()
                 .map(legalCase -> {

@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -37,24 +38,32 @@ public class ContactServiceImpl implements ContactService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ContactSummaryDto> getContactsForLawyer(UUID lawyerUuid, String search, String filter, Pageable pageable) {
+    public Page<ContactSummaryDto> getContactsForLawyer(
+            UUID lawyerUuid, String search, String filter, Pageable pageable) {
+
         log.info("🎯 Fetching contacts for lawyer={}, filter={}, search={}", lawyerUuid, filter, search);
 
-        // ✅ Use fetch join to avoid lazy loading issues
+        // Load all cases with fetch join (efficient)
         List<LegalCase> cases = legalCaseRepository.findAllByLawyerUuidWithStatus(lawyerUuid);
         if (cases.isEmpty()) return Page.empty(pageable);
 
-        Set<UUID> clientUuids = cases.stream()
-                .map(LegalCase::getClientUuid)
+        // Collect BOTH client + lawyer UUIDs
+        Set<UUID> requiredUuids = cases.stream()
+                .flatMap(c -> Stream.of(c.getClientUuid(), c.getLawyerUuid()))
                 .collect(Collectors.toSet());
 
-        Map<UUID, Account> clients = profileService.loadAccounts(clientUuids);
+        // Load all accounts in ONE DB call
+        Map<UUID, Account> accounts = profileService.loadAccounts(requiredUuids);
 
         List<ContactSummaryDto> summaries = cases.stream()
                 .map(legalCase -> {
-                    Account client = clients.get(legalCase.getClientUuid());
+
+                    Account client = accounts.get(legalCase.getClientUuid());
+                    Account lawyer = accounts.get(legalCase.getLawyerUuid());
+
                     if (client == null) return null;
 
+                    // Find last message between lawyer and this client
                     Optional<Message> lastMessage = messageRepository
                             .findTopBySenderUuidAndReceiverUuidOrReceiverUuidAndSenderUuidOrderByCreatedAtDesc(
                                     lawyerUuid, client.getUuid(), lawyerUuid, client.getUuid()
@@ -65,7 +74,20 @@ public class ContactServiceImpl implements ContactService {
                     String contactName = extractFullName(client.getPersonalDetails());
                     String contactInfo = extractContactInfo(client.getContactInformation());
 
+                    // --- Build LegalCaseDto with profile pictures ---
                     LegalCaseDto caseDto = legalCaseMapper.toDto(legalCase);
+
+                    if (client != null) {
+                        caseDto.setClientProfilePictureUrl(
+                                convertGcsUrl(client.getProfilePictureUrl())
+                        );
+                    }
+
+                    if (lawyer != null) {
+                        caseDto.setLawyerProfilePictureUrl(
+                                convertGcsUrl(lawyer.getProfilePictureUrl())
+                        );
+                    }
 
                     return ContactSummaryDto.builder()
                             .clientUuid(client.getUuid())
@@ -78,6 +100,7 @@ public class ContactServiceImpl implements ContactService {
                             .profilePictureUrl(convertGcsUrl(client.getProfilePictureUrl()))
                             .legalCase(caseDto)
                             .build();
+
                 })
                 .filter(Objects::nonNull)
                 .filter(dto -> {
@@ -91,12 +114,15 @@ public class ContactServiceImpl implements ContactService {
                 })
                 .collect(Collectors.toList());
 
+        // Apply filter if present
         if (filter != null && !filter.isBlank()) {
             summaries = applyFilter(filter, summaries);
         }
 
+        // Sort according to pageable
         summaries = applySorting(summaries, pageable.getSort());
 
+        // Manual pagination
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), summaries.size());
         List<ContactSummaryDto> pageContent = summaries.subList(Math.min(start, end), end);

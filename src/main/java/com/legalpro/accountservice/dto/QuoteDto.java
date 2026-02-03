@@ -35,6 +35,8 @@ public class QuoteDto {
     private String clientProfilePictureUrl;
     private String lawyerProfilePictureUrl;
 
+    private UUID caseUuid;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;

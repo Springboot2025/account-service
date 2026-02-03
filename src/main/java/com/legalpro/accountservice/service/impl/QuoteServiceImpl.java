@@ -6,6 +6,7 @@ import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Quote;
 import com.legalpro.accountservice.enums.QuoteStatus;
 import com.legalpro.accountservice.mapper.QuoteMapper;
+import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.repository.QuoteRepository;
 import com.legalpro.accountservice.service.ActivityLogService;
 import com.legalpro.accountservice.service.LegalCaseService;
@@ -33,6 +34,7 @@ public class QuoteServiceImpl implements QuoteService {
     private final LegalCaseService legalCaseService;
     private final ActivityLogService activityLogService;
     private final ProfileService profileService;
+    private final LegalCaseRepository legalCaseRepository;
 
     // === Client Actions ===
 
@@ -102,6 +104,11 @@ public class QuoteServiceImpl implements QuoteService {
 
         return list.stream().map(q -> {
             QuoteDto dto = quoteMapper.toDto(q);
+
+            if (q.getStatus() == QuoteStatus.BOOKED) {
+                legalCaseRepository.findByQuoteUuid(q.getUuid())
+                        .ifPresent(legalCase -> dto.setCaseUuid(legalCase.getUuid()));
+            }
 
             Account clientAcc = accounts.get(q.getClientUuid());
             dto.setClientProfilePictureUrl(

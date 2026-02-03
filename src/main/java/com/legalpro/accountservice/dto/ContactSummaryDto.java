@@ -19,4 +19,5 @@ public class ContactSummaryDto {
     private String contactInfo; // extracted from Account.contactInformation JSON
     private Instant lastContactDate; // from Message
     private String reminder; // from LegalCase.followUp
+    private LegalCaseDto legalCase;
 }

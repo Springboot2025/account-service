@@ -2,9 +2,11 @@ package com.legalpro.accountservice.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.legalpro.accountservice.dto.ContactSummaryDto;
+import com.legalpro.accountservice.dto.LegalCaseDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.entity.Message;
+import com.legalpro.accountservice.mapper.LegalCaseMapper;
 import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.repository.MessageRepository;
@@ -27,6 +29,7 @@ public class ContactServiceImpl implements ContactService {
     private final AccountRepository accountRepository;
     private final LegalCaseRepository legalCaseRepository;
     private final MessageRepository messageRepository;
+    private final LegalCaseMapper legalCaseMapper;
 
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
@@ -63,6 +66,8 @@ public class ContactServiceImpl implements ContactService {
                     String contactName = extractFullName(client.getPersonalDetails());
                     String contactInfo = extractContactInfo(client.getContactInformation());
 
+                    LegalCaseDto caseDto = legalCaseMapper.toDto(legalCase);
+
                     return ContactSummaryDto.builder()
                             .clientUuid(client.getUuid())
                             .contactName(contactName)
@@ -72,6 +77,7 @@ public class ContactServiceImpl implements ContactService {
                             .lastContactDate(lastContact)
                             .reminder(legalCase.getFollowUp())
                             .profilePictureUrl(convertGcsUrl(client.getProfilePictureUrl()))
+                            .legalCase(caseDto)
                             .build();
                 })
                 .filter(Objects::nonNull)

@@ -322,6 +322,8 @@ public class AuthController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error(400, e.getMessage()));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 

@@ -411,7 +411,7 @@ public class AccountService {
         accountRepository.save(account);
     }
 
-    public void sendForgotPasswordEmail(String email) {
+    public void sendForgotPasswordEmail(String email) throws IOException{
         Account account = accountRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Account not found"));
 
@@ -422,9 +422,19 @@ public class AccountService {
 
         String resetUrl = "https://lawproject-nu.vercel.app/reset-password?token=" + token;
 
-        String bodyHtml = "<p>Hello " + account.getEmail() + ",</p>"
+        /*String bodyHtml = "<p>Hello " + account.getEmail() + ",</p>"
                 + "<p>You requested to reset your password. Click below:</p>"
-                + "<a href=\"" + resetUrl + "\">Reset Password</a>";
+                + "<a href=\"" + resetUrl + "\">Reset Password</a>";*/
+
+        ClassPathResource resource = new ClassPathResource("templates/reset-password.html");
+        String template = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+
+        String fullName = extractFullName(account);
+
+        String bodyHtml = template
+                .replace("${userEmail}", account.getEmail())
+                .replace("${resetUrl}", resetUrl)
+                .replace("${userName}", fullName);
 
         emailService.sendEmail(account.getEmail(), "Password Reset Request", bodyHtml);
     }

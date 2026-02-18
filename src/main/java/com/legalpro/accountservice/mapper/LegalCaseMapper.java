@@ -6,6 +6,9 @@ import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.entity.Quote;
 import com.legalpro.accountservice.repository.QuoteRepository;
 import org.springframework.stereotype.Component;
+import com.legalpro.accountservice.enums.CasePriority;
+import com.legalpro.accountservice.enums.CaseFinalStatus;
+
 
 @Component
 public class LegalCaseMapper {
@@ -40,7 +43,13 @@ public class LegalCaseMapper {
                 .title(quote != null ? quote.getTitle() : null)
                 .offenceList(quote != null ? quote.getOffenceList() : null)
                 .casePriority(entity.getCasePriority())
+                .casePriorityName(
+                        CasePriority.getLabelByCode(entity.getCasePriority())
+                )
                 .caseFinalStatus(entity.getCaseFinalStatus())
+                .caseFinalStatusName(
+                        CaseFinalStatus.getLabelByCode(entity.getCaseFinalStatus())
+                )
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .deletedAt(entity.getDeletedAt())

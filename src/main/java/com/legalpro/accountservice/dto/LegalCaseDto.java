@@ -41,7 +41,10 @@ public class LegalCaseDto {
     private String lawyerName;
 
     private Integer casePriority;
+    private String casePriorityName;
+
     private Integer caseFinalStatus;
+    private String caseFinalStatusName;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

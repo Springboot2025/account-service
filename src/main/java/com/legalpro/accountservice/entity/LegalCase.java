@@ -63,9 +63,11 @@ public class LegalCase {
     @Column(name = "name", length = 255)
     private String name;
 
+    @Builder.Default
     @Column(name = "case_priority", nullable = false)
     private Integer casePriority = 0;   // 0=normal, 1=high, 2=urgent
 
+    @Builder.Default
     @Column(name = "case_final_status", nullable = false)
     private Integer caseFinalStatus = 0; // 0=none, 1=won, 2=lost
 }

@@ -74,6 +74,7 @@ public class NotificationLogServiceImpl implements NotificationLogService {
                             .status(entity.getStatus())
                             .errorMessage(entity.getErrorMessage())
                             .sentAt(entity.getSentAt())
+                            .isRead(entity.isRead())
                             .build();
                 })
                 .collect(Collectors.toList());

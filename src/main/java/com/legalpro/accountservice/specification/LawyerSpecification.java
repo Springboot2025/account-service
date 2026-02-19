@@ -173,31 +173,24 @@ public class LawyerSpecification {
              * ------------------------------------------------- */
             if (request.getExperienceRange() != null && !request.getExperienceRange().isBlank()) {
 
-                // Extract JSON value
-                Expression<String> expText = cb.function(
-                        "jsonb_extract_path_text",
-                        String.class,
-                        root.get("professionalDetails"),
-                        cb.literal("experienceYears")
-                );
-
-                // Cast to integer properly using PostgreSQL syntax
-                Expression<Integer> expInt = cb.function(
-                        "CAST",
-                        Integer.class,
-                        expText
-                );
+                Expression<Integer> experienceExp =
+                        cb.function(
+                                "jsonb_extract_path_text",
+                                String.class,
+                                root.get("professionalDetails"),
+                                cb.literal("experienceYears")
+                        ).as(Integer.class);
 
                 switch (request.getExperienceRange()) {
 
                     case "1-5" ->
-                            predicates.add(cb.between(expInt, 1, 5));
+                            predicates.add(cb.between(experienceExp, 1, 5));
 
                     case "5-10" ->
-                            predicates.add(cb.between(expInt, 5, 10));
+                            predicates.add(cb.between(experienceExp, 5, 10));
 
                     case "10+" ->
-                            predicates.add(cb.greaterThanOrEqualTo(expInt, 10));
+                            predicates.add(cb.greaterThanOrEqualTo(experienceExp, 10));
                 }
             }
 

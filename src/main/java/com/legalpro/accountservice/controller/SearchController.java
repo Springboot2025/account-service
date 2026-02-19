@@ -2,6 +2,7 @@ package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.LawyerDto;
+import com.legalpro.accountservice.dto.LawyerSearchGroupedResponse;
 import com.legalpro.accountservice.dto.LawyerSearchRequestDto;
 import com.legalpro.accountservice.service.LawyerSearchService;
 import lombok.RequiredArgsConstructor;
@@ -22,12 +23,17 @@ public class SearchController {
      * Does not require authentication or any roles.
      */
     @PostMapping("/lawyers")
-    public ResponseEntity<ApiResponse<Page<LawyerDto>>> searchLawyers(
+    public ResponseEntity<ApiResponse<LawyerSearchGroupedResponse>> searchLawyers(
             @RequestBody LawyerSearchRequestDto request
     ) {
-        Page<LawyerDto> result = lawyerSearchService.searchLawyers(request);
+        LawyerSearchGroupedResponse result = lawyerSearchService.searchLawyers(request);
+
         return ResponseEntity.ok(
-                ApiResponse.success(HttpStatus.OK.value(), "Lawyers fetched successfully", result)
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Lawyers fetched successfully",
+                        result
+                )
         );
     }
 }

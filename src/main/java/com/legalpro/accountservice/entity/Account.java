@@ -8,6 +8,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -113,4 +114,14 @@ public class Account {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles;
+
+    @OneToMany(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "lawyer_uuid",
+            referencedColumnName = "uuid",
+            insertable = false,
+            updatable = false
+    )
+    private List<LawyerRating> lawyerRatings;
+
 }

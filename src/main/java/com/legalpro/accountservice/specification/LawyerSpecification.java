@@ -2,6 +2,7 @@ package com.legalpro.accountservice.specification;
 
 import com.legalpro.accountservice.dto.LawyerSearchRequestDto;
 import com.legalpro.accountservice.entity.Account;
+import com.legalpro.accountservice.entity.LawyerRating;
 import com.legalpro.accountservice.entity.Role;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -203,18 +204,29 @@ public class LawyerSpecification {
              * Shows >= selected rating
              * ------------------------------------------------- */
             if (request.getRating() != null) {
-                predicates.add(
-                        cb.greaterThanOrEqualTo(
-                                root.get("averageRating"),
-                                request.getRating().doubleValue()
-                        )
-                );
+
+                Join<Account, LawyerRating> ratingJoin =
+                        root.join("lawyerRatings", JoinType.LEFT);
+
+                Expression<Double> avgRating =
+                        cb.avg(ratingJoin.get("rating"));
+
+                // Only apply groupBy & having for main query (not count query)
+                if (!Long.class.equals(query.getResultType())) {
+                    query.groupBy(root.get("id"));
+                    query.having(
+                            cb.greaterThanOrEqualTo(
+                                    avgRating,
+                                    request.getRating().doubleValue()
+                            )
+                    );
+                }
             }
 
             /* -------------------------------------------------
              * FINAL SAFETY
              * ------------------------------------------------- */
-            query.distinct(true);
+            //query.distinct(true);
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };

@@ -21,6 +21,9 @@ public class LawyerSearchRequestDto {
 
     private String mobile;
     private String homePhone;
+    private String practiceArea;
+    private String experienceRange;
+    private Integer rating;
 
     private Integer page;
     private Integer size;

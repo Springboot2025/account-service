@@ -3,8 +3,7 @@ package com.legalpro.accountservice.specification;
 import com.legalpro.accountservice.dto.LawyerSearchRequestDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Role;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
@@ -25,7 +24,7 @@ public class LawyerSpecification {
             predicates.add(cb.equal(roleJoin.get("name"), "Lawyer"));
 
             /* -------------------------------------------------
-             * 2️⃣ MULTI-LOCATION FILTER (RealEstate Style)
+             * 2️⃣ LOCATION FILTER (Strict match per location)
              * ------------------------------------------------- */
             if (request.getLocations() != null && !request.getLocations().isEmpty()) {
 
@@ -39,87 +38,91 @@ public class LawyerSpecification {
                     String state = parts.length > 1 ? parts[1].trim() : "";
                     String postcode = parts.length > 2 ? parts[2].trim() : "";
 
-                    Predicate suburbMatch = cb.like(
-                            cb.lower(
-                                    cb.function(
-                                            "jsonb_extract_path_text",
-                                            String.class,
-                                            root.get("addressDetails"),
-                                            cb.literal("city_suburb")
-                                    )
-                            ),
-                            "%" + suburb.toLowerCase() + "%"
-                    );
+                    List<Predicate> singleLocation = new ArrayList<>();
 
-                    Predicate stateMatch = cb.like(
-                            cb.lower(
-                                    cb.function(
-                                            "jsonb_extract_path_text",
-                                            String.class,
-                                            root.get("addressDetails"),
-                                            cb.literal("state_province")
-                                    )
-                            ),
-                            "%" + state.toLowerCase() + "%"
-                    );
+                    if (!suburb.isBlank()) {
+                        singleLocation.add(
+                                cb.equal(
+                                        cb.lower(cb.function(
+                                                "jsonb_extract_path_text",
+                                                String.class,
+                                                root.get("addressDetails"),
+                                                cb.literal("city_suburb")
+                                        )),
+                                        suburb.toLowerCase()
+                                )
+                        );
+                    }
 
-                    Predicate postcodeMatch = cb.like(
-                            cb.function(
-                                    "jsonb_extract_path_text",
-                                    String.class,
-                                    root.get("addressDetails"),
-                                    cb.literal("postcode")
-                            ),
-                            "%" + postcode + "%"
-                    );
+                    if (!state.isBlank()) {
+                        singleLocation.add(
+                                cb.equal(
+                                        cb.lower(cb.function(
+                                                "jsonb_extract_path_text",
+                                                String.class,
+                                                root.get("addressDetails"),
+                                                cb.literal("state_province")
+                                        )),
+                                        state.toLowerCase()
+                                )
+                        );
+                    }
 
-                    // One location must match fully
+                    if (!postcode.isBlank()) {
+                        singleLocation.add(
+                                cb.equal(
+                                        cb.function(
+                                                "jsonb_extract_path_text",
+                                                String.class,
+                                                root.get("addressDetails"),
+                                                cb.literal("postcode")
+                                        ),
+                                        postcode
+                                )
+                        );
+                    }
+
                     locationPredicates.add(
-                            cb.and(suburbMatch, stateMatch, postcodeMatch)
+                            cb.and(singleLocation.toArray(new Predicate[0]))
                     );
-
                 }
 
-                // Any location can match
                 predicates.add(cb.or(locationPredicates.toArray(new Predicate[0])));
             }
 
             /* -------------------------------------------------
-             * 3️⃣ PERSONAL FILTERS
+             * 3️⃣ NAME FILTER
              * ------------------------------------------------- */
-
             if (request.getFirstName() != null && !request.getFirstName().isBlank()) {
 
                 String search = "%" + request.getFirstName().toLowerCase() + "%";
 
                 Predicate firstNameMatch = cb.like(
-                        cb.lower(
-                                cb.function(
-                                        "jsonb_extract_path_text",
-                                        String.class,
-                                        root.get("personalDetails"),
-                                        cb.literal("firstName")
-                                )
-                        ),
+                        cb.lower(cb.function(
+                                "jsonb_extract_path_text",
+                                String.class,
+                                root.get("personalDetails"),
+                                cb.literal("firstName")
+                        )),
                         search
                 );
 
                 Predicate lastNameMatch = cb.like(
-                        cb.lower(
-                                cb.function(
-                                        "jsonb_extract_path_text",
-                                        String.class,
-                                        root.get("personalDetails"),
-                                        cb.literal("lastName")
-                                )
-                        ),
+                        cb.lower(cb.function(
+                                "jsonb_extract_path_text",
+                                String.class,
+                                root.get("personalDetails"),
+                                cb.literal("lastName")
+                        )),
                         search
                 );
 
                 predicates.add(cb.or(firstNameMatch, lastNameMatch));
             }
 
-
+            /* -------------------------------------------------
+             * 4️⃣ MOBILE FILTER
+             * ------------------------------------------------- */
             if (request.getMobile() != null && !request.getMobile().isBlank()) {
                 predicates.add(
                         cb.like(
@@ -134,6 +137,9 @@ public class LawyerSpecification {
                 );
             }
 
+            /* -------------------------------------------------
+             * 5️⃣ EMAIL FILTER
+             * ------------------------------------------------- */
             if (request.getEmail() != null && !request.getEmail().isBlank()) {
                 predicates.add(
                         cb.like(
@@ -144,7 +150,69 @@ public class LawyerSpecification {
             }
 
             /* -------------------------------------------------
-             * 4️⃣ QUERY SAFETY
+             * 6️⃣ PRACTICE AREA FILTER
+             * ------------------------------------------------- */
+            if (request.getPracticeArea() != null && !request.getPracticeArea().isBlank()) {
+                predicates.add(
+                        cb.equal(
+                                cb.function(
+                                        "jsonb_extract_path_text",
+                                        String.class,
+                                        root.get("professionalDetails"),
+                                        cb.literal("practiceArea")
+                                ),
+                                request.getPracticeArea()
+                        )
+                );
+            }
+
+            /* -------------------------------------------------
+             * 7️⃣ EXPERIENCE RANGE FILTER
+             * request.experienceRange:
+             *  "1-5", "5-10", "10+"
+             * ------------------------------------------------- */
+            if (request.getExperienceRange() != null && !request.getExperienceRange().isBlank()) {
+
+                Expression<Integer> experienceExp = cb.function(
+                        "cast",
+                        Integer.class,
+                        cb.function(
+                                "jsonb_extract_path_text",
+                                String.class,
+                                root.get("professionalDetails"),
+                                cb.literal("experienceYears")
+                        ),
+                        cb.literal("as integer")
+                );
+
+                switch (request.getExperienceRange()) {
+
+                    case "1-5" ->
+                            predicates.add(cb.between(experienceExp, 1, 5));
+
+                    case "5-10" ->
+                            predicates.add(cb.between(experienceExp, 5, 10));
+
+                    case "10+" ->
+                            predicates.add(cb.greaterThanOrEqualTo(experienceExp, 10));
+                }
+            }
+
+            /* -------------------------------------------------
+             * 8️⃣ RATING FILTER
+             * Shows >= selected rating
+             * ------------------------------------------------- */
+            if (request.getRating() != null) {
+                predicates.add(
+                        cb.greaterThanOrEqualTo(
+                                root.get("averageRating"),
+                                request.getRating().doubleValue()
+                        )
+                );
+            }
+
+            /* -------------------------------------------------
+             * FINAL SAFETY
              * ------------------------------------------------- */
             query.distinct(true);
 

@@ -173,13 +173,17 @@ public class LawyerSpecification {
              * ------------------------------------------------- */
             if (request.getExperienceRange() != null && !request.getExperienceRange().isBlank()) {
 
-                Expression<Integer> experienceExp =
+                Expression<Integer> experienceExp = cb.function(
+                        "to_number",
+                        Integer.class,
                         cb.function(
                                 "jsonb_extract_path_text",
                                 String.class,
                                 root.get("professionalDetails"),
                                 cb.literal("experienceYears")
-                        ).as(Integer.class);
+                        ),
+                        cb.literal("9999")
+                );
 
                 switch (request.getExperienceRange()) {
 

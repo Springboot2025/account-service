@@ -74,7 +74,10 @@ public class LawyerSpecification {
                     );
 
                     // One location must match fully
-                    locationPredicates.add(cb.and(suburbMatch, stateMatch, postcodeMatch));
+                    locationPredicates.add(
+                            cb.or(suburbMatch, stateMatch, postcodeMatch)
+                    );
+
                 }
 
                 // Any location can match

@@ -6,5 +6,5 @@ import com.legalpro.accountservice.dto.LawyerSearchRequestDto;
 import org.springframework.data.domain.Page;
 
 public interface LawyerSearchService {
-    LawyerSearchGroupedResponse searchLawyers(LawyerSearchRequestDto request);
+    Page<LawyerDto> searchLawyers(LawyerSearchRequestDto request);
 }

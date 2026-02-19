@@ -10,7 +10,9 @@ import com.legalpro.accountservice.service.LawyerSearchService;
 import com.legalpro.accountservice.specification.LawyerSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import com.legalpro.accountservice.dto.LawyerDto;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -24,7 +26,7 @@ public class LawyerSearchServiceImpl implements LawyerSearchService {
     private final LawyerRatingRepository lawyerRatingRepository; // ✅ ADD THIS
     private final ObjectMapper objectMapper;
 
-    @Override
+    /*@Override
     public LawyerSearchGroupedResponse searchLawyers(LawyerSearchRequestDto request) {
 
         int page = request.getPage() != null ? request.getPage() : 0;
@@ -112,7 +114,22 @@ public class LawyerSearchServiceImpl implements LawyerSearchService {
                 .totalElements(totalStates)
                 .totalPages(totalPages)
                 .build();
+    }*/
+
+    public Page<LawyerDto> searchLawyers(LawyerSearchRequestDto request) {
+
+        int page = request.getPage() != null ? request.getPage() : 0;
+        int size = request.getSize() != null ? request.getSize() : 10;
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Specification<Account> spec = LawyerSpecification.build(request);
+
+        Page<Account> accountPage = accountRepository.findAll(spec, pageable);
+
+        return accountPage.map(AccountMapper::toLawyerDto);
     }
+
 
     private String getState(LawyerDto dto) {
         Object state = dto.getAddressDetails().get("state_province");

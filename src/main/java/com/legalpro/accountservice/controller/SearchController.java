@@ -23,10 +23,11 @@ public class SearchController {
      * Does not require authentication or any roles.
      */
     @PostMapping("/lawyers")
-    public ResponseEntity<ApiResponse<LawyerSearchGroupedResponse>> searchLawyers(
+    public ResponseEntity<ApiResponse<Page<LawyerDto>>> searchLawyers(
             @RequestBody LawyerSearchRequestDto request
     ) {
-        LawyerSearchGroupedResponse result = lawyerSearchService.searchLawyers(request);
+
+        Page<LawyerDto> result = lawyerSearchService.searchLawyers(request);
 
         return ResponseEntity.ok(
                 ApiResponse.success(
@@ -36,4 +37,5 @@ public class SearchController {
                 )
         );
     }
+
 }

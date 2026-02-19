@@ -89,20 +89,36 @@ public class LawyerSpecification {
              * ------------------------------------------------- */
 
             if (request.getFirstName() != null && !request.getFirstName().isBlank()) {
-                predicates.add(
-                        cb.like(
-                                cb.lower(
-                                        cb.function(
-                                                "jsonb_extract_path_text",
-                                                String.class,
-                                                root.get("personalDetails"),
-                                                cb.literal("firstName")
-                                        )
-                                ),
-                                "%" + request.getFirstName().toLowerCase() + "%"
-                        )
+
+                String search = "%" + request.getFirstName().toLowerCase() + "%";
+
+                Predicate firstNameMatch = cb.like(
+                        cb.lower(
+                                cb.function(
+                                        "jsonb_extract_path_text",
+                                        String.class,
+                                        root.get("personalDetails"),
+                                        cb.literal("firstName")
+                                )
+                        ),
+                        search
                 );
+
+                Predicate lastNameMatch = cb.like(
+                        cb.lower(
+                                cb.function(
+                                        "jsonb_extract_path_text",
+                                        String.class,
+                                        root.get("personalDetails"),
+                                        cb.literal("lastName")
+                                )
+                        ),
+                        search
+                );
+
+                predicates.add(cb.or(firstNameMatch, lastNameMatch));
             }
+
 
             if (request.getMobile() != null && !request.getMobile().isBlank()) {
                 predicates.add(

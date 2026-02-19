@@ -75,7 +75,7 @@ public class LawyerSpecification {
 
                     // One location must match fully
                     locationPredicates.add(
-                            cb.or(suburbMatch, stateMatch, postcodeMatch)
+                            cb.and(suburbMatch, stateMatch, postcodeMatch)
                     );
 
                 }

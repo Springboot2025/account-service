@@ -51,7 +51,7 @@ public class ClientController {
         return "Hello Client!";
     }
 
-    @PatchMapping("/{uuid}")
+    @PutMapping("/{uuid}")
     public ResponseEntity<ApiResponse<ClientDto>> updateClient(
             @PathVariable UUID uuid,
             @RequestBody ClientDto dto,

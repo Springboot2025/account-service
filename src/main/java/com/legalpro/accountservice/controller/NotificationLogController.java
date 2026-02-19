@@ -47,7 +47,7 @@ public class NotificationLogController {
     /**
      * Mark a single notification as read
      */
-    @PatchMapping("/{id}/read")
+    @PutMapping("/{id}/read")
     public ResponseEntity<ApiResponse<String>> markAsRead(@PathVariable Long id) {
         notificationLogService.markAsRead(id);
         return ResponseEntity.ok(ApiResponse.success(
@@ -60,7 +60,7 @@ public class NotificationLogController {
     /**
      * Mark all notifications for a user as read
      */
-    @PatchMapping("/{userUuid}/read-all")
+    @PutMapping("/{userUuid}/read-all")
     public ResponseEntity<ApiResponse<String>> markAllAsRead(@PathVariable UUID userUuid) {
         notificationLogService.markAllAsRead(userUuid);
         return ResponseEntity.ok(ApiResponse.success(

@@ -36,7 +36,7 @@ public class LawyerController {
     }
 
     // --- Update Lawyer Profile ---
-    @PatchMapping("/{uuid}")
+    @PutMapping("/{uuid}")
     public ResponseEntity<ApiResponse<LawyerDto>> updateLawyer(
             @PathVariable UUID uuid,
             @RequestBody LawyerDto dto,

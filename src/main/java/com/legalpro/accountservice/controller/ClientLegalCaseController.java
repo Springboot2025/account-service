@@ -99,7 +99,7 @@ public class ClientLegalCaseController {
     }
 
     // --- Update Case (Client Side) ---
-    @PatchMapping("/{caseUuid}")
+    @PutMapping("/{caseUuid}")
     public ResponseEntity<ApiResponse<LegalCaseDto>> updateCaseForClient(
             @PathVariable UUID caseUuid,
             @RequestBody LegalCaseDto dto,

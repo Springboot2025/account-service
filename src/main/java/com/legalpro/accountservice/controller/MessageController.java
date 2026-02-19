@@ -58,7 +58,7 @@ public class MessageController {
     }
 
     // === Mark as read ===
-    @PatchMapping("/mark-read/{otherUuid}")
+    @PutMapping("/mark-read/{otherUuid}")
     public ResponseEntity<ApiResponse<Void>> markAsRead(
             @PathVariable UUID otherUuid,
             @AuthenticationPrincipal CustomUserDetails userDetails

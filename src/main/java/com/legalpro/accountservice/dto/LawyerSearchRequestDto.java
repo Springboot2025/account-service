@@ -3,6 +3,8 @@ package com.legalpro.accountservice.dto;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @Builder
 public class LawyerSearchRequestDto {
@@ -14,6 +16,8 @@ public class LawyerSearchRequestDto {
     private String state;
     private String country;
     private String postalCode;
+
+    private List<String> locations;
 
     private String mobile;
     private String homePhone;

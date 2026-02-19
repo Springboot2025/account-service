@@ -13,70 +13,78 @@ import java.util.List;
 public class LawyerSpecification {
 
     public static Specification<Account> build(LawyerSearchRequestDto request) {
+
         return (root, query, cb) -> {
 
             List<Predicate> predicates = new ArrayList<>();
 
             /* -------------------------------------------------
-             * 1️⃣ RBAC: ONLY LAWYERS
+             * 1️⃣ ONLY LAWYERS
              * ------------------------------------------------- */
             Join<Account, Role> roleJoin = root.join("roles");
             predicates.add(cb.equal(roleJoin.get("name"), "Lawyer"));
 
             /* -------------------------------------------------
-             * 2️⃣ LOCATION FILTERS (JSON fields)
+             * 2️⃣ MULTI-LOCATION FILTER (RealEstate Style)
              * ------------------------------------------------- */
-            if (request.getCity() != null && !request.getCity().isBlank()) {
-                predicates.add(
-                        cb.like(
-                                cb.lower(
-                                        cb.function(
-                                                "jsonb_extract_path_text",
-                                                String.class,
-                                                root.get("addressDetails"),
-                                                cb.literal("city")
-                                        )
-                                ),
-                                "%" + request.getCity().toLowerCase() + "%"
-                        )
-                );
-            }
+            if (request.getLocations() != null && !request.getLocations().isEmpty()) {
 
-            if (request.getState() != null && !request.getState().isBlank()) {
-                predicates.add(
-                        cb.like(
-                                cb.lower(
-                                        cb.function(
-                                                "jsonb_extract_path_text",
-                                                String.class,
-                                                root.get("addressDetails"),
-                                                cb.literal("state")
-                                        )
-                                ),
-                                "%" + request.getState().toLowerCase() + "%"
-                        )
-                );
-            }
+                List<Predicate> locationPredicates = new ArrayList<>();
 
-            if (request.getCountry() != null && !request.getCountry().isBlank()) {
-                predicates.add(
-                        cb.like(
-                                cb.lower(
-                                        cb.function(
-                                                "jsonb_extract_path_text",
-                                                String.class,
-                                                root.get("addressDetails"),
-                                                cb.literal("country")
-                                        )
-                                ),
-                                "%" + request.getCountry().toLowerCase() + "%"
-                        )
-                );
+                for (String location : request.getLocations()) {
+
+                    String[] parts = location.split(",");
+
+                    String suburb = parts.length > 0 ? parts[0].trim() : "";
+                    String state = parts.length > 1 ? parts[1].trim() : "";
+                    String postcode = parts.length > 2 ? parts[2].trim() : "";
+
+                    Predicate suburbMatch = cb.like(
+                            cb.lower(
+                                    cb.function(
+                                            "jsonb_extract_path_text",
+                                            String.class,
+                                            root.get("addressDetails"),
+                                            cb.literal("city_suburb")
+                                    )
+                            ),
+                            "%" + suburb.toLowerCase() + "%"
+                    );
+
+                    Predicate stateMatch = cb.like(
+                            cb.lower(
+                                    cb.function(
+                                            "jsonb_extract_path_text",
+                                            String.class,
+                                            root.get("addressDetails"),
+                                            cb.literal("state_province")
+                                    )
+                            ),
+                            "%" + state.toLowerCase() + "%"
+                    );
+
+                    Predicate postcodeMatch = cb.like(
+                            cb.function(
+                                    "jsonb_extract_path_text",
+                                    String.class,
+                                    root.get("addressDetails"),
+                                    cb.literal("postcode")
+                            ),
+                            "%" + postcode + "%"
+                    );
+
+                    // One location must match fully
+                    locationPredicates.add(cb.and(suburbMatch, stateMatch, postcodeMatch));
+                }
+
+                // Any location can match
+                predicates.add(cb.or(locationPredicates.toArray(new Predicate[0])));
             }
 
             /* -------------------------------------------------
              * 3️⃣ PERSONAL FILTERS
              * ------------------------------------------------- */
+
             if (request.getFirstName() != null && !request.getFirstName().isBlank()) {
                 predicates.add(
                         cb.like(
@@ -103,6 +111,15 @@ public class LawyerSpecification {
                                         cb.literal("mobile")
                                 ),
                                 "%" + request.getMobile() + "%"
+                        )
+                );
+            }
+
+            if (request.getEmail() != null && !request.getEmail().isBlank()) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("email")),
+                                "%" + request.getEmail().toLowerCase() + "%"
                         )
                 );
             }

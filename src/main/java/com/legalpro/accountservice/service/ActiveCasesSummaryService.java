@@ -34,9 +34,9 @@ public class ActiveCasesSummaryService {
                 .findByLawyerUuidAndCourtDateBetween(lawyerUuid, weekStart, weekEnd)
                 .size();
 
-        // 4. Won this month (currently: Closed cases)
+        // 4. Won this month (currently: Won cases)
         long wonThisMonth =
-                legalCaseRepository.countByLawyerUuidAndStatus_Name(lawyerUuid, "Closed");
+                legalCaseRepository.countByLawyerUuidAndStatus_Name(lawyerUuid, "Won");
 
         return ActiveCasesSummaryDto.builder()
                 .totalCases(totalCases)

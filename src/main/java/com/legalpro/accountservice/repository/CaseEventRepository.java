@@ -28,7 +28,7 @@ public interface CaseEventRepository extends JpaRepository<CaseEvent, Long> {
         )
           AND e.eventDate >= :today
           AND e.deletedAt IS NULL
-        ORDER BY e.eventDate ASC
+        ORDER BY e.relatedDate DESC
     """)
         List<CaseEvent> findUpcomingEvents(
                 @Param("lawyerUuid") UUID lawyerUuid,

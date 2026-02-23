@@ -19,7 +19,7 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
 
     Optional<LegalCase> findByUuid(UUID uuid);
 
-    List<LegalCase> findAllByLawyerUuid(UUID lawyerUuid);
+    List<LegalCase> findAllByLawyerUuidOrderByIdDesc(UUID lawyerUuid);
 
     List<LegalCase> findAllByLawyerUuidAndClientUuid(UUID lawyerUuid, UUID clientUuid);
 

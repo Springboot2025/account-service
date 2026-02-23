@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -34,9 +35,11 @@ public class LegalCaseServiceImpl implements LegalCaseService {
 
     // --- Helper: Generate case number ---
     private String generateCaseNumber(UUID lawyerUuid) {
-        String prefix = lawyerUuid.toString().substring(0, 4).toUpperCase();
-        long count = legalCaseRepository.countActiveByLawyerUuid(lawyerUuid);
-        return prefix + "-" + String.format("%06d", count + 1);
+        String prefix = "BL";
+        int year = LocalDate.now().getYear();
+        long count = legalCaseRepository.countByLawyerUuidAndYear(lawyerUuid, year);
+        String sequence = String.format("%04d", count + 1);
+        return prefix + "-" + year + "-" + sequence;
     }
 
     // ========================================================

@@ -28,6 +28,15 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     @Query("SELECT COUNT(c) FROM LegalCase c WHERE c.lawyerUuid = :lawyerUuid AND c.deletedAt IS NULL")
     long countActiveByLawyerUuid(UUID lawyerUuid);
 
+    @Query("""
+       SELECT COUNT(lc)
+       FROM LegalCase lc
+       WHERE lc.lawyerUuid = :lawyerUuid AND lc.deletedAt IS NULL
+         AND YEAR(lc.createdAt) = :year
+       """)
+    long countByLawyerUuidAndYear(@Param("lawyerUuid") UUID lawyerUuid,
+                                  @Param("year") int year);
+
     List<LegalCase> findAllByLawyerUuidAndStatusNameIgnoreCase(UUID lawyerUuid, String statusName);
 
     @Query("""

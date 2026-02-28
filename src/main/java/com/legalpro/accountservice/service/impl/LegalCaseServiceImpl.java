@@ -329,7 +329,7 @@ public class LegalCaseServiceImpl implements LegalCaseService {
 
     @Override
     public List<LegalCaseDto> getCasesForClient(UUID clientUuid) {
-        List<LegalCase> cases = legalCaseRepository.findAllByClientUuid(clientUuid);
+        List<LegalCase> cases = legalCaseRepository.findAllByClientUuidOrderByIdDesc(clientUuid);
 
         // Collect all lawyer UUIDs
         Set<UUID> lawyerUuids = cases.stream()

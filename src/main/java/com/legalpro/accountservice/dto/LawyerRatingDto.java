@@ -20,6 +20,9 @@ public class LawyerRatingDto {
     private BigDecimal rating;
     private String review;
 
+    private String clientName;
+    private String clientProfilePictureUrl;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -1,10 +1,12 @@
 package com.legalpro.accountservice.service.impl;
 
 import com.legalpro.accountservice.dto.LawyerRatingDto;
+import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.LawyerRating;
 import com.legalpro.accountservice.mapper.LawyerRatingMapper;
 import com.legalpro.accountservice.repository.LawyerRatingRepository;
 import com.legalpro.accountservice.service.LawyerRatingService;
+import com.legalpro.accountservice.service.ProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -22,6 +26,7 @@ public class LawyerRatingServiceImpl implements LawyerRatingService {
 
     private final LawyerRatingRepository lawyerRatingRepository;
     private final LawyerRatingMapper mapper;
+    private final ProfileService profileService;
 
     @Override
     public LawyerRatingDto createOrUpdateRating(LawyerRatingDto dto, UUID clientUuid) {
@@ -56,10 +61,28 @@ public class LawyerRatingServiceImpl implements LawyerRatingService {
 
     @Override
     public List<LawyerRatingDto> getRatingsByLawyer(UUID lawyerUuid) {
-        return lawyerRatingRepository.findAllByLawyerUuid(lawyerUuid)
+
+        var ratings = lawyerRatingRepository.findAllByLawyerUuid(lawyerUuid)
                 .stream()
                 .filter(r -> r.getDeletedAt() == null)
-                .map(mapper::toDto)
+                .toList();
+
+        // 1️⃣ Collect all client UUIDs
+        Set<UUID> clientUuids = ratings.stream()
+                .map(LawyerRating::getClientUuid)
+                .collect(Collectors.toSet());
+
+        // 2️⃣ Load Accounts in bulk
+        Map<UUID, Account> accounts = profileService.loadAccounts(clientUuids);
+
+        // 3️⃣ Map each rating with Account + profile pic
+        return ratings.stream()
+                .map(rating -> {
+                    Account acc = accounts.get(rating.getClientUuid());
+                    String picUrl = profileService.getProfilePicture(acc);
+
+                    return mapper.toDto(rating, acc, picUrl);
+                })
                 .collect(Collectors.toList());
     }
 

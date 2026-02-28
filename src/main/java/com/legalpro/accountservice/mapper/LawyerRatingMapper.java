@@ -1,27 +1,26 @@
 package com.legalpro.accountservice.mapper;
 
 import com.legalpro.accountservice.dto.LawyerRatingDto;
+import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.LawyerRating;
 import org.springframework.stereotype.Component;
 
 @Component
 public class LawyerRatingMapper {
 
-    public LawyerRatingDto toDto(LawyerRating entity) {
+    /**
+     * Convert entity → DTO including enriched client fields.
+     * DTO handles name + profile pic extraction.
+     */
+    public LawyerRatingDto toDto(LawyerRating entity, Account clientAccount) {
         if (entity == null) return null;
-
-        return LawyerRatingDto.builder()
-                .id(entity.getId())
-                .uuid(entity.getUuid())
-                .lawyerUuid(entity.getLawyerUuid())
-                .clientUuid(entity.getClientUuid())
-                .rating(entity.getRating())
-                .review(entity.getReview())
-                .createdAt(entity.getCreatedAt())
-                .updatedAt(entity.getUpdatedAt())
-                .build();
+        return LawyerRatingDto.from(entity, clientAccount);
     }
 
+    /**
+     * Convert DTO → entity (no changes).
+     * Client name / picture are NOT persisted.
+     */
     public LawyerRating toEntity(LawyerRatingDto dto) {
         if (dto == null) return null;
 

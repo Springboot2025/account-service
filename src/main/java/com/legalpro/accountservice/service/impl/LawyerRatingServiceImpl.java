@@ -2,6 +2,7 @@ package com.legalpro.accountservice.service.impl;
 
 import com.legalpro.accountservice.dto.LawyerRatingDto;
 import com.legalpro.accountservice.entity.LawyerRating;
+import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.mapper.LawyerRatingMapper;
 import com.legalpro.accountservice.repository.LawyerRatingRepository;
 import com.legalpro.accountservice.service.LawyerRatingService;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;         // <-- IMPORTANT
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -23,20 +25,24 @@ public class LawyerRatingServiceImpl implements LawyerRatingService {
     private final LawyerRatingRepository lawyerRatingRepository;
     private final LawyerRatingMapper mapper;
 
+    // 🔥 You already use this in other services (Case, Events, Messages)
+    private final Map<UUID, Account> accounts;
+
     @Override
     public LawyerRatingDto createOrUpdateRating(LawyerRatingDto dto, UUID clientUuid) {
-        // Check if this client already rated the lawyer
+
         LawyerRating existing = lawyerRatingRepository
                 .findByLawyerUuidAndClientUuid(dto.getLawyerUuid(), clientUuid)
                 .orElse(null);
 
         if (existing != null) {
-            // Update existing rating
             existing.setRating(dto.getRating());
             existing.setReview(dto.getReview());
             existing.setUpdatedAt(LocalDateTime.now());
             lawyerRatingRepository.save(existing);
-            return mapper.toDto(existing);
+
+            Account acc = accounts.get(existing.getClientUuid());
+            return mapper.toDto(existing, acc);
         }
 
         // New rating
@@ -51,7 +57,9 @@ public class LawyerRatingServiceImpl implements LawyerRatingService {
                 .build();
 
         lawyerRatingRepository.save(rating);
-        return mapper.toDto(rating);
+
+        Account acc = accounts.get(clientUuid);
+        return mapper.toDto(rating, acc);
     }
 
     @Override
@@ -59,7 +67,7 @@ public class LawyerRatingServiceImpl implements LawyerRatingService {
         return lawyerRatingRepository.findAllByLawyerUuid(lawyerUuid)
                 .stream()
                 .filter(r -> r.getDeletedAt() == null)
-                .map(mapper::toDto)
+                .map(r -> mapper.toDto(r, accounts.get(r.getClientUuid())))   // ← UPDATED
                 .collect(Collectors.toList());
     }
 
@@ -68,7 +76,7 @@ public class LawyerRatingServiceImpl implements LawyerRatingService {
         return lawyerRatingRepository.findAllByClientUuid(clientUuid)
                 .stream()
                 .filter(r -> r.getDeletedAt() == null)
-                .map(mapper::toDto)
+                .map(r -> mapper.toDto(r, accounts.get(r.getClientUuid())))   // ← UPDATED
                 .collect(Collectors.toList());
     }
 

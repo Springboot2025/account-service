@@ -196,6 +196,7 @@ public class CommunicationServiceImpl implements CommunicationService {
                 dto.setLawyerName(extractNameFromAccount(lawyerAcc));
                 dto.setLawyerEmail(lawyerAcc.getEmail());
                 dto.setLawyerProfilePictureUrl(convertGcsUrl(lawyerAcc.getProfilePictureUrl()));
+                dto.setLawyerAddress(extractAddress(lawyerAcc));
             }
         });
 
@@ -262,5 +263,27 @@ public class CommunicationServiceImpl implements CommunicationService {
             return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
         }
         return fileUrl;
+    }
+
+    private String extractAddress(Account acc) {
+        if (acc.getAddressDetails() == null) return null;
+
+        var ad = acc.getAddressDetails();
+
+        // Use the fields you provided:
+        String line = ad.hasNonNull("address") ? ad.get("address").asText() : "";
+        String city = ad.hasNonNull("city_suburb") ? ad.get("city_suburb").asText() : "";
+        String state = ad.hasNonNull("state_province") ? ad.get("state_province").asText() : "";
+        String country = ad.hasNonNull("country") ? ad.get("country").asText() : "";
+        String postcode = ad.hasNonNull("postcode") ? ad.get("postcode").asText() : "";
+
+        // Format it neatly
+        return String.join(", ",
+                line,
+                city,
+                state,
+                country,
+                postcode
+        ).replaceAll(",\\s*,", "").trim();
     }
 }

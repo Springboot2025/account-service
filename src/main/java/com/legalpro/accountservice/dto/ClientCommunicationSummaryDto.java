@@ -22,6 +22,7 @@ public class ClientCommunicationSummaryDto {
     private String lawyerName;
     private String lawyerEmail;
     private String lawyerProfilePictureUrl;
+    private String lawyerAddress;
 
     // === Nested Data ===
     private List<MessageDto> messages;

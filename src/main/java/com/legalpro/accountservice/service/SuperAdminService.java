@@ -204,16 +204,64 @@ public class SuperAdminService {
     }
 
     public AdminDashboardSummaryDto getAdminDashboardSummary() {
+        LocalDateTime now = LocalDateTime.now();
+
+        LocalDateTime startOfThisMonth =
+                now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+
+        LocalDateTime startOfLastMonth =
+                startOfThisMonth.minusMonths(1);
+
+        LocalDateTime endOfLastMonth =
+                startOfThisMonth.minusNanos(1);
+
+        long usersThisMonth =
+                accountRepository.countByCreatedAtBetween(startOfThisMonth, now);
+
+        long usersLastMonth =
+                accountRepository.countByCreatedAtBetween(startOfLastMonth, endOfLastMonth);
+
+        double usersChangePercent = 0;
+
+        if (usersLastMonth > 0) {
+            usersChangePercent =
+                    ((double) (usersThisMonth - usersLastMonth) / usersLastMonth) * 100;
+        }
+
+        long activeCasesThisMonth =
+                caseRepository.countByStatus_NameAndCreatedAtBetween(
+                        "Active", startOfThisMonth, now
+                );
+
+        long activeCasesLastMonth =
+                caseRepository.countByStatus_NameAndCreatedAtBetween(
+                        "Active", startOfLastMonth, endOfLastMonth
+                );
 
         long totalUsers = accountRepository.count();
 
         long activeCases = caseRepository.countByStatus_Name("Active");
 
+        double activeCasesChangePercent = 0;
+
+        if (activeCasesLastMonth > 0) {
+            activeCasesChangePercent =
+                    ((double) (activeCasesThisMonth - activeCasesLastMonth)
+                            / activeCasesLastMonth) * 100;
+        }
+
         return AdminDashboardSummaryDto.builder()
                 .totalUsers(totalUsers)
+                .usersChangePercent(usersChangePercent)
+
                 .activeCases(activeCases)
-                .monthlyRevenue(0)        // placeholder
-                .activeSubscriptions(0)   // placeholder
+                .activeCasesChangePercent(activeCasesChangePercent)
+
+                .monthlyRevenue(0)              // placeholder
+                .revenueChangePercent(0)
+
+                .activeSubscriptions(0)         // placeholder
+                .subscriptionsChangePercent(0)
                 .build();
     }
 }

@@ -181,5 +181,5 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
                 @Param("end") LocalDateTime end
         );
 
-
+    long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 }

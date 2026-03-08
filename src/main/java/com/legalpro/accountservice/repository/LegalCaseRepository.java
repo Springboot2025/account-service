@@ -210,4 +210,9 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     Optional<LegalCase> findByQuoteUuid(UUID quoteUuid);
 
     long countByStatus_Name(String statusName);
+    long countByStatus_NameAndCreatedAtBetween(
+            String statusName,
+            LocalDateTime start,
+            LocalDateTime end
+    );
 }

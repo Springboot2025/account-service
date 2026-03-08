@@ -252,16 +252,17 @@ public class SuperAdminService {
 
         return AdminDashboardSummaryDto.builder()
                 .totalUsers(totalUsers)
-                .usersChangePercent(usersChangePercent)
-
+                .usersChangePercent(roundToTwoDecimals(usersChangePercent))
                 .activeCases(activeCases)
-                .activeCasesChangePercent(activeCasesChangePercent)
-
+                .activeCasesChangePercent(roundToTwoDecimals(activeCasesChangePercent))
                 .monthlyRevenue(0)              // placeholder
                 .revenueChangePercent(0)
-
                 .activeSubscriptions(0)         // placeholder
                 .subscriptionsChangePercent(0)
                 .build();
+    }
+
+    private double roundToTwoDecimals(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 }

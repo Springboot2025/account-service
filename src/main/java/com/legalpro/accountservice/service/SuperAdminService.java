@@ -4,6 +4,7 @@ import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.AdminLawyerDto;
 import com.legalpro.accountservice.dto.AdminUserDto;
 import com.legalpro.accountservice.dto.DashboardSummaryDto;
+import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
@@ -202,4 +203,17 @@ public class SuperAdminService {
         });
     }
 
+    public AdminDashboardSummaryDto getAdminDashboardSummary() {
+
+        long totalUsers = accountRepository.count();
+
+        long activeCases = caseRepository.countByStatus_Name("Active");
+
+        return AdminDashboardSummaryDto.builder()
+                .totalUsers(totalUsers)
+                .activeCases(activeCases)
+                .monthlyRevenue(0)        // placeholder
+                .activeSubscriptions(0)   // placeholder
+                .build();
+    }
 }

@@ -1,7 +1,9 @@
 package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.AccountDto;
+import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
 import com.legalpro.accountservice.dto.ApiResponse;
+import com.legalpro.accountservice.dto.DashboardSummaryDto;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.service.ContactRequestService;
@@ -101,13 +103,13 @@ public class SuperAdminController {
     }
 
     @GetMapping("/dashboard/summary")
-    public ResponseEntity<ApiResponse<?>> getDashboardSummary() {
+    public ResponseEntity<ApiResponse<AdminDashboardSummaryDto>> getDashboardSummary() {
 
-        var summary = superAdminService.getDashboardSummary();
+        AdminDashboardSummaryDto summary = superAdminService.getAdminDashboardSummary();
 
         return ResponseEntity.ok(
                 ApiResponse.success(
-                        HttpStatus.OK.value(),
+                        200,
                         "Dashboard summary fetched successfully",
                         summary
                 )

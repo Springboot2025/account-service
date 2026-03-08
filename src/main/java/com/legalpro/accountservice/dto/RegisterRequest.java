@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import java.time.LocalDate;
 import java.util.Map;
@@ -23,6 +24,8 @@ public class RegisterRequest {
     private Map<String, Object> educationQualification;
     private Map<String, Object> experienceStaff;
     private Map<String, Object> awardsAppreciations;
+
+    @JsonProperty("isCompany")
     private boolean isCompany;
     private UUID companyUuid;
     private String companyName;

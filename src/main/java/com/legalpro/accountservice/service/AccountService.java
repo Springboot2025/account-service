@@ -135,6 +135,11 @@ public class AccountService {
             accountBuilder.emergencyContact(objectMapper.convertValue(request.getEmergencyContact(), JsonNode.class));
         }
 
+        System.out.println("accountType = " + request.getAccountType());
+        System.out.println("isCompany = " + request.isCompany());
+        System.out.println("companyName = " + request.getCompanyName());
+        System.out.println("inviteToken = " + request.getInviteToken());
+
         // 4. Add lawyer-specific fields if accountType == Lawyer
         if ("Lawyer".equalsIgnoreCase(accountType)) {
             if (request.getProfessionalDetails() != null) {

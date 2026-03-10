@@ -11,6 +11,7 @@ import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.repository.AccountRepository;
+import com.legalpro.accountservice.repository.LawyerRatingRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.repository.projection.CaseStatsProjection;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.data.domain.Pageable;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -34,6 +37,8 @@ public class SuperAdminService {
 
     private final AccountRepository accountRepository;
     private final LegalCaseRepository caseRepository;
+    private final LawyerRatingRepository lawyerRatingRepository;
+    private final LegalCaseRepository legalCaseRepository;
 
     public List<AccountDto> getUsersByType(String userType) {
         String normalizedType = userType.trim().toLowerCase(Locale.ROOT);
@@ -271,7 +276,18 @@ public class SuperAdminService {
         String location = "";
 
         if (account.getAddressDetails() != null) {
-            location = account.getAddressDetails().path("state").asText("");
+
+            String city =
+                    account.getAddressDetails()
+                            .path("city_suburb")
+                            .asText("");
+
+            String state =
+                    account.getAddressDetails()
+                            .path("state_province")
+                            .asText("");
+
+            location = (city + ", " + state).trim();
         }
 
         String status = account.isActive() ? "Active" : "Inactive";
@@ -292,6 +308,40 @@ public class SuperAdminService {
             lawyerCount = accountRepository.countByCompanyUuid(account.getUuid());
         }
 
+        double rating = 0;
+
+        boolean isLawyer =
+                account.getRoles()
+                        .stream()
+                        .anyMatch(r -> r.getName().equalsIgnoreCase("Lawyer"));
+
+        if (isLawyer && !Boolean.TRUE.equals(account.isCompany())) {
+
+            BigDecimal avgRating =
+                    lawyerRatingRepository.findAverageRatingByLawyerUuid(account.getUuid());
+
+            rating = avgRating != null ? avgRating.doubleValue() : 0;
+        }
+
+        int cases = 0;
+
+        boolean isClient =
+                account.getRoles()
+                        .stream()
+                        .anyMatch(r -> r.getName().equalsIgnoreCase("Client"));
+
+        if (isClient) {
+            cases = (int) legalCaseRepository.countByClientUuid(account.getUuid());
+        }
+
+        if (isLawyer && !Boolean.TRUE.equals(account.isCompany())) {
+            cases = (int) legalCaseRepository.countByLawyerUuid(account.getUuid());
+        }
+
+        if (account.isCompany()) {
+            cases = (int) legalCaseRepository.countCompanyCases(account.getUuid());
+        }
+
         return AdminUserDto.builder()
                 .uuid(account.getUuid())
                 .name(name)
@@ -299,8 +349,8 @@ public class SuperAdminService {
                 .role(role)
                 .location(location)
                 .status(status)
-                .cases(0)
-                .rating(0)
+                .cases(cases)
+                .rating(rating)
                 .spent(0)
                 .earned(0)
                 .specialization(specialization)

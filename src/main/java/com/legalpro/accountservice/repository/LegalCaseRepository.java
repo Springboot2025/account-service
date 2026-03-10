@@ -24,6 +24,7 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     List<LegalCase> findAllByLawyerUuidAndClientUuid(UUID lawyerUuid, UUID clientUuid);
 
     long countByLawyerUuid(UUID lawyerUuid);
+    long countByClientUuid(UUID clientUuid);
 
     @Query("SELECT COUNT(c) FROM LegalCase c WHERE c.lawyerUuid = :lawyerUuid AND c.deletedAt IS NULL")
     long countActiveByLawyerUuid(UUID lawyerUuid);
@@ -215,4 +216,15 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
             LocalDateTime start,
             LocalDateTime end
     );
-}
+
+    @Query("""
+    SELECT COUNT(c)
+    FROM LegalCase c
+    WHERE c.lawyerUuid IN (
+        SELECT a.uuid
+        FROM Account a
+        WHERE a.companyUuid = :companyUuid
+    )
+    """)
+        long countCompanyCases(UUID companyUuid);
+    }

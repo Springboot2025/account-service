@@ -4,7 +4,6 @@ import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.DashboardSummaryDto;
-import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.service.ContactRequestService;
@@ -146,22 +145,16 @@ public class SuperAdminController {
     }
 
     @GetMapping("/users")
-    public ResponseEntity<ApiResponse<AdminUserListResponse>> getUsers(
-            @RequestParam(defaultValue = "ALL") String type,
+    public ResponseEntity<ApiResponse<?>> getUsers(
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String location,
-            @RequestParam(defaultValue = "NEWEST") String sort,
+            @RequestParam(required = false) AdminLawyerStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
+        var result = superAdminService.getClients(search, status, page, size);
 
         return ResponseEntity.ok(
-                ApiResponse.success(
-                        200,
-                        "Users fetched successfully",
-                        superAdminService.getUsers(type, search, status, location, sort, page, size)
-                )
+                ApiResponse.success(200, "Users fetched successfully", result)
         );
     }
 

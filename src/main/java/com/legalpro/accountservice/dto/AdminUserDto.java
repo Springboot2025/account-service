@@ -9,14 +9,15 @@ import java.util.UUID;
 @Data
 @Builder
 public class AdminUserDto {
-    private UUID uuid;
-    private String name;
+
+    private UUID userUuid;
     private String email;
-    private String role;
-    private String location;
-    private String status;
-    private int cases;
-    private double rating;
-    private double spent;
-    private double earned;
+    private boolean active;
+
+    // Latest case (nullable)
+    private UUID latestCaseUuid;
+    private String latestCaseNumber;
+    private String latestCaseCategory;
+    private String latestCaseStatus;
+    private LocalDateTime latestCaseCreatedAt;
 }

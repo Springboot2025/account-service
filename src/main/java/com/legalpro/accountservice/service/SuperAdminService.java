@@ -5,7 +5,6 @@ import com.legalpro.accountservice.dto.AdminLawyerDto;
 import com.legalpro.accountservice.dto.AdminUserDto;
 import com.legalpro.accountservice.dto.DashboardSummaryDto;
 import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
-import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
@@ -155,6 +154,55 @@ public class SuperAdminService {
         return fileUrl;
     }
 
+    public Page<AdminUserDto> getClients(
+            String search,
+            AdminLawyerStatus status,
+            int page,
+            int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        Page<Account> clients =
+                accountRepository.findClients(
+                        search,
+                        status != null ? status.name() : null,
+                        pageable
+                );
+
+        return clients.map(client -> {
+
+            LegalCase latestCase = caseRepository
+                    .findLatestCaseForClient(
+                            client.getUuid(),
+                            PageRequest.of(0, 1)
+                    )
+                    .stream()
+                    .findFirst()
+                    .orElse(null);
+
+            return AdminUserDto.builder()
+                    .userUuid(client.getUuid())
+                    .email(client.getEmail())
+                    .active(client.isActive())
+                    .latestCaseUuid(latestCase != null ? latestCase.getUuid() : null)
+                    .latestCaseNumber(latestCase != null ? latestCase.getCaseNumber() : null)
+                    .latestCaseCategory(
+                            latestCase != null && latestCase.getCaseType() != null
+                                    ? latestCase.getCaseType().getName()
+                                    : null
+                    )
+                    .latestCaseStatus(
+                            latestCase != null && latestCase.getStatus() != null
+                                    ? latestCase.getStatus().getName()
+                                    : null
+                    )
+                    .latestCaseCreatedAt(
+                            latestCase != null ? latestCase.getCreatedAt() : null
+                    )
+                    .build();
+        });
+    }
+
     public AdminDashboardSummaryDto getAdminDashboardSummary() {
         LocalDateTime now = LocalDateTime.now();
 
@@ -216,71 +264,5 @@ public class SuperAdminService {
 
     private double roundToTwoDecimals(double value) {
         return Math.round(value * 100.0) / 100.0;
-    }
-
-    public AdminUserListResponse getUsers(
-            String type,
-            String search,
-            String status,
-            String location,
-            String sort,
-            int page,
-            int size
-    ) {
-
-        Pageable pageable = PageRequest.of(page, size);
-
-        Page<Account> accounts = accountRepository.findAll(pageable);
-
-        List<AdminUserDto> users = accounts.getContent().stream()
-                .map(this::mapToAdminUserDto)
-                .toList();
-
-        return AdminUserListResponse.builder()
-                .users(users)
-                .page(accounts.getNumber())
-                .size(accounts.getSize())
-                .totalElements(accounts.getTotalElements())
-                .totalPages(accounts.getTotalPages())
-                .build();
-    }
-
-    private AdminUserDto mapToAdminUserDto(Account account) {
-
-        String name = "";
-        if (account.getPersonalDetails() != null) {
-            String firstName = account.getPersonalDetails().path("firstName").asText("");
-            String lastName = account.getPersonalDetails().path("lastName").asText("");
-            name = (firstName + " " + lastName).trim();
-        }
-
-        String role = account.getRoles().stream()
-                .findFirst()
-                .map(r -> r.getName())
-                .orElse("");
-
-        if (Boolean.TRUE.equals(account.isCompany())) {
-            role = "Firm";
-        }
-
-        String location = "";
-        if (account.getAddressDetails() != null) {
-            location = account.getAddressDetails().path("state").asText("");
-        }
-
-        String status = account.isActive() ? "Active" : "Inactive";
-
-        return AdminUserDto.builder()
-                .uuid(account.getUuid())
-                .name(name)
-                .email(account.getEmail())
-                .role(role)
-                .location(location)
-                .status(status)
-                .cases(0)      // placeholder
-                .rating(0)     // placeholder
-                .spent(0)      // placeholder
-                .earned(0)     // placeholder
-                .build();
     }
 }

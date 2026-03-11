@@ -1,13 +1,11 @@
 package com.legalpro.accountservice.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.AdminLawyerDto;
 import com.legalpro.accountservice.dto.DashboardSummaryDto;
 import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
-import com.legalpro.accountservice.dto.admin.AdminCasesSummaryDto;
-import com.legalpro.accountservice.dto.admin.AdminUserDto;
-import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
-import com.legalpro.accountservice.dto.admin.AdminUsersSummaryDto;
+import com.legalpro.accountservice.dto.admin.*;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
@@ -466,5 +464,73 @@ public class SuperAdminService {
                 .won(won)
                 .lost(lost)
                 .build();
+    }
+
+    public AdminCaseListResponse getCases(
+            String search,
+            String status,
+            String type,
+            String sort,
+            int page,
+            int size
+    ) {
+
+        Pageable pageable;
+
+        if ("OLDEST".equalsIgnoreCase(sort)) {
+            pageable = PageRequest.of(page, size, Sort.by("createdAt").ascending());
+        } else {
+            pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        }
+
+        Page<LegalCase> casePage = legalCaseRepository.findAll(pageable);
+
+        List<AdminCaseDto> cases = casePage.getContent().stream().map(c -> {
+
+        Account client = accountRepository.findByUuid(c.getClientUuid()).orElse(null);
+        Account lawyer = accountRepository.findByUuid(c.getLawyerUuid()).orElse(null);
+
+        String clientName = extractFullName(client);
+        String lawyerName = extractFullName(lawyer);
+
+        return AdminCaseDto.builder()
+                .caseUuid(c.getUuid())
+                .caseNumber(c.getCaseNumber())
+                .title(c.getListing())
+                .caseType(c.getCaseType() != null ? c.getCaseType().getName() : null)
+                .clientName(clientName)
+                .lawyerName(lawyerName)
+                .status(c.getStatus().getName())
+                .createdAt(c.getCreatedAt())
+                .build();
+        }).toList();
+
+        return AdminCaseListResponse.builder()
+                .content(cases)
+                .page(casePage.getNumber())
+                .size(casePage.getSize())
+                .totalElements(casePage.getTotalElements())
+                .totalPages(casePage.getTotalPages())
+                .build();
+    }
+
+    private String extractFullName(Account account) {
+        if (account == null || account.getPersonalDetails() == null) {
+            return "Unknown";
+        }
+
+        JsonNode pd = account.getPersonalDetails();
+
+        String firstName = pd.hasNonNull("firstName")
+                ? pd.get("firstName").asText()
+                : "";
+
+        String lastName = pd.hasNonNull("lastName")
+                ? pd.get("lastName").asText()
+                : "";
+
+        String fullName = (firstName + " " + lastName).trim();
+
+        return fullName.isEmpty() ? "Unknown" : fullName;
     }
 }

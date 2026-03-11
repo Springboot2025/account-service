@@ -4,6 +4,7 @@ import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.DashboardSummaryDto;
+import com.legalpro.accountservice.dto.admin.AdminCaseListResponse;
 import com.legalpro.accountservice.dto.admin.AdminCasesSummaryDto;
 import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
 import com.legalpro.accountservice.dto.admin.AdminUsersSummaryDto;
@@ -174,6 +175,24 @@ public class SuperAdminController {
                         200,
                         "User summary fetched successfully",
                         superAdminService.getUsersSummary()
+                )
+        );
+    }
+
+    @GetMapping("/cases")
+    public ResponseEntity<ApiResponse<AdminCaseListResponse>> getCases(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String type,
+            @RequestParam(defaultValue = "NEWEST") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Cases fetched successfully",
+                        superAdminService.getCases(search, status, type, sort, page, size)
                 )
         );
     }

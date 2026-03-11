@@ -237,4 +237,17 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     WHERE c.deletedAt IS NULL
     """)
     Page<LegalCase> findAdminCases(Pageable pageable);
+
+    @Query("""
+    SELECT c
+    FROM LegalCase c
+    LEFT JOIN FETCH c.status
+    LEFT JOIN FETCH c.caseType
+    WHERE c.deletedAt IS NULL
+    AND (:search IS NULL OR CAST(c.caseNumber AS string) LIKE CONCAT('%', :search, '%'))
+    """)
+    Page<LegalCase> findAdminCases(
+            @Param("search") String search,
+            Pageable pageable
+    );
 }

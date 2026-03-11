@@ -237,7 +237,7 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     WHERE c.deletedAt IS NULL
     AND (:status IS NULL OR s.name = :status)
     AND (:type IS NULL OR ct.name = :type)
-    AND (:search IS NULL OR c.caseNumber LIKE CONCAT('%', :search, '%'))
+    AND (:search IS NULL OR CAST(c.caseNumber AS string) LIKE CONCAT('%', :search, '%'))
     """)
     Page<LegalCase> findAdminCases(
             @Param("search") String search,

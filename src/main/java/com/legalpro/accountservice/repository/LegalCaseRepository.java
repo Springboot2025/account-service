@@ -230,7 +230,7 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     long countCompanyCases(UUID companyUuid);
 
     @Query(value = """
-    SELECT *
+    SELECT c.*
     FROM cases c
     LEFT JOIN case_status s ON s.id = c.status_id
     LEFT JOIN case_types ct ON ct.id = c.case_type_id

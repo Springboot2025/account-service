@@ -1,6 +1,7 @@
 package com.legalpro.accountservice.specification;
 
 import com.legalpro.accountservice.entity.Account;
+import com.legalpro.accountservice.entity.CaseStatus;
 import com.legalpro.accountservice.entity.LegalCase;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -11,7 +12,7 @@ import java.util.UUID;
 
 public class CaseSpecification {
 
-    public static Specification<LegalCase> build(String search) {
+    public static Specification<LegalCase> build(String search, String status) {
 
         return (root, query, cb) -> {
 
@@ -21,6 +22,16 @@ public class CaseSpecification {
             root.fetch("caseType", JoinType.LEFT);
 
             predicates.add(cb.isNull(root.get("deletedAt")));
+
+            if (status != null && !status.isBlank()) {
+
+                Join<LegalCase, CaseStatus> statusJoin =
+                        root.join("status", JoinType.LEFT);
+
+                predicates.add(
+                        cb.equal(statusJoin.get("name"), status)
+                );
+            }
 
             if (search != null && !search.isBlank()) {
 

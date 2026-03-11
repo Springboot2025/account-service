@@ -4,6 +4,7 @@ import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.AdminLawyerDto;
 import com.legalpro.accountservice.dto.DashboardSummaryDto;
 import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
+import com.legalpro.accountservice.dto.admin.AdminCasesSummaryDto;
 import com.legalpro.accountservice.dto.admin.AdminUserDto;
 import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
 import com.legalpro.accountservice.dto.admin.AdminUsersSummaryDto;
@@ -442,6 +443,22 @@ public class SuperAdminService {
                 .clients(clients)
                 .lawyers(lawyers)
                 .firms(firms)
+                .build();
+    }
+
+    public AdminCasesSummaryDto getCasesSummary() {
+        long total = legalCaseRepository.count();
+        long active = legalCaseRepository.countByStatus_Name("ACTIVE");
+        long pending = legalCaseRepository.countByStatus_Name("PENDING");
+        long newCases = legalCaseRepository.countByStatus_Name("NEW");
+        long closed = legalCaseRepository.countByStatus_Name("CLOSED");
+
+        return AdminCasesSummaryDto.builder()
+                .totalCases(total)
+                .active(active)
+                .pending(pending)
+                .newCases(newCases)
+                .closed(closed)
                 .build();
     }
 }

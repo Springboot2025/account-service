@@ -2,6 +2,7 @@ package com.legalpro.accountservice.repository;
 
 import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.repository.projection.CaseStatsProjection;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -227,4 +228,13 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     )
     """)
         long countCompanyCases(UUID companyUuid);
-    }
+
+    @Query("""
+    SELECT c
+    FROM LegalCase c
+    LEFT JOIN FETCH c.status
+    LEFT JOIN FETCH c.caseType
+    WHERE c.deletedAt IS NULL
+    """)
+    Page<LegalCase> findAdminCases(Pageable pageable);
+}

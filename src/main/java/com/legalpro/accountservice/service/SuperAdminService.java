@@ -474,35 +474,31 @@ public class SuperAdminService {
             int page,
             int size
     ) {
+        Pageable pageable = "OLDEST".equalsIgnoreCase(sort)
+                ? PageRequest.of(page, size, Sort.by("createdAt").ascending())
+                : PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Pageable pageable;
-
-        if ("OLDEST".equalsIgnoreCase(sort)) {
-            pageable = PageRequest.of(page, size, Sort.by("createdAt").ascending());
-        } else {
-            pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        }
-
-        Page<LegalCase> casePage = legalCaseRepository.findAll(pageable);
+        Page<LegalCase> casePage = legalCaseRepository.findAdminCases(pageable);
 
         List<AdminCaseDto> cases = casePage.getContent().stream().map(c -> {
 
-        Account client = accountRepository.findByUuid(c.getClientUuid()).orElse(null);
-        Account lawyer = accountRepository.findByUuid(c.getLawyerUuid()).orElse(null);
+            Account client = accountRepository.findByUuid(c.getClientUuid()).orElse(null);
+            Account lawyer = accountRepository.findByUuid(c.getLawyerUuid()).orElse(null);
 
-        String clientName = extractFullName(client);
-        String lawyerName = extractFullName(lawyer);
+            String clientName = extractFullName(client);
+            String lawyerName = extractFullName(lawyer);
 
-        return AdminCaseDto.builder()
-                .caseUuid(c.getUuid())
-                .caseNumber(c.getCaseNumber())
-                .title(c.getListing())
-                .caseType(c.getCaseType() != null ? c.getCaseType().getName() : null)
-                .clientName(clientName)
-                .lawyerName(lawyerName)
-                .status(c.getStatus().getName())
-                .createdAt(c.getCreatedAt())
-                .build();
+            return AdminCaseDto.builder()
+                    .caseUuid(c.getUuid())
+                    .caseNumber(c.getCaseNumber())
+                    .title(c.getListing())
+                    .caseType(c.getCaseType() != null ? c.getCaseType().getName() : null)
+                    .clientName(clientName)
+                    .lawyerName(lawyerName)
+                    .status(c.getStatus() != null ? c.getStatus().getName() : null)
+                    .createdAt(c.getCreatedAt())
+                    .build();
+
         }).toList();
 
         return AdminCaseListResponse.builder()

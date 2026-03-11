@@ -237,7 +237,40 @@ public class SuperAdminService {
 
         Pageable pageable = PageRequest.of(page, size);
 
-        Page<Account> accounts = accountRepository.findAll(pageable);
+        Page<Account> accounts;
+
+        switch (type.toUpperCase()) {
+
+            case "CLIENT":
+                accounts = accountRepository.findAll(
+                        (root, query, cb) -> cb.equal(
+                                root.join("roles").get("name"),
+                                "Client"
+                        ),
+                        pageable
+                );
+                break;
+
+            case "LAWYER":
+                accounts = accountRepository.findAll(
+                        (root, query, cb) -> cb.and(
+                                cb.equal(root.join("roles").get("name"), "Lawyer"),
+                                cb.isFalse(root.get("isCompany"))
+                        ),
+                        pageable
+                );
+                break;
+
+            case "FIRM":
+                accounts = accountRepository.findAll(
+                        (root, query, cb) -> cb.isTrue(root.get("isCompany")),
+                        pageable
+                );
+                break;
+
+            default:
+                accounts = accountRepository.findAll(pageable);
+        }
 
         List<AdminUserDto> users = accounts.getContent()
                 .stream()

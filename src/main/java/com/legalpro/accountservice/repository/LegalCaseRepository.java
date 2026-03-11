@@ -229,27 +229,16 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     """)
     long countCompanyCases(UUID companyUuid);
 
-    @Query(value = """
-    SELECT c.*
-    FROM cases c
-    LEFT JOIN case_status s ON s.id = c.status_id
-    LEFT JOIN case_types ct ON ct.id = c.case_type_id
-    WHERE c.deleted_at IS NULL
+    @Query("""
+    SELECT c
+    FROM LegalCase c
+    LEFT JOIN FETCH c.status s
+    LEFT JOIN FETCH c.caseType ct
+    WHERE c.deletedAt IS NULL
     AND (:status IS NULL OR s.name = :status)
     AND (:type IS NULL OR ct.name = :type)
-    AND (:search IS NULL OR LOWER(c.case_number::text) LIKE LOWER(CONCAT('%', :search, '%')))
-    """,
-                countQuery = """
-    SELECT COUNT(*)
-    FROM cases c
-    LEFT JOIN case_status s ON s.id = c.status_id
-    LEFT JOIN case_types ct ON ct.id = c.case_type_id
-    WHERE c.deleted_at IS NULL
-    AND (:status IS NULL OR s.name = :status)
-    AND (:type IS NULL OR ct.name = :type)
-    AND (:search IS NULL OR LOWER(c.case_number::text) LIKE LOWER(CONCAT('%', :search, '%')))
-    """,
-            nativeQuery = true)
+    AND (:search IS NULL OR LOWER(c.caseNumber) LIKE LOWER(CONCAT('%', :search, '%')))
+    """)
     Page<LegalCase> findAdminCases(
             @Param("search") String search,
             @Param("status") String status,

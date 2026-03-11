@@ -306,6 +306,10 @@ public class SuperAdminService {
 
         if (Boolean.TRUE.equals(account.isCompany())) {
             lawyerCount = accountRepository.countByCompanyUuid(account.getUuid());
+
+            if (lawyerCount == 0) {
+                lawyerCount = 1;
+            }
         }
 
         double rating = 0;

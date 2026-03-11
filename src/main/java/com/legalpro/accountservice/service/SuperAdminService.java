@@ -234,8 +234,26 @@ public class SuperAdminService {
             int page,
             int size
     ) {
+        Sort sortOrder;
 
-        Pageable pageable = PageRequest.of(page, size);
+        switch (sort.toUpperCase()) {
+            case "OLDEST":
+                sortOrder = Sort.by("createdAt").ascending();
+                break;
+
+            case "NAME":
+                sortOrder = Sort.by("email").ascending();
+                break;
+
+            case "MOST_ACTIVE":
+                sortOrder = Sort.by("createdAt").descending(); // placeholder
+                break;
+
+            default:
+                sortOrder = Sort.by("createdAt").descending(); // NEWEST
+        }
+
+        Pageable pageable = PageRequest.of(page, size, sortOrder);
 
         Page<Account> accounts;
 
@@ -267,9 +285,24 @@ public class SuperAdminService {
                         pageable
                 );
                 break;
-
             default:
-                accounts = accountRepository.findAll(pageable);
+                accounts = accountRepository.findAll(
+                        (root, query, cb) -> {
+
+                            if (search == null || search.isBlank()) {
+                                return cb.conjunction();
+                            }
+
+                            String like = "%" + search.toLowerCase() + "%";
+
+                            return cb.or(
+                                    cb.like(cb.lower(root.get("email")), like),
+                                    cb.like(cb.lower(root.get("personalDetails").get("firstName")), like),
+                                    cb.like(cb.lower(root.get("personalDetails").get("lastName")), like)
+                            );
+                        },
+                        pageable
+                );
         }
 
         List<AdminUserDto> users = accounts.getContent()

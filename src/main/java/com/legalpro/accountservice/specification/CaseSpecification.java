@@ -7,6 +7,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class CaseSpecification {
 
@@ -16,38 +17,28 @@ public class CaseSpecification {
 
             List<Predicate> predicates = new ArrayList<>();
 
-            /* -----------------------------------------
-             * JOIN STATUS + CASE TYPE
-             * ----------------------------------------- */
             root.fetch("status", JoinType.LEFT);
             root.fetch("caseType", JoinType.LEFT);
 
-            /* -----------------------------------------
-             * JOIN CLIENT + LAWYER
-             * ----------------------------------------- */
-            Join<LegalCase, Account> client =
-                    root.join("clientAccount", JoinType.LEFT);
+            predicates.add(cb.isNull(root.get("deletedAt")));
 
-            Join<LegalCase, Account> lawyer =
-                    root.join("lawyerAccount", JoinType.LEFT);
-
-            /* -----------------------------------------
-             * SEARCH
-             * ----------------------------------------- */
             if (search != null && !search.isBlank()) {
 
                 String pattern = "%" + search.toLowerCase() + "%";
 
-                Predicate caseNumber = cb.like(
+                Predicate caseNumberMatch = cb.like(
                         cb.lower(root.get("caseNumber")),
                         pattern
                 );
+
+                Subquery<UUID> clientSub = query.subquery(UUID.class);
+                Root<Account> clientRoot = clientSub.from(Account.class);
 
                 Predicate clientFirst = cb.like(
                         cb.lower(cb.function(
                                 "jsonb_extract_path_text",
                                 String.class,
-                                client.get("personalDetails"),
+                                clientRoot.get("personalDetails"),
                                 cb.literal("firstName")
                         )),
                         pattern
@@ -57,17 +48,26 @@ public class CaseSpecification {
                         cb.lower(cb.function(
                                 "jsonb_extract_path_text",
                                 String.class,
-                                client.get("personalDetails"),
+                                clientRoot.get("personalDetails"),
                                 cb.literal("lastName")
                         )),
                         pattern
                 );
 
+                clientSub.select(clientRoot.get("uuid"))
+                        .where(cb.or(clientFirst, clientLast));
+
+                Predicate clientMatch =
+                        root.get("clientUuid").in(clientSub);
+
+                Subquery<UUID> lawyerSub = query.subquery(UUID.class);
+                Root<Account> lawyerRoot = lawyerSub.from(Account.class);
+
                 Predicate lawyerFirst = cb.like(
                         cb.lower(cb.function(
                                 "jsonb_extract_path_text",
                                 String.class,
-                                lawyer.get("personalDetails"),
+                                lawyerRoot.get("personalDetails"),
                                 cb.literal("firstName")
                         )),
                         pattern
@@ -77,27 +77,22 @@ public class CaseSpecification {
                         cb.lower(cb.function(
                                 "jsonb_extract_path_text",
                                 String.class,
-                                lawyer.get("personalDetails"),
+                                lawyerRoot.get("personalDetails"),
                                 cb.literal("lastName")
                         )),
                         pattern
                 );
 
+                lawyerSub.select(lawyerRoot.get("uuid"))
+                        .where(cb.or(lawyerFirst, lawyerLast));
+
+                Predicate lawyerMatch =
+                        root.get("lawyerUuid").in(lawyerSub);
+
                 predicates.add(
-                        cb.or(
-                                caseNumber,
-                                clientFirst,
-                                clientLast,
-                                lawyerFirst,
-                                lawyerLast
-                        )
+                        cb.or(caseNumberMatch, clientMatch, lawyerMatch)
                 );
             }
-
-            /* -----------------------------------------
-             * DELETED FILTER
-             * ----------------------------------------- */
-            predicates.add(cb.isNull(root.get("deletedAt")));
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };

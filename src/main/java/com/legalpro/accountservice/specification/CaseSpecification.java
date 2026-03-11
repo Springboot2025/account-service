@@ -2,6 +2,7 @@ package com.legalpro.accountservice.specification;
 
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.CaseStatus;
+import com.legalpro.accountservice.entity.CaseType;
 import com.legalpro.accountservice.entity.LegalCase;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -12,7 +13,7 @@ import java.util.UUID;
 
 public class CaseSpecification {
 
-    public static Specification<LegalCase> build(String search, String status) {
+    public static Specification<LegalCase> build(String search, String status, String type) {
 
         return (root, query, cb) -> {
 
@@ -30,6 +31,16 @@ public class CaseSpecification {
 
                 predicates.add(
                         cb.equal(statusJoin.get("name"), status)
+                );
+            }
+
+            if (type != null && !type.isBlank()) {
+
+                Join<LegalCase, CaseType> typeJoin =
+                        root.join("caseType", JoinType.LEFT);
+
+                predicates.add(
+                        cb.equal(typeJoin.get("name"), type)
                 );
             }
 

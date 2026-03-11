@@ -481,7 +481,7 @@ public class SuperAdminService {
                         : Sort.by("createdAt").descending()
         );
 
-        Specification<LegalCase> spec = CaseSpecification.build(search, status);
+        Specification<LegalCase> spec = CaseSpecification.build(search, status, type);
 
         Page<LegalCase> casePage = legalCaseRepository.findAll(spec, pageable);
 

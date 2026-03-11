@@ -471,8 +471,8 @@ public class SuperAdminService {
             int size
     ) {
         Pageable pageable = "OLDEST".equalsIgnoreCase(sort)
-                ? PageRequest.of(page, size, Sort.by("created_at").ascending())
-                : PageRequest.of(page, size, Sort.by("created_at").descending());
+                ? PageRequest.of(page, size, Sort.by("createdAt").ascending())
+                : PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         Page<LegalCase> casePage = legalCaseRepository.findAdminCases(search, status, type, pageable);
 

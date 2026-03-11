@@ -448,10 +448,10 @@ public class SuperAdminService {
 
     public AdminCasesSummaryDto getCasesSummary() {
         long total = legalCaseRepository.count();
-        long active = legalCaseRepository.countByStatus_Name("ACTIVE");
-        long pending = legalCaseRepository.countByStatus_Name("PENDING");
-        long newCases = legalCaseRepository.countByStatus_Name("NEW");
-        long closed = legalCaseRepository.countByStatus_Name("CLOSED");
+        long active = legalCaseRepository.countByStatus_Name("Active");
+        long pending = legalCaseRepository.countByStatus_Name("Pending");
+        long newCases = legalCaseRepository.countByStatus_Name("New");
+        long closed = legalCaseRepository.countByStatus_Name("Closed");
 
         return AdminCasesSummaryDto.builder()
                 .totalCases(total)

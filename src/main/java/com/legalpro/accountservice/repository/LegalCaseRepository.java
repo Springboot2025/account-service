@@ -241,17 +241,10 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     @Query("""
     SELECT c
     FROM LegalCase c
-    LEFT JOIN FETCH c.status s
-    LEFT JOIN FETCH c.caseType ct
-    JOIN Account client ON client.uuid = c.clientUuid
-    JOIN Account lawyer ON lawyer.uuid = c.lawyerUuid
+    LEFT JOIN FETCH c.status
+    LEFT JOIN FETCH c.caseType
     WHERE c.deletedAt IS NULL
-    AND (
-        :search IS NULL
-        OR CAST(c.caseNumber AS string) LIKE CONCAT('%', :search, '%')
-        OR LOWER(client.personalDetails) LIKE LOWER(CONCAT('%', :search, '%'))
-        OR LOWER(lawyer.personalDetails) LIKE LOWER(CONCAT('%', :search, '%'))
-    )
+    AND (:search IS NULL OR CAST(c.caseNumber AS string) LIKE CONCAT('%', :search, '%'))
     """)
     Page<LegalCase> findAdminCases(
             @Param("search") String search,

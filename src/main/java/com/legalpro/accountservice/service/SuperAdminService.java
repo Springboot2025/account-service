@@ -14,10 +14,12 @@ import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.LawyerRatingRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.repository.projection.CaseStatsProjection;
+import com.legalpro.accountservice.specification.CaseSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -470,10 +472,18 @@ public class SuperAdminService {
             int page,
             int size
     ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        String searchTerm = (search == null || search.isBlank()) ? null : search;
-        Page<LegalCase> casePage = legalCaseRepository.findAdminCases(searchTerm, pageable);
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                "OLDEST".equalsIgnoreCase(sort)
+                        ? Sort.by("createdAt").ascending()
+                        : Sort.by("createdAt").descending()
+        );
+
+        Specification<LegalCase> spec = CaseSpecification.build(search);
+
+        Page<LegalCase> casePage = legalCaseRepository.findAll(spec, pageable);
 
         Set<UUID> accountUuids = casePage.getContent().stream()
                 .flatMap(c -> Stream.of(c.getClientUuid(), c.getLawyerUuid()))

@@ -6,6 +6,7 @@ import com.legalpro.accountservice.dto.DashboardSummaryDto;
 import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
 import com.legalpro.accountservice.dto.admin.AdminUserDto;
 import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
+import com.legalpro.accountservice.dto.admin.AdminUsersSummaryDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
@@ -426,6 +427,21 @@ public class SuperAdminService {
                 .specialization(specialization)
                 .joinedAt(joinedAt)
                 .lawyerCount(lawyerCount)
+                .build();
+    }
+
+    public AdminUsersSummaryDto getUsersSummary() {
+
+        long allUsers = accountRepository.count();
+        long clients = accountRepository.countByRoleName("Client");
+        long lawyers = accountRepository.countByRoleName("Lawyer");
+        long firms = accountRepository.countFirms();
+
+        return AdminUsersSummaryDto.builder()
+                .allUsers(allUsers)
+                .clients(clients)
+                .lawyers(lawyers)
+                .firms(firms)
                 .build();
     }
 }

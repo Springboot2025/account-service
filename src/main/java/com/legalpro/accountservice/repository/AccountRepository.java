@@ -183,4 +183,12 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
 
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
     int countByCompanyUuid(UUID companyUuid);
-}
+    @Query("""
+    SELECT COUNT(DISTINCT a.id)
+    FROM Account a
+    JOIN a.roles r
+    WHERE r.name = :roleName
+    AND a.removedAt IS NULL
+    """)
+        long countByRoleName(String roleName);
+    }

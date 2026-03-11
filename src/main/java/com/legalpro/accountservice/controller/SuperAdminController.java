@@ -5,6 +5,7 @@ import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.DashboardSummaryDto;
 import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
+import com.legalpro.accountservice.dto.admin.AdminUsersSummaryDto;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.service.ContactRequestService;
@@ -164,4 +165,15 @@ public class SuperAdminController {
         );
     }
 
+    @GetMapping("/users/summary")
+    public ResponseEntity<ApiResponse<AdminUsersSummaryDto>> getUsersSummary() {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "User summary fetched successfully",
+                        superAdminService.getUsersSummary()
+                )
+        );
+    }
 }

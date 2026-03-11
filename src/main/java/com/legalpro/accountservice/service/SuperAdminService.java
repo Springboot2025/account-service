@@ -25,21 +25,20 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
 public class SuperAdminService {
-
     private final AccountRepository accountRepository;
     private final LegalCaseRepository caseRepository;
     private final LawyerRatingRepository lawyerRatingRepository;
     private final LegalCaseRepository legalCaseRepository;
 
+    private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com/legalpro";
     public List<AccountDto> getUsersByType(String userType) {
         String normalizedType = userType.trim().toLowerCase(Locale.ROOT);
 
@@ -149,9 +148,6 @@ public class SuperAdminService {
 
         accountRepository.save(lawyer);
     }
-
-    private static final String GCS_PUBLIC_BASE =
-            "https://storage.googleapis.com";
 
     private String convertGcsUrl(String fileUrl) {
         if (fileUrl != null && fileUrl.startsWith("gs://")) {
@@ -478,26 +474,40 @@ public class SuperAdminService {
                 ? PageRequest.of(page, size, Sort.by("createdAt").ascending())
                 : PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Page<LegalCase> casePage = legalCaseRepository.findAdminCases(pageable);
+        Page<LegalCase> casePage = legalCaseRepository.findAdminCases(search, status, type, pageable);
+
+        Set<UUID> accountUuids = casePage.getContent().stream()
+                .flatMap(c -> Stream.of(c.getClientUuid(), c.getLawyerUuid()))
+                .collect(Collectors.toSet());
+
+        Map<UUID, Account> accounts = accountRepository.findAllByUuidIn(accountUuids)
+                .stream()
+                .collect(Collectors.toMap(Account::getUuid, Function.identity()));
 
         List<AdminCaseDto> cases = casePage.getContent().stream().map(c -> {
 
-            Account client = accountRepository.findByUuid(c.getClientUuid()).orElse(null);
-            Account lawyer = accountRepository.findByUuid(c.getLawyerUuid()).orElse(null);
+            AdminCaseDto.AdminCaseDtoBuilder dto = AdminCaseDto.builder();
 
-            String clientName = extractFullName(client);
-            String lawyerName = extractFullName(lawyer);
+            dto.caseUuid(c.getUuid());
+            dto.caseNumber(c.getCaseNumber());
+            dto.title(c.getListing());
+            dto.caseType(c.getCaseType() != null ? c.getCaseType().getName() : null);
+            dto.status(c.getStatus() != null ? c.getStatus().getName() : null);
+            dto.createdAt(c.getCreatedAt());
 
-            return AdminCaseDto.builder()
-                    .caseUuid(c.getUuid())
-                    .caseNumber(c.getCaseNumber())
-                    .title(c.getListing())
-                    .caseType(c.getCaseType() != null ? c.getCaseType().getName() : null)
-                    .clientName(clientName)
-                    .lawyerName(lawyerName)
-                    .status(c.getStatus() != null ? c.getStatus().getName() : null)
-                    .createdAt(c.getCreatedAt())
-                    .build();
+            Account clientAcc = accounts.get(c.getClientUuid());
+            if (clientAcc != null) {
+                dto.clientName(extractFullName(clientAcc));
+                dto.clientProfilePictureUrl(convertGcsUrl(clientAcc.getProfilePictureUrl()));
+            }
+
+            Account lawyerAcc = accounts.get(c.getLawyerUuid());
+            if (lawyerAcc != null) {
+                dto.lawyerName(extractFullName(lawyerAcc));
+                dto.lawyerProfilePictureUrl(convertGcsUrl(lawyerAcc.getProfilePictureUrl()));
+            }
+
+            return dto.build();
 
         }).toList();
 

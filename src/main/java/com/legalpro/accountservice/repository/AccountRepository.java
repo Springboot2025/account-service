@@ -190,5 +190,7 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
     WHERE r.name = :roleName
     AND a.removedAt IS NULL
     """)
-        long countByRoleName(String roleName);
-    }
+    long countByRoleName(String roleName);
+
+    List<Account> findAllByUuidIn(Set<UUID> uuids);
+}

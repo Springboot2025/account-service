@@ -452,6 +452,9 @@ public class SuperAdminService {
         long pending = legalCaseRepository.countByStatus_Name("Pending");
         long newCases = legalCaseRepository.countByStatus_Name("New");
         long closed = legalCaseRepository.countByStatus_Name("Closed");
+        long urgent = legalCaseRepository.countByStatus_Name("Urgent");
+        long won = legalCaseRepository.countByStatus_Name("Won");
+        long lost = legalCaseRepository.countByStatus_Name("Lost");
 
         return AdminCasesSummaryDto.builder()
                 .totalCases(total)
@@ -459,6 +462,9 @@ public class SuperAdminService {
                 .pending(pending)
                 .newCases(newCases)
                 .closed(closed)
+                .urgent(urgent)
+                .won(won)
+                .lost(lost)
                 .build();
     }
 }

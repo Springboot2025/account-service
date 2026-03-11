@@ -12,5 +12,7 @@ public class AdminCasesSummaryDto {
     private long pending;
     private long newCases;
     private long closed;
-
+    private long urgent;
+    private long won;
+    private long lost;
 }

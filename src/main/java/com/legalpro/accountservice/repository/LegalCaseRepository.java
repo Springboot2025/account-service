@@ -238,7 +238,6 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     AND (:status IS NULL OR s.name = :status)
     AND (:type IS NULL OR ct.name = :type)
     AND (:search IS NULL OR LOWER(c.case_number::text) LIKE LOWER(CONCAT('%', :search, '%')))
-    ORDER BY c.created_at DESC
     """,
                 countQuery = """
     SELECT COUNT(*)

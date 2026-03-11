@@ -470,11 +470,10 @@ public class SuperAdminService {
             int page,
             int size
     ) {
-        Pageable pageable = "OLDEST".equalsIgnoreCase(sort)
-                ? PageRequest.of(page, size, Sort.by("createdAt").ascending())
-                : PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Page<LegalCase> casePage = legalCaseRepository.findAdminCases(search, status, type, pageable);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        Page<LegalCase> casePage = legalCaseRepository.findAdminCases(pageable);
 
         Set<UUID> accountUuids = casePage.getContent().stream()
                 .flatMap(c -> Stream.of(c.getClientUuid(), c.getLawyerUuid()))

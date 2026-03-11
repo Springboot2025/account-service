@@ -232,17 +232,9 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long> {
     @Query("""
     SELECT c
     FROM LegalCase c
-    LEFT JOIN FETCH c.status s
-    LEFT JOIN FETCH c.caseType ct
+    LEFT JOIN FETCH c.status
+    LEFT JOIN FETCH c.caseType
     WHERE c.deletedAt IS NULL
-    AND (:status IS NULL OR s.name = :status)
-    AND (:type IS NULL OR ct.name = :type)
-    AND (:search IS NULL OR CAST(c.caseNumber AS string) LIKE CONCAT('%', :search, '%'))
     """)
-    Page<LegalCase> findAdminCases(
-            @Param("search") String search,
-            @Param("status") String status,
-            @Param("type") String type,
-            Pageable pageable
-    );
+    Page<LegalCase> findAdminCases(Pageable pageable);
 }

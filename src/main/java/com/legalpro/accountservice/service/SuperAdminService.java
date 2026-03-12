@@ -658,4 +658,27 @@ public class SuperAdminService {
 
         return mainNode;
     }
+
+    public ReviewsSummaryDto getReviewsSummary() {
+
+        Long totalReviews = lawyerRatingRepository.countTotalReviews();
+
+        BigDecimal averageRating = lawyerRatingRepository.findPlatformAverageRating();
+
+        Long positiveReviews = lawyerRatingRepository.countPositiveReviews();
+
+        Long reviewsThisWeek = lawyerRatingRepository.countReviewsThisWeek();
+
+        int positivePercentage = totalReviews == 0
+                ? 0
+                : (int) ((positiveReviews * 100) / totalReviews);
+
+        return ReviewsSummaryDto.builder()
+                .totalReviews(totalReviews)
+                .averageRating(averageRating)
+                .positivePercentage(positivePercentage)
+                .pendingReview(0L)   // placeholder until moderation feature added
+                .reviewsThisWeek(reviewsThisWeek)
+                .build();
+    }
 }

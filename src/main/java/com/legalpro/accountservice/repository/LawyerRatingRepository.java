@@ -30,4 +30,33 @@ public interface LawyerRatingRepository extends JpaRepository<LawyerRating, Long
     """)
     List<Object[]> getAverageRatingsForLawyers(List<UUID> lawyerUuids);
 
+    @Query("""
+        SELECT COUNT(r)
+        FROM LawyerRating r
+        WHERE r.deletedAt IS NULL
+    """)
+    Long countTotalReviews();
+
+    @Query("""
+        SELECT AVG(r.rating)
+        FROM LawyerRating r
+        WHERE r.deletedAt IS NULL
+    """)
+    BigDecimal findPlatformAverageRating();
+
+    @Query("""
+        SELECT COUNT(r)
+        FROM LawyerRating r
+        WHERE r.rating >= 4
+          AND r.deletedAt IS NULL
+    """)
+    Long countPositiveReviews();
+
+    @Query("""
+        SELECT COUNT(r)
+        FROM LawyerRating r
+        WHERE r.createdAt >= CURRENT_DATE - 7
+          AND r.deletedAt IS NULL
+    """)
+    Long countReviewsThisWeek();
 }

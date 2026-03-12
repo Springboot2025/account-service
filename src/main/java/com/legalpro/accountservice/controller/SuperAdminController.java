@@ -259,4 +259,16 @@ public class SuperAdminController {
                 )
         );
     }
+
+    @GetMapping("/reviews/summary")
+    public ResponseEntity<ApiResponse<ReviewsSummaryDto>> getReviewsSummary() {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Reviews summary fetched successfully",
+                        superAdminService.getReviewsSummary()
+                )
+        );
+    }
 }

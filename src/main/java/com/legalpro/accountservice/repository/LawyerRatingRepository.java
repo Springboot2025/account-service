@@ -1,6 +1,8 @@
 package com.legalpro.accountservice.repository;
 
 import com.legalpro.accountservice.entity.LawyerRating;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -60,4 +62,14 @@ public interface LawyerRatingRepository extends JpaRepository<LawyerRating, Long
           AND r.deletedAt IS NULL
     """)
     Long countReviewsSince(LocalDateTime sinceDate);
+
+    @Query("""
+    SELECT r
+    FROM LawyerRating r
+    WHERE r.deletedAt IS NULL
+    ORDER BY r.createdAt DESC
+    """)
+    List<LawyerRating> findAllActiveReviews();
+
+    Page<LawyerRating> findAllByDeletedAtIsNull(Pageable pageable);
 }

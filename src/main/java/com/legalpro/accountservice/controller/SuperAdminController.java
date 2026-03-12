@@ -1,10 +1,7 @@
 package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.*;
-import com.legalpro.accountservice.dto.admin.AdminCaseListResponse;
-import com.legalpro.accountservice.dto.admin.AdminCasesSummaryDto;
-import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
-import com.legalpro.accountservice.dto.admin.AdminUsersSummaryDto;
+import com.legalpro.accountservice.dto.admin.*;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.service.ContactRequestService;
@@ -256,6 +253,21 @@ public class SuperAdminController {
                         200,
                         "System settings updated successfully",
                         superAdminService.updateSystemSettings(dto)
+                )
+        );
+    }
+
+    @GetMapping("/reviews")
+    public ResponseEntity<ApiResponse<AdminReviewListResponse>> getReviews(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Reviews fetched successfully",
+                        superAdminService.getReviews(page, size)
                 )
         );
     }

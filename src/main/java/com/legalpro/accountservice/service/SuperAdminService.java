@@ -4,10 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.dto.admin.*;
-import com.legalpro.accountservice.entity.Account;
-import com.legalpro.accountservice.entity.LegalCase;
-import com.legalpro.accountservice.entity.Subscription;
-import com.legalpro.accountservice.entity.SystemSetting;
+import com.legalpro.accountservice.entity.*;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.repository.*;
@@ -681,6 +678,52 @@ public class SuperAdminService {
                 .positivePercentage(positivePercentage)
                 .pendingReview(0L)
                 .reviewsThisWeek(reviewsThisWeek)
+                .build();
+    }
+
+    public AdminReviewListResponse getReviews(int page, int size) {
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by("createdAt").descending()
+        );
+
+        Page<LawyerRating> ratingPage =
+                lawyerRatingRepository.findAllByDeletedAtIsNull(pageable);
+
+        Set<UUID> accountUuids = ratingPage.getContent().stream()
+                .flatMap(r -> Stream.of(r.getClientUuid(), r.getLawyerUuid()))
+                .collect(Collectors.toSet());
+
+        Map<UUID, Account> accounts =
+                accountRepository.findAllByUuidIn(accountUuids)
+                        .stream()
+                        .collect(Collectors.toMap(Account::getUuid, Function.identity()));
+
+        List<AdminReviewDto> reviews = ratingPage.getContent().stream().map(r -> {
+
+            Account lawyer = accounts.get(r.getLawyerUuid());
+            Account client = accounts.get(r.getClientUuid());
+
+            return AdminReviewDto.builder()
+                    .ratingUuid(r.getUuid())
+                    .lawyerName(extractFullName(lawyer))
+                    .clientName(extractFullName(client))
+                    .rating(r.getRating())
+                    .review(r.getReview())
+                    .createdAt(r.getCreatedAt())
+                    .status("ACTIVE") // placeholder
+                    .build();
+
+        }).toList();
+
+        return AdminReviewListResponse.builder()
+                .content(reviews)
+                .page(ratingPage.getNumber())
+                .size(ratingPage.getSize())
+                .totalElements(ratingPage.getTotalElements())
+                .totalPages(ratingPage.getTotalPages())
                 .build();
     }
 }

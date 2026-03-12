@@ -1,10 +1,6 @@
 package com.legalpro.accountservice.controller;
 
-import com.legalpro.accountservice.dto.AccountDto;
-import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
-import com.legalpro.accountservice.dto.ApiResponse;
-import com.legalpro.accountservice.dto.SubscriptionPlanDto;
-import com.legalpro.accountservice.dto.UpdateSubscriptionPlanDto;
+import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.dto.admin.AdminCaseListResponse;
 import com.legalpro.accountservice.dto.admin.AdminCasesSummaryDto;
 import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
@@ -234,6 +230,32 @@ public class SuperAdminController {
                         200,
                         "Subscription updated successfully",
                         superAdminService.updateSubscription(uuid, dto)
+                )
+        );
+    }
+
+    @GetMapping("/system-settings")
+    public ResponseEntity<ApiResponse<SystemSettingsDto>> getSystemSettings() {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "System settings fetched successfully",
+                        superAdminService.getSystemSettings()
+                )
+        );
+    }
+
+    @PutMapping("/system-settings")
+    public ResponseEntity<ApiResponse<SystemSettingsDto>> updateSystemSettings(
+            @RequestBody UpdateSystemSettingsDto dto
+    ) {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "System settings updated successfully",
+                        superAdminService.updateSystemSettings(dto)
                 )
         );
     }

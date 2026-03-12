@@ -1,17 +1,16 @@
 package com.legalpro.accountservice.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.dto.admin.*;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.entity.Subscription;
+import com.legalpro.accountservice.entity.SystemSetting;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
-import com.legalpro.accountservice.repository.AccountRepository;
-import com.legalpro.accountservice.repository.LawyerRatingRepository;
-import com.legalpro.accountservice.repository.LegalCaseRepository;
-import com.legalpro.accountservice.repository.SubscriptionRepository;
+import com.legalpro.accountservice.repository.*;
 import com.legalpro.accountservice.repository.projection.CaseStatsProjection;
 import com.legalpro.accountservice.specification.CaseSpecification;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +38,7 @@ public class SuperAdminService {
     private final LawyerRatingRepository lawyerRatingRepository;
     private final LegalCaseRepository legalCaseRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final SystemSettingRepository systemSettingRepository;
 
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com/legalpro";
     public List<AccountDto> getUsersByType(String userType) {
@@ -600,5 +600,62 @@ public class SuperAdminService {
                 .recommended(subscription.getRecommended())
                 .features(subscription.getFeatures())
                 .build();
+    }
+
+    public SystemSettingsDto getSystemSettings() {
+
+        SystemSetting systemSetting = systemSettingRepository
+                .findFirstByRemovedAtIsNull()
+                .orElseThrow(() -> new RuntimeException("System settings not found"));
+
+        return SystemSettingsDto.builder()
+                .settings(systemSetting.getSettings())
+                .build();
+    }
+
+    public SystemSettingsDto updateSystemSettings(UpdateSystemSettingsDto dto) {
+
+        SystemSetting systemSetting = systemSettingRepository
+                .findFirstByRemovedAtIsNull()
+                .orElseThrow(() -> new RuntimeException("System settings not found"));
+
+        JsonNode existingSettings = systemSetting.getSettings();
+        JsonNode incomingSettings = dto.getSettings();
+
+        JsonNode mergedSettings = mergeJson(existingSettings, incomingSettings);
+
+        systemSetting.setSettings(mergedSettings);
+        systemSetting.setUpdatedAt(LocalDateTime.now());
+
+        SystemSetting saved = systemSettingRepository.save(systemSetting);
+
+        return SystemSettingsDto.builder()
+                .settings(saved.getSettings())
+                .build();
+    }
+
+    private JsonNode mergeJson(JsonNode mainNode, JsonNode updateNode) {
+
+        if (mainNode instanceof ObjectNode mainObject && updateNode instanceof ObjectNode updateObject) {
+
+            updateObject.fieldNames().forEachRemaining(field -> {
+
+                JsonNode valueToUpdate = updateObject.get(field);
+
+                if (mainObject.has(field)) {
+                    JsonNode existingValue = mainObject.get(field);
+
+                    if (existingValue.isObject() && valueToUpdate.isObject()) {
+                        mergeJson(existingValue, valueToUpdate);
+                    } else {
+                        mainObject.set(field, valueToUpdate);
+                    }
+                } else {
+                    mainObject.set(field, valueToUpdate);
+                }
+            });
+        }
+
+        return mainNode;
     }
 }

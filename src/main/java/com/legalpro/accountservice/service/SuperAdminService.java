@@ -667,7 +667,9 @@ public class SuperAdminService {
 
         Long positiveReviews = lawyerRatingRepository.countPositiveReviews();
 
-        Long reviewsThisWeek = lawyerRatingRepository.countReviewsThisWeek();
+        LocalDateTime oneWeekAgo = LocalDateTime.now().minusDays(7);
+
+        Long reviewsThisWeek = lawyerRatingRepository.countReviewsSince(oneWeekAgo);
 
         int positivePercentage = totalReviews == 0
                 ? 0
@@ -677,7 +679,7 @@ public class SuperAdminService {
                 .totalReviews(totalReviews)
                 .averageRating(averageRating)
                 .positivePercentage(positivePercentage)
-                .pendingReview(0L)   // placeholder until moderation feature added
+                .pendingReview(0L)
                 .reviewsThisWeek(reviewsThisWeek)
                 .build();
     }

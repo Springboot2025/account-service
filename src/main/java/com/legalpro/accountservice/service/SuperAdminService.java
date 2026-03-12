@@ -1,18 +1,17 @@
 package com.legalpro.accountservice.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.legalpro.accountservice.dto.AccountDto;
-import com.legalpro.accountservice.dto.AdminLawyerDto;
-import com.legalpro.accountservice.dto.DashboardSummaryDto;
-import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
+import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.dto.admin.*;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.LegalCase;
+import com.legalpro.accountservice.entity.Subscription;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.LawyerRatingRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
+import com.legalpro.accountservice.repository.SubscriptionRepository;
 import com.legalpro.accountservice.repository.projection.CaseStatsProjection;
 import com.legalpro.accountservice.specification.CaseSpecification;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +38,7 @@ public class SuperAdminService {
     private final LegalCaseRepository caseRepository;
     private final LawyerRatingRepository lawyerRatingRepository;
     private final LegalCaseRepository legalCaseRepository;
+    private final SubscriptionRepository subscriptionRepository;
 
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com/legalpro";
     public List<AccountDto> getUsersByType(String userType) {
@@ -547,5 +547,58 @@ public class SuperAdminService {
         String fullName = (firstName + " " + lastName).trim();
 
         return fullName.isEmpty() ? "Unknown" : fullName;
+    }
+
+    public List<SubscriptionPlanDto> getSubscriptions() {
+
+        List<Subscription> subscriptions =
+                subscriptionRepository.findAllByRemovedAtIsNullOrderByIdAsc();
+
+        return subscriptions.stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    public SubscriptionPlanDto updateSubscription(UUID uuid, UpdateSubscriptionPlanDto dto) {
+
+        Subscription subscription = subscriptionRepository.findByUuid(uuid)
+                .orElseThrow(() -> new RuntimeException("Subscription not found"));
+
+        if (Boolean.TRUE.equals(dto.getRecommended())) {
+            List<Subscription> recommendedPlans =
+                    subscriptionRepository.findAllByRemovedAtIsNullOrderByIdAsc();
+
+            recommendedPlans.stream()
+                    .filter(Subscription::getRecommended)
+                    .forEach(plan -> {
+                        plan.setRecommended(false);
+                        subscriptionRepository.save(plan);
+                    });
+        }
+
+        subscription.setPlanName(dto.getPlanName());
+        subscription.setDescription(dto.getDescription());
+        subscription.setMonthlyPrice(dto.getMonthlyPrice());
+        subscription.setAnnualPrice(dto.getAnnualPrice());
+        subscription.setRecommended(dto.getRecommended());
+        subscription.setFeatures(dto.getFeatures());
+        subscription.setUpdatedAt(LocalDateTime.now());
+
+        Subscription saved = subscriptionRepository.save(subscription);
+
+        return mapToDto(saved);
+    }
+
+    private SubscriptionPlanDto mapToDto(Subscription subscription) {
+
+        return SubscriptionPlanDto.builder()
+                .uuid(subscription.getUuid())
+                .planName(subscription.getPlanName())
+                .description(subscription.getDescription())
+                .monthlyPrice(subscription.getMonthlyPrice())
+                .annualPrice(subscription.getAnnualPrice())
+                .recommended(subscription.getRecommended())
+                .features(subscription.getFeatures())
+                .build();
     }
 }

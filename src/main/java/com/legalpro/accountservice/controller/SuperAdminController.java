@@ -3,7 +3,8 @@ package com.legalpro.accountservice.controller;
 import com.legalpro.accountservice.dto.AccountDto;
 import com.legalpro.accountservice.dto.AdminDashboardSummaryDto;
 import com.legalpro.accountservice.dto.ApiResponse;
-import com.legalpro.accountservice.dto.DashboardSummaryDto;
+import com.legalpro.accountservice.dto.SubscriptionPlanDto;
+import com.legalpro.accountservice.dto.UpdateSubscriptionPlanDto;
 import com.legalpro.accountservice.dto.admin.AdminCaseListResponse;
 import com.legalpro.accountservice.dto.admin.AdminCasesSummaryDto;
 import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
@@ -205,6 +206,34 @@ public class SuperAdminController {
                         200,
                         "Case summary fetched successfully",
                         superAdminService.getCasesSummary()
+                )
+        );
+    }
+
+    @GetMapping("/subscriptions")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<ApiResponse<List<SubscriptionPlanDto>>> getSubscriptions() {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Subscriptions fetched successfully",
+                        superAdminService.getSubscriptions()
+                )
+        );
+    }
+
+    @PutMapping("/subscriptions/{uuid}")
+    public ResponseEntity<ApiResponse<SubscriptionPlanDto>> updateSubscription(
+            @PathVariable UUID uuid,
+            @RequestBody UpdateSubscriptionPlanDto dto
+    ) {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Subscription updated successfully",
+                        superAdminService.updateSubscription(uuid, dto)
                 )
         );
     }

@@ -735,7 +735,7 @@ public class SuperAdminService {
         }
 
         return account.getProfessionalDetails()
-                .path("specialization")
+                .path("practiceArea")
                 .asText("");
     }
 }

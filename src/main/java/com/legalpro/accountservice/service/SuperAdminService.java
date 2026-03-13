@@ -357,7 +357,7 @@ public class SuperAdminService {
 
         if (account.getProfessionalDetails() != null) {
             specialization = account.getProfessionalDetails()
-                    .path("specialization")
+                    .path("practiceArea")
                     .asText("");
         }
 

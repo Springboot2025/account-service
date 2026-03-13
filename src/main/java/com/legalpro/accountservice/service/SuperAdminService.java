@@ -709,6 +709,7 @@ public class SuperAdminService {
             return AdminReviewDto.builder()
                     .ratingUuid(r.getUuid())
                     .lawyerName(extractFullName(lawyer))
+                    .specialization(extractSpecialization(lawyer))
                     .clientName(extractFullName(client))
                     .rating(r.getRating())
                     .review(r.getReview())
@@ -725,5 +726,16 @@ public class SuperAdminService {
                 .totalElements(ratingPage.getTotalElements())
                 .totalPages(ratingPage.getTotalPages())
                 .build();
+    }
+
+    private String extractSpecialization(Account account) {
+
+        if (account == null || account.getProfessionalDetails() == null) {
+            return "";
+        }
+
+        return account.getProfessionalDetails()
+                .path("specialization")
+                .asText("");
     }
 }

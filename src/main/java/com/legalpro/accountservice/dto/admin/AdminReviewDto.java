@@ -15,6 +15,7 @@ public class AdminReviewDto {
     private UUID ratingUuid;
 
     private String lawyerName;
+    private String specialization;
 
     private String clientName;
 

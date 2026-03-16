@@ -36,6 +36,7 @@ public class SuperAdminService {
     private final LegalCaseRepository legalCaseRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final SystemSettingRepository systemSettingRepository;
+    private final UserSubscriptionRepository userSubscriptionRepository;
 
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com/legalpro";
     public List<AccountDto> getUsersByType(String userType) {
@@ -737,5 +738,68 @@ public class SuperAdminService {
         return account.getProfessionalDetails()
                 .path("practiceArea")
                 .asText("");
+    }
+
+    public AdminSubscriptionsSummaryDto getSubscriptionsSummary() {
+        Long totalSubscribers = userSubscriptionRepository.countActiveSubscribers();
+        Long cancelled = userSubscriptionRepository.countCancelled();
+
+        LocalDateTime startOfMonth =
+                LocalDateTime.now()
+                        .withDayOfMonth(1)
+                        .withHour(0)
+                        .withMinute(0)
+                        .withSecond(0)
+                        .withNano(0);
+
+        Long newThisMonth =
+                userSubscriptionRepository.countNewSince(startOfMonth);
+
+        Long totalSubscriptions =
+                userSubscriptionRepository.countTotalSubscriptions();
+
+        double retentionRate = 0;
+
+        if (totalSubscriptions > 0) {
+            retentionRate =
+                    ((double) (totalSubscriptions - cancelled) / totalSubscriptions) * 100;
+        }
+
+        // MRR calculation
+        double mrr = 0;
+
+        List<UserSubscription> activeSubscriptions =
+                userSubscriptionRepository.findAll()
+                        .stream()
+                        .filter(s -> s.getStatus() == 1)
+                        .toList();
+
+        Map<Long, Subscription> plans =
+                subscriptionRepository.findAll()
+                        .stream()
+                        .collect(Collectors.toMap(Subscription::getId, s -> s));
+
+        for (UserSubscription us : activeSubscriptions) {
+
+            Subscription plan = plans.get(us.getPlanId());
+
+            if (plan == null) continue;
+
+            if ("monthly".equalsIgnoreCase(us.getPlanDuration())) {
+                mrr += plan.getMonthlyPrice().doubleValue();
+            }
+
+            if ("yearly".equalsIgnoreCase(us.getPlanDuration())) {
+                mrr += plan.getAnnualPrice().doubleValue() / 12;
+            }
+        }
+
+        return AdminSubscriptionsSummaryDto.builder()
+                .totalSubscribers(totalSubscribers)
+                .mrr(Math.round(mrr * 100.0) / 100.0)
+                .newThisMonth(newThisMonth)
+                .cancelled(cancelled)
+                .retentionRate(Math.round(retentionRate * 10.0) / 10.0)
+                .build();
     }
 }

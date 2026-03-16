@@ -283,4 +283,16 @@ public class SuperAdminController {
                 )
         );
     }
+
+    @GetMapping("/subscriptions/summary")
+    public ResponseEntity<ApiResponse<AdminSubscriptionsSummaryDto>> getSubscriptionsSummary() {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Subscriptions summary fetched successfully",
+                        superAdminService.getSubscriptionsSummary()
+                )
+        );
+    }
 }

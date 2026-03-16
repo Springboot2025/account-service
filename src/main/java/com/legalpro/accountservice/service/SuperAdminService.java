@@ -802,4 +802,70 @@ public class SuperAdminService {
                 .retentionRate(Math.round(retentionRate * 10.0) / 10.0)
                 .build();
     }
+
+    public AdminSubscriptionPlansSummaryResponse getSubscriptionsPlansSummary() {
+
+        List<UserSubscription> activeSubscriptions =
+                userSubscriptionRepository.findAll()
+                        .stream()
+                        .filter(s -> s.getStatus() == 1)
+                        .toList();
+
+        Map<Long, Subscription> plans =
+                subscriptionRepository.findAll()
+                        .stream()
+                        .collect(Collectors.toMap(Subscription::getId, p -> p));
+
+        long individualCount = 0;
+        long firmCount = 0;
+
+        double individualRevenue = 0;
+        double firmRevenue = 0;
+
+        for (UserSubscription us : activeSubscriptions) {
+
+            Subscription plan = plans.get(us.getPlanId());
+
+            if (plan == null) continue;
+
+            double monthlyValue = 0;
+
+            if ("monthly".equalsIgnoreCase(us.getPlanDuration())) {
+                monthlyValue = plan.getMonthlyPrice().doubleValue();
+            }
+
+            if ("yearly".equalsIgnoreCase(us.getPlanDuration())) {
+                monthlyValue = plan.getAnnualPrice().doubleValue() / 12;
+            }
+
+            if (us.getPlanId() == 1) {
+                individualCount++;
+                individualRevenue += monthlyValue;
+            }
+
+            if (us.getPlanId() == 2) {
+                firmCount++;
+                firmRevenue += monthlyValue;
+            }
+        }
+
+        AdminSubscriptionPlanSummaryDto individual =
+                AdminSubscriptionPlanSummaryDto.builder()
+                        .planName("Individual Lawyers")
+                        .subscribers(individualCount)
+                        .monthlyRevenue(Math.round(individualRevenue * 100.0) / 100.0)
+                        .build();
+
+        AdminSubscriptionPlanSummaryDto firms =
+                AdminSubscriptionPlanSummaryDto.builder()
+                        .planName("Firms")
+                        .subscribers(firmCount)
+                        .monthlyRevenue(Math.round(firmRevenue * 100.0) / 100.0)
+                        .build();
+
+        return AdminSubscriptionPlansSummaryResponse.builder()
+                .individualLawyers(individual)
+                .firms(firms)
+                .build();
+    }
 }

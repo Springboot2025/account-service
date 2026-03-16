@@ -868,4 +868,50 @@ public class SuperAdminService {
                 .firms(firms)
                 .build();
     }
+
+    public List<AdminRecentSubscriberDto> getRecentSubscribers() {
+
+        List<UserSubscription> subscriptions =
+                userSubscriptionRepository.findTop10ByDeletedAtIsNullOrderByCreatedAtDesc();
+
+        Set<UUID> accountUuids = subscriptions.stream()
+                .map(UserSubscription::getUserUuid)
+                .collect(Collectors.toSet());
+
+        Map<UUID, Account> accounts =
+                accountRepository.findAllByUuidIn(accountUuids)
+                        .stream()
+                        .collect(Collectors.toMap(Account::getUuid, a -> a));
+
+        Map<Long, Subscription> plans =
+                subscriptionRepository.findAll()
+                        .stream()
+                        .collect(Collectors.toMap(Subscription::getId, p -> p));
+
+        return subscriptions.stream().map(us -> {
+
+            Account account = accounts.get(us.getUserUuid());
+            Subscription plan = plans.get(us.getPlanId());
+
+            String name = extractFullName(account);
+            String email = account != null ? account.getEmail() : "";
+
+            String status = switch (us.getStatus()) {
+                case 1 -> "Active";
+                case 2 -> "Cancelled";
+                default -> "Inactive";
+            };
+
+            return AdminRecentSubscriberDto.builder()
+                    .subscriptionUuid(us.getUuid())
+                    .name(name)
+                    .email(email)
+                    .userType(us.getUserType())
+                    .planName(plan != null ? plan.getPlanName() : "")
+                    .renewsAt(us.getRenewsAt())
+                    .status(status)
+                    .build();
+
+        }).toList();
+    }
 }

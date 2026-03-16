@@ -307,4 +307,16 @@ public class SuperAdminController {
                 )
         );
     }
+
+    @GetMapping("/subscriptions/recent")
+    public ResponseEntity<ApiResponse<List<AdminRecentSubscriberDto>>> getRecentSubscribers() {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Recent subscribers fetched successfully",
+                        superAdminService.getRecentSubscribers()
+                )
+        );
+    }
 }

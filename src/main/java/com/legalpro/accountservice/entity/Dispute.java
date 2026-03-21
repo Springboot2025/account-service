@@ -36,7 +36,7 @@ public class Dispute {
     private String reference;
 
     @Column(name = "incident_date", nullable = false)
-    private LocalDateTime incidentDate;
+    private LocalDate incidentDate;
 
     @Column(name = "type_of_dispute", nullable = false)
     private String typeOfDispute;

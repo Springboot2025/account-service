@@ -25,7 +25,7 @@ public class DisputeDto {
     private String role;
 
     private String reference;
-    private LocalDateTime incidentDate;
+    private LocalDate incidentDate;
     private String typeOfDispute;
     private String description;
     private String resolutionRequested;

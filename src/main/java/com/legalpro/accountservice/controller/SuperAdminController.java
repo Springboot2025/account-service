@@ -4,12 +4,14 @@ import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.dto.admin.*;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
+import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.ContactRequestService;
 import com.legalpro.accountservice.service.DisputeService;
 import com.legalpro.accountservice.service.SuperAdminService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -316,6 +318,22 @@ public class SuperAdminController {
                         200,
                         "Recent subscribers fetched successfully",
                         superAdminService.getRecentSubscribers()
+                )
+        );
+    }
+
+    @GetMapping("/recent-activity")
+    public ResponseEntity<ApiResponse<List<ActivityLogDto>>> getRecentActivity(
+            @RequestParam(required = false) Integer limit
+    ) {
+        List<ActivityLogDto> activities =
+                superAdminService.getRecentActivities(limit);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Recent activity fetched successfully",
+                        activities
                 )
         );
     }

@@ -7,6 +7,7 @@ import com.legalpro.accountservice.dto.admin.*;
 import com.legalpro.accountservice.entity.*;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
+import com.legalpro.accountservice.mapper.ActivityLogMapper;
 import com.legalpro.accountservice.repository.*;
 import com.legalpro.accountservice.repository.projection.CaseStatsProjection;
 import com.legalpro.accountservice.specification.CaseSpecification;
@@ -37,6 +38,7 @@ public class SuperAdminService {
     private final SubscriptionRepository subscriptionRepository;
     private final SystemSettingRepository systemSettingRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
+    private final ActivityLogRepository activityLogRepository;
 
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com/legalpro";
     public List<AccountDto> getUsersByType(String userType) {
@@ -913,5 +915,20 @@ public class SuperAdminService {
                     .build();
 
         }).toList();
+    }
+
+    public List<ActivityLogDto> getRecentActivities(Integer limit) {
+        int size = (limit != null && limit > 0) ? limit : 10;
+
+        Pageable pageable = PageRequest.of(0, size);
+
+        List<ActivityLog> logs =
+                activityLogRepository.findAllOrderByTimestampDesc(
+                        pageable
+                );
+
+        return logs.stream()
+                .map(ActivityLogMapper::toDto)
+                .toList();
     }
 }

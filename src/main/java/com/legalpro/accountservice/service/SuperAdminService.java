@@ -295,8 +295,24 @@ public class SuperAdminService {
 
                             return cb.or(
                                     cb.like(cb.lower(root.get("email")), like),
-                                    cb.like(cb.lower(root.get("personalDetails").get("firstName")), like),
-                                    cb.like(cb.lower(root.get("personalDetails").get("lastName")), like)
+                                    cb.like(
+                                            cb.lower(cb.function(
+                                                    "jsonb_extract_path_text",
+                                                    String.class,
+                                                    root.get("personalDetails"),
+                                                    cb.literal("firstName")
+                                            )),
+                                            like
+                                    ),
+                                    cb.like(
+                                            cb.lower(cb.function(
+                                                    "jsonb_extract_path_text",
+                                                    String.class,
+                                                    root.get("personalDetails"),
+                                                    cb.literal("lastName")
+                                            )),
+                                            like
+                                    )
                             );
                         },
                         pageable

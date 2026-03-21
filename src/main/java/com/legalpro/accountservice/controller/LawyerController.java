@@ -93,6 +93,7 @@ public class LawyerController {
         );
     }
 
+    @PreAuthorize("hasAnyRole('Lawyer','Admin')")
     @GetMapping("/clients/{clientUuid}")
     public ResponseEntity<ApiResponse<ClientFullResponseDto>> getClientFullDetails(
             @PathVariable UUID clientUuid,

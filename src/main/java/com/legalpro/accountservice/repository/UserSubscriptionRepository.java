@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface UserSubscriptionRepository extends JpaRepository<UserSubscription, Long> {
@@ -55,4 +56,5 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
 
     // for plan breakdown (API 2 later)
     List<UserSubscription> findByPlanIdAndStatus(Long planId, Integer status);
+    Optional<UserSubscription> findByUuid(UUID uuid);
 }

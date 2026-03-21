@@ -1,11 +1,13 @@
 package com.legalpro.accountservice.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.legalpro.accountservice.dto.LegalCaseDto;
 import com.legalpro.accountservice.dto.QuoteDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Quote;
 import com.legalpro.accountservice.enums.QuoteStatus;
 import com.legalpro.accountservice.mapper.QuoteMapper;
+import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.repository.QuoteRepository;
 import com.legalpro.accountservice.service.ActivityLogService;
@@ -35,6 +37,7 @@ public class QuoteServiceImpl implements QuoteService {
     private final ActivityLogService activityLogService;
     private final ProfileService profileService;
     private final LegalCaseRepository legalCaseRepository;
+    private final AccountRepository accountRepository;
 
     // === Client Actions ===
 
@@ -51,9 +54,12 @@ public class QuoteServiceImpl implements QuoteService {
         Quote saved = quoteRepository.save(entity);
         log.info("✅ Quote request created by client {} for lawyer {}", clientUuid, lawyerUuid);
 
+        Account clientAcc = accountRepository.findByUuid(clientUuid).orElse(null);
+        String clientName = extractFullName(clientAcc);
+
         activityLogService.logActivity(
                 "QUOTE_REQUESTED",
-                "Client requested a quote",
+                clientName + " requested a quote",
                 clientUuid,                // actorUuid
                 lawyerUuid,                // lawyerUuid
                 clientUuid,                // clientUuid
@@ -161,12 +167,15 @@ public class QuoteServiceImpl implements QuoteService {
         Quote saved = quoteRepository.save(entity);
         log.info("✅ Lawyer {} updated quote {} to status {}", lawyerUuid, quoteUuid, newStatus);
 
+        Account lawyerAcc = accountRepository.findByUuid(lawyerUuid).orElse(null);
+        String lawyerName = extractFullName(lawyerAcc);
+
         // 🔔 Activity Log — New Client Accepted
         if (newStatus == QuoteStatus.ACCEPTED) {
 
             activityLogService.logActivity(
                     "QUOTE_ACCEPTED",
-                    "Quote accepted by lawyer",
+                    lawyerName + " accepted the quote",
                     lawyerUuid,                 // actorUuid
                     lawyerUuid,                 // lawyerUuid
                     entity.getClientUuid(),     // clientUuid
@@ -259,4 +268,15 @@ public class QuoteServiceImpl implements QuoteService {
         }).toList();
     }
 
+    private String extractFullName(Account account) {
+        if (account == null || account.getPersonalDetails() == null) {
+            return "";
+        }
+
+        JsonNode pd = account.getPersonalDetails();
+        String first = pd.hasNonNull("firstName") ? pd.get("firstName").asText() : "";
+        String last  = pd.hasNonNull("lastName")  ? pd.get("lastName").asText()  : "";
+
+        return (first + " " + last).trim();
+    }
 }

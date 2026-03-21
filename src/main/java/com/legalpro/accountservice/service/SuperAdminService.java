@@ -372,6 +372,7 @@ public class SuperAdminService {
         }
 
         String status = account.isActive() ? "Active" : "Inactive";
+        AccountStatus accountStatus = account.getAccountStatus();
 
         String specialization = "";
 
@@ -434,6 +435,7 @@ public class SuperAdminService {
                 .role(role)
                 .location(location)
                 .status(status)
+                .accountStatus(accountStatus)
                 .cases(cases)
                 .rating(rating)
                 .spent(0)

@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.dto.admin;
 
+import com.legalpro.accountservice.enums.AccountStatus;
 import lombok.Builder;
 import lombok.Data;
 
@@ -16,6 +17,7 @@ public class AdminUserDto {
     private String role;
     private String location;
     private String status;
+    private AccountStatus accountStatus;
     private int cases;
     private double rating;
     private double spent;

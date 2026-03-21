@@ -19,29 +19,21 @@ public class CaseSpecification {
 
             List<Predicate> predicates = new ArrayList<>();
 
-            root.fetch("status", JoinType.LEFT);
-            root.fetch("caseType", JoinType.LEFT);
-
+            // Always filter soft-deleted
             predicates.add(cb.isNull(root.get("deletedAt")));
 
+            // Lazy joins (only when needed)
+            Join<LegalCase, CaseStatus> statusJoin = null;
+            Join<LegalCase, CaseType> typeJoin = null;
+
             if (status != null && !status.isBlank()) {
-
-                Join<LegalCase, CaseStatus> statusJoin =
-                        root.join("status", JoinType.LEFT);
-
-                predicates.add(
-                        cb.equal(statusJoin.get("name"), status)
-                );
+                statusJoin = root.join("status", JoinType.LEFT);
+                predicates.add(cb.equal(statusJoin.get("name"), status));
             }
 
             if (type != null && !type.isBlank()) {
-
-                Join<LegalCase, CaseType> typeJoin =
-                        root.join("caseType", JoinType.LEFT);
-
-                predicates.add(
-                        cb.equal(typeJoin.get("name"), type)
-                );
+                typeJoin = root.join("caseType", JoinType.LEFT);
+                predicates.add(cb.equal(typeJoin.get("name"), type));
             }
 
             if (search != null && !search.isBlank()) {
@@ -53,6 +45,7 @@ public class CaseSpecification {
                         pattern
                 );
 
+                // --- Client subquery ---
                 Subquery<UUID> clientSub = query.subquery(UUID.class);
                 Root<Account> clientRoot = clientSub.from(Account.class);
 
@@ -79,9 +72,9 @@ public class CaseSpecification {
                 clientSub.select(clientRoot.get("uuid"))
                         .where(cb.or(clientFirst, clientLast));
 
-                Predicate clientMatch =
-                        root.get("clientUuid").in(clientSub);
+                Predicate clientMatch = root.get("clientUuid").in(clientSub);
 
+                // --- Lawyer subquery ---
                 Subquery<UUID> lawyerSub = query.subquery(UUID.class);
                 Root<Account> lawyerRoot = lawyerSub.from(Account.class);
 
@@ -108,12 +101,9 @@ public class CaseSpecification {
                 lawyerSub.select(lawyerRoot.get("uuid"))
                         .where(cb.or(lawyerFirst, lawyerLast));
 
-                Predicate lawyerMatch =
-                        root.get("lawyerUuid").in(lawyerSub);
+                Predicate lawyerMatch = root.get("lawyerUuid").in(lawyerSub);
 
-                predicates.add(
-                        cb.or(caseNumberMatch, clientMatch, lawyerMatch)
-                );
+                predicates.add(cb.or(caseNumberMatch, clientMatch, lawyerMatch));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

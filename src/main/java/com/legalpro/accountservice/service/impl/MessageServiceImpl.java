@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.legalpro.accountservice.dto.MessageDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Message;
@@ -61,9 +62,12 @@ public class MessageServiceImpl implements MessageService {
 
         String preview = content.length() > 50 ? content.substring(0, 50) + "..." : content;
 
+        Account senderAcc = accountRepository.findByUuid(senderUuid).orElse(null);
+        String senderName = extractFullName(senderAcc);
+
         activityLogService.logActivity(
                 "MESSAGE_SENT",
-                "New message sent",
+                "New message sent by " + senderName,
                 senderUuid,                 // actorUuid
                 lawyerUuid,                 // lawyerUuid (if applicable)
                 clientUuid,                 // clientUuid (if applicable)
@@ -137,5 +141,17 @@ public class MessageServiceImpl implements MessageService {
                 .createdAt(message.getCreatedAt())
                 .read(message.isRead())
                 .build();
+    }
+
+    private String extractFullName(Account account) {
+        if (account == null || account.getPersonalDetails() == null) {
+            return "";
+        }
+
+        JsonNode pd = account.getPersonalDetails();
+        String first = pd.hasNonNull("firstName") ? pd.get("firstName").asText() : "";
+        String last  = pd.hasNonNull("lastName")  ? pd.get("lastName").asText()  : "";
+
+        return (first + " " + last).trim();
     }
 }

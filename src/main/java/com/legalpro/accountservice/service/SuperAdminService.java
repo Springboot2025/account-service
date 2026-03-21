@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.dto.admin.*;
 import com.legalpro.accountservice.entity.*;
+import com.legalpro.accountservice.enums.AccountStatus;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.mapper.ActivityLogMapper;
@@ -946,5 +947,25 @@ public class SuperAdminService {
         return logs.stream()
                 .map(ActivityLogMapper::toDto)
                 .toList();
+    }
+
+    @Transactional
+    public void suspendUser(UUID uuid) {
+
+        Account account = accountRepository.findByUuid(uuid)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        account.setAccountStatus(AccountStatus.SUSPENDED);
+        account.setUpdatedAt(LocalDateTime.now());
+    }
+
+    @Transactional
+    public void activateUser(UUID uuid) {
+
+        Account account = accountRepository.findByUuid(uuid)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        account.setAccountStatus(AccountStatus.ACTIVE);
+        account.setUpdatedAt(LocalDateTime.now());
     }
 }

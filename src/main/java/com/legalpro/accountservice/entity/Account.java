@@ -1,6 +1,7 @@
 package com.legalpro.accountservice.entity;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.legalpro.accountservice.enums.AccountStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -47,6 +48,10 @@ public class Account {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = false;
+
+    @Column(name = "account_status")
+    @Enumerated(EnumType.STRING)
+    private AccountStatus accountStatus = AccountStatus.ACTIVE;
 
     @Column(name = "verification_token")
     private UUID verificationToken;

@@ -337,4 +337,20 @@ public class SuperAdminController {
                 )
         );
     }
+
+    @PutMapping("/users/{uuid}/suspend")
+    public ResponseEntity<ApiResponse<String>> suspendUser(
+            @PathVariable UUID uuid
+    ) {
+        superAdminService.suspendUser(uuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "User suspended", null));
+    }
+
+    @PutMapping("/users/{uuid}/activate")
+    public ResponseEntity<ApiResponse<String>> activateUser(
+            @PathVariable UUID uuid
+    ) {
+        superAdminService.activateUser(uuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "User activated", null));
+    }
 }

@@ -55,4 +55,11 @@ public class UserSubscription {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.uuid == null) {
+            this.uuid = UUID.randomUUID();
+        }
+    }
 }

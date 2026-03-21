@@ -13,6 +13,7 @@ public interface LegalCaseService {
     LegalCaseDto updateCase(UUID caseUuid, LegalCaseDto dto, UUID lawyerUuid);
 
     LegalCaseDto getCase(UUID caseUuid, UUID lawyerUuid);
+    LegalCaseDto getCaseByUuid(UUID caseUuid);
 
     List<LegalCaseDto> getCasesForLawyer(UUID lawyerUuid);
 

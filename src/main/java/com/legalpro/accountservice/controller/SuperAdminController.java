@@ -7,6 +7,7 @@ import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.ContactRequestService;
 import com.legalpro.accountservice.service.DisputeService;
+import com.legalpro.accountservice.service.LegalCaseService;
 import com.legalpro.accountservice.service.SuperAdminService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,12 +26,14 @@ public class SuperAdminController {
     private final SuperAdminService superAdminService;
     private final ContactRequestService contactRequestService;
     private final DisputeService disputeService;
+    private final LegalCaseService legalCaseService;
 
     public SuperAdminController(SuperAdminService superAdminService, ContactRequestService contactRequestService,
-                                DisputeService disputeService) {
+                                DisputeService disputeService, LegalCaseService legalCaseService) {
         this.superAdminService = superAdminService;
         this.contactRequestService = contactRequestService;
         this.disputeService = disputeService;
+        this.legalCaseService = legalCaseService;
     }
     @GetMapping("/hello")
     public ResponseEntity<ApiResponse<String>> helloSuperAdmin() {
@@ -352,5 +355,21 @@ public class SuperAdminController {
     ) {
         superAdminService.activateUser(uuid);
         return ResponseEntity.ok(ApiResponse.success(200, "User activated", null));
+    }
+
+    @GetMapping("/cases/{caseUuid}")
+    public ResponseEntity<ApiResponse<LegalCaseDto>> getCase(
+            @PathVariable UUID caseUuid
+    ) {
+        try {
+            LegalCaseDto legalCase = legalCaseService.getCaseByUuid(caseUuid);
+            return ResponseEntity.ok(ApiResponse.success(200, "Case fetched successfully", legalCase));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), e.getMessage()));
+        }
     }
 }

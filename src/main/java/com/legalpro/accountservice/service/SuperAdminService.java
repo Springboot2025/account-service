@@ -923,7 +923,7 @@ public class SuperAdminService {
         Pageable pageable = PageRequest.of(0, size);
 
         List<ActivityLog> logs =
-                activityLogRepository.findAllOrderByTimestampDesc(
+                activityLogRepository.findAllByOrderByTimestampDesc(
                         pageable
                 );
 

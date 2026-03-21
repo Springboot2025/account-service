@@ -18,7 +18,7 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
 
     List<ActivityLog> findByClientUuidOrderByTimestampDesc(UUID clientUuid, Pageable pageable);
 
-    List<ActivityLog> findAllOrderByTimestampDesc(
+    List<ActivityLog> findAllByOrderByTimestampDesc(
             Pageable pageable
     );
 }

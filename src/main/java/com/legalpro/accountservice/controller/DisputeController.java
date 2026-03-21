@@ -22,7 +22,7 @@ public class DisputeController {
 
     private final DisputeService disputeService;
     private final DisputeDocumentService disputeDocumentService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<ApiResponse<DisputeDto>> submitDispute(

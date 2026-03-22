@@ -28,6 +28,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.function.Function;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 
 @Service
 @RequiredArgsConstructor
@@ -260,9 +263,9 @@ public class SuperAdminService {
 
             case "CLIENT":
                 accounts = accountRepository.findAll(
-                        (root, query, cb) -> cb.equal(
-                                root.join("roles").get("name"),
-                                "Client"
+                        (root, query, cb) -> cb.and(
+                                cb.equal(root.join("roles").get("name"), "Client"),
+                                buildSearchPredicate(root, cb, search)
                         ),
                         pageable
                 );
@@ -272,7 +275,8 @@ public class SuperAdminService {
                 accounts = accountRepository.findAll(
                         (root, query, cb) -> cb.and(
                                 cb.equal(root.join("roles").get("name"), "Lawyer"),
-                                cb.isFalse(root.get("isCompany"))
+                                cb.isFalse(root.get("isCompany")),
+                                buildSearchPredicate(root, cb, search)
                         ),
                         pageable
                 );
@@ -280,7 +284,10 @@ public class SuperAdminService {
 
             case "FIRM":
                 accounts = accountRepository.findAll(
-                        (root, query, cb) -> cb.isTrue(root.get("isCompany")),
+                        (root, query, cb) -> cb.and(
+                                cb.isTrue(root.get("isCompany")),
+                                buildSearchPredicate(root, cb, search)
+                        ),
                         pageable
                 );
                 break;
@@ -972,5 +979,36 @@ public class SuperAdminService {
 
         account.setAccountStatus(AccountStatus.ACTIVE);
         account.setUpdatedAt(LocalDateTime.now());
+    }
+
+    private Predicate buildSearchPredicate(Root<Account> root, CriteriaBuilder cb, String search) {
+
+        if (search == null || search.isBlank()) {
+            return cb.conjunction();
+        }
+
+        String like = "%" + search.toLowerCase() + "%";
+
+        return cb.or(
+                cb.like(cb.lower(root.get("email")), like),
+                cb.like(
+                        cb.lower(cb.function(
+                                "jsonb_extract_path_text",
+                                String.class,
+                                root.get("personalDetails"),
+                                cb.literal("firstName")
+                        )),
+                        like
+                ),
+                cb.like(
+                        cb.lower(cb.function(
+                                "jsonb_extract_path_text",
+                                String.class,
+                                root.get("personalDetails"),
+                                cb.literal("lastName")
+                        )),
+                        like
+                )
+        );
     }
 }

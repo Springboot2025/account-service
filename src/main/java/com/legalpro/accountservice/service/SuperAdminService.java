@@ -521,7 +521,7 @@ public class SuperAdminService {
 
             dto.caseUuid(c.getUuid());
             dto.caseNumber(c.getCaseNumber());
-            dto.title(c.getListing());
+            dto.title(c.getName());
             dto.caseType(c.getCaseType() != null ? c.getCaseType().getName() : null);
             dto.status(c.getStatus() != null ? c.getStatus().getName() : null);
             dto.createdAt(c.getCreatedAt());

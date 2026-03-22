@@ -14,6 +14,7 @@ public class AdminUserDto {
     private UUID uuid;
     private String name;
     private String email;
+    private String profilePictureUrl;
     private String role;
     private String location;
     private String status;

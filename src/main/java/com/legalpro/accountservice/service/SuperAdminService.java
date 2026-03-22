@@ -354,6 +354,8 @@ public class SuperAdminService {
             role = "Firm";
         }
 
+        String profilePictureUrl = convertGcsUrl(account.getProfilePictureUrl());
+
         String location = "";
 
         if (account.getAddressDetails() != null) {
@@ -443,6 +445,7 @@ public class SuperAdminService {
                 .specialization(specialization)
                 .joinedAt(joinedAt)
                 .lawyerCount(lawyerCount)
+                .profilePictureUrl(profilePictureUrl)
                 .build();
     }
 

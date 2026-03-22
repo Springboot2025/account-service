@@ -940,7 +940,7 @@ public class SuperAdminService {
     }
 
     public List<ActivityLogDto> getRecentActivities(Integer limit) {
-        int size = (limit != null && limit > 0) ? limit : 10;
+        int size = (limit != null && limit > 0) ? limit : 5;
 
         Pageable pageable = PageRequest.of(0, size);
 

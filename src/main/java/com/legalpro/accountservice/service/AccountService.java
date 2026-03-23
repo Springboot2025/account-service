@@ -550,6 +550,98 @@ public class AccountService {
                 .build();
     }
 
+    public ClientFullResponseDto getClientFullDetails(UUID clientUuid) {
+
+        // 1️⃣ Get profile (Account → ClientDto)
+        Account account = accountRepository.findByUuid(clientUuid)
+                .orElseThrow(() -> new RuntimeException("Client not found"));
+
+        ClientDto profileDto = AccountMapper.toClientDto(account);
+
+
+        // 2️⃣ Get all question sets (Core, Offence, or any future type)
+        List<ClientAnswerDto> questionDtos = clientAnswerRepository
+                .findAllByClientUuidAndDeletedAtIsNull(clientUuid)   // ✅ correct method
+                .stream()
+                .map(answer -> ClientAnswerDto.builder()
+                        .id(answer.getId())
+                        .clientUuid(answer.getClientUuid())
+                        .questionType(answer.getQuestionType())
+                        .answers(answer.getAnswers())
+                        .createdAt(answer.getCreatedAt())
+                        .updatedAt(answer.getUpdatedAt())
+                        .build()
+                )
+                .toList();
+
+        // 3️⃣ Get court support materials
+        List<CourtSupportMaterialDto> courtMaterialDtos = courtSupportMaterialRepository
+                .findByClientUuidAndDeletedAtIsNull(clientUuid)
+                .stream()
+                .map(item -> CourtSupportMaterialDto.builder()
+                        .id(item.getId())
+                        .clientUuid(item.getClientUuid())
+                        .fileName(item.getFileName())
+                        .fileType(item.getFileType())
+                        .fileUrl(convertGcsUrl(item.getFileUrl()))
+                        .description(item.getDescription())
+                        .createdAt(item.getCreatedAt())
+                        .updatedAt(item.getUpdatedAt())
+                        .build()
+                )
+                .toList();
+
+
+        // 4️⃣ Get uploaded documents
+        List<ClientDocumentDto> documentDtos = clientDocumentRepository
+                .findByClientUuidAndDeletedAtIsNull(clientUuid)
+                .stream()
+                .map(doc -> ClientDocumentDto.builder()
+                        .id(doc.getId())
+                        .clientUuid(doc.getClientUuid())
+                        .lawyerUuid(doc.getLawyerUuid())
+                        .fileName(doc.getFileName())
+                        .fileType(doc.getFileType())
+                        .fileUrl(convertGcsUrl(doc.getFileUrl()))
+                        .documentType(doc.getDocumentType())
+                        .createdAt(doc.getCreatedAt())
+                        .updatedAt(doc.getUpdatedAt())
+                        .build()
+                )
+                .toList();
+
+        // Get quotes
+        List<QuoteDto> quoteDtos = quoteRepository
+                .findByClientUuid(clientUuid)
+                .stream()
+                .map(quote -> QuoteDto.builder()
+                        .id(quote.getId())
+                        .uuid(quote.getUuid())
+                        .clientUuid(quote.getClientUuid())
+                        .lawyerUuid(quote.getLawyerUuid())
+                        .title(quote.getTitle())
+                        .description(quote.getDescription())
+                        .expectedAmount(quote.getExpectedAmount())
+                        .quotedAmount(quote.getQuotedAmount())
+                        .currency(quote.getCurrency())
+                        .offenceList(quote.getOffenceList())
+                        .status(quote.getStatus())
+                        .createdAt(quote.getCreatedAt())
+                        .updatedAt(quote.getUpdatedAt())
+                        .build()
+                )
+                .toList();
+
+        // 5️⃣ Stitch everything into final response DTO
+        return ClientFullResponseDto.builder()
+                .profileData(profileDto)
+                .questions(questionDtos)
+                .courtSupportingMaterial(courtMaterialDtos)
+                .documents(documentDtos)
+                .quotes(quoteDtos)
+                .build();
+    }
+
     private String convertGcsUrl(String fileUrl) {
         if (fileUrl != null && fileUrl.startsWith("gs://")) {
             return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());

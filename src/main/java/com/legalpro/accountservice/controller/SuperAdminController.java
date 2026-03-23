@@ -9,6 +9,7 @@ import com.legalpro.accountservice.service.ContactRequestService;
 import com.legalpro.accountservice.service.DisputeService;
 import com.legalpro.accountservice.service.LegalCaseService;
 import com.legalpro.accountservice.service.SuperAdminService;
+import com.legalpro.accountservice.service.AccountService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,13 +28,16 @@ public class SuperAdminController {
     private final ContactRequestService contactRequestService;
     private final DisputeService disputeService;
     private final LegalCaseService legalCaseService;
+    private final AccountService accountService;
 
     public SuperAdminController(SuperAdminService superAdminService, ContactRequestService contactRequestService,
-                                DisputeService disputeService, LegalCaseService legalCaseService) {
+                                DisputeService disputeService, LegalCaseService legalCaseService,
+                                AccountService accountService) {
         this.superAdminService = superAdminService;
         this.contactRequestService = contactRequestService;
         this.disputeService = disputeService;
         this.legalCaseService = legalCaseService;
+        this.accountService = accountService;
     }
     @GetMapping("/hello")
     public ResponseEntity<ApiResponse<String>> helloSuperAdmin() {
@@ -371,5 +375,16 @@ public class SuperAdminController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), e.getMessage()));
         }
+    }
+
+    @GetMapping("/clients/{clientUuid}")
+    public ResponseEntity<ApiResponse<ClientFullResponseDto>> getClientFullDetails(
+            @PathVariable UUID clientUuid
+    ) {
+        ClientFullResponseDto dto = accountService.getClientFullDetails(clientUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Client fetched successfully", dto)
+        );
     }
 }

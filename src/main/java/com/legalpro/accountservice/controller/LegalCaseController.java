@@ -57,6 +57,7 @@ public class LegalCaseController {
 
     // --- Get Single Case ---
     @GetMapping("/{caseUuid}")
+    @PreAuthorize("hasAnyRole('Lawyer','Admin')")
     public ResponseEntity<ApiResponse<LegalCaseDto>> getCase(
             @PathVariable UUID caseUuid,
             @AuthenticationPrincipal CustomUserDetails userDetails

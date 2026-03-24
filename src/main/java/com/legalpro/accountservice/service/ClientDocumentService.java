@@ -118,4 +118,18 @@ public class ClientDocumentService {
 
         return docs;
     }
+
+    public List<ClientDocument> getClientDocumentsByCase(UUID caseUuid) {
+        List<ClientDocument> docs = repository.findByCaseUuidAndDeletedAtIsNull(caseUuid);
+
+        for (ClientDocument doc : docs) {
+            String fileUrl = doc.getFileUrl();
+            if (fileUrl != null && fileUrl.startsWith("gs://")) {
+                String withoutScheme = fileUrl.substring("gs://".length());
+                doc.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
+            }
+        }
+
+        return docs;
+    }
 }

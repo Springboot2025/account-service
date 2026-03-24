@@ -2,6 +2,7 @@ package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.dto.admin.*;
+import com.legalpro.accountservice.entity.ClientDocument;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.security.CustomUserDetails;
@@ -10,6 +11,7 @@ import com.legalpro.accountservice.service.DisputeService;
 import com.legalpro.accountservice.service.LegalCaseService;
 import com.legalpro.accountservice.service.SuperAdminService;
 import com.legalpro.accountservice.service.AccountService;
+import com.legalpro.accountservice.service.ClientDocumentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,15 +31,18 @@ public class SuperAdminController {
     private final DisputeService disputeService;
     private final LegalCaseService legalCaseService;
     private final AccountService accountService;
+    private final ClientDocumentService clientDocumentService;
 
     public SuperAdminController(SuperAdminService superAdminService, ContactRequestService contactRequestService,
                                 DisputeService disputeService, LegalCaseService legalCaseService,
-                                AccountService accountService) {
+                                AccountService accountService,
+                                ClientDocumentService clientDocumentService) {
         this.superAdminService = superAdminService;
         this.contactRequestService = contactRequestService;
         this.disputeService = disputeService;
         this.legalCaseService = legalCaseService;
         this.accountService = accountService;
+        this.clientDocumentService = clientDocumentService;
     }
     @GetMapping("/hello")
     public ResponseEntity<ApiResponse<String>> helloSuperAdmin() {
@@ -386,5 +391,13 @@ public class SuperAdminController {
         return ResponseEntity.ok(
                 ApiResponse.success(200, "Client fetched successfully", dto)
         );
+    }
+
+    @GetMapping("/documents/{caseUuid}")
+    public ResponseEntity<ApiResponse<List<ClientDocument>>> getClientDocumentsByCase(
+            @PathVariable UUID caseUuid
+    ) {
+        List<ClientDocument> docs = clientDocumentService.getClientDocumentsByCase(caseUuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
     }
 }

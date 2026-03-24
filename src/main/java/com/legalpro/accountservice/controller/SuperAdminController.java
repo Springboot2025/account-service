@@ -405,7 +405,7 @@ public class SuperAdminController {
         return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
     }
 
-    @GetMapping("/{caseUuid}")
+    @GetMapping("/case-events/{caseUuid}")
     public ResponseEntity<ApiResponse<List<CaseEventDto>>> getCaseEvents(
             @PathVariable UUID caseUuid
     ) {

@@ -17,4 +17,5 @@ public interface CaseEventService {
     void deleteCaseEvent(UUID eventUuid, UUID lawyerUuid);
 
     List<CaseEventDto> getClientUpcomingEvents(UUID clientUuid, Integer limit);
+    List<CaseEventDto> getCaseEvents(UUID caseUuid);
 }

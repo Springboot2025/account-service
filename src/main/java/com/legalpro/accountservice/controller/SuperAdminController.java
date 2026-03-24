@@ -12,6 +12,7 @@ import com.legalpro.accountservice.service.LegalCaseService;
 import com.legalpro.accountservice.service.SuperAdminService;
 import com.legalpro.accountservice.service.AccountService;
 import com.legalpro.accountservice.service.ClientDocumentService;
+import com.legalpro.accountservice.service.CaseEventService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,17 +33,20 @@ public class SuperAdminController {
     private final LegalCaseService legalCaseService;
     private final AccountService accountService;
     private final ClientDocumentService clientDocumentService;
+    private final CaseEventService caseEventService;
 
     public SuperAdminController(SuperAdminService superAdminService, ContactRequestService contactRequestService,
                                 DisputeService disputeService, LegalCaseService legalCaseService,
                                 AccountService accountService,
-                                ClientDocumentService clientDocumentService) {
+                                ClientDocumentService clientDocumentService,
+                                CaseEventService caseEventService) {
         this.superAdminService = superAdminService;
         this.contactRequestService = contactRequestService;
         this.disputeService = disputeService;
         this.legalCaseService = legalCaseService;
         this.accountService = accountService;
         this.clientDocumentService = clientDocumentService;
+        this.caseEventService = caseEventService;
     }
     @GetMapping("/hello")
     public ResponseEntity<ApiResponse<String>> helloSuperAdmin() {
@@ -399,5 +403,16 @@ public class SuperAdminController {
     ) {
         List<ClientDocument> docs = clientDocumentService.getClientDocumentsByCase(caseUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
+    }
+
+    @GetMapping("/{caseUuid}")
+    public ResponseEntity<ApiResponse<List<CaseEventDto>>> getCaseEvents(
+            @PathVariable UUID caseUuid
+    ) {
+        List<CaseEventDto> response = caseEventService.getCaseEvents(caseUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(200, "Case events fetched successfully", response)
+        );
     }
 }

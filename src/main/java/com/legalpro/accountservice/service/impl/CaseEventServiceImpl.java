@@ -96,6 +96,16 @@ public class CaseEventServiceImpl implements CaseEventService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<CaseEventDto> getCaseEvents(UUID caseUuid) {
+        return caseEventRepository
+                .findAllByCaseUuidAndDeletedAtIsNullOrderByEventDateDesc(caseUuid)
+                .stream()
+                .map(caseEventMapper::toDto)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<CaseEventDto> getClientCaseEvents(UUID caseUuid, UUID clientUuid) {
 
         LegalCase legalCase = legalCaseRepository.findByUuid(caseUuid)

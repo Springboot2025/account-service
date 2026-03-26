@@ -53,6 +53,13 @@ public class Account {
     @Enumerated(EnumType.STRING)
     private AccountStatus accountStatus = AccountStatus.ACTIVE;
 
+    @PrePersist
+    public void prePersist() {
+        if (accountStatus == null) {
+            accountStatus = AccountStatus.ACTIVE;
+        }
+    }
+
     @Column(name = "verification_token")
     private UUID verificationToken;
 

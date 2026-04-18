@@ -182,7 +182,6 @@ public class LawyerController {
 
     @GetMapping("/firmusers")
     public ResponseEntity<ApiResponse<AdminUserListResponse>> getFirmUsers(
-            @RequestParam(defaultValue = "ALL") String type,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String location,
@@ -195,7 +194,7 @@ public class LawyerController {
                 ApiResponse.success(
                         200,
                         "Users fetched successfully",
-                        accountService.getFormUsers(type, search, status, location, sort, page, size, userDetails)
+                        accountService.getFormUsers(search, status, location, sort, page, size, userDetails)
                 )
         );
     }

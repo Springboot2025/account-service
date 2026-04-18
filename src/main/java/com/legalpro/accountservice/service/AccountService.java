@@ -893,7 +893,6 @@ public class AccountService {
     }
 
     public AdminUserListResponse getFormUsers(
-            String type,
             String search,
             String status,
             String location,
@@ -903,6 +902,7 @@ public class AccountService {
             CustomUserDetails userDetails
     ) {
         Sort sortOrder;
+        String type = "LAWYER";
 
         Account account = accountRepository.findByUuid(userDetails.getUuid())
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -933,17 +933,6 @@ public class AccountService {
         Page<Account> accounts;
 
         switch (type.toUpperCase()) {
-
-            case "CLIENT":
-                accounts = accountRepository.findAll(
-                        (root, query, cb) -> cb.and(
-                                cb.equal(root.join("roles").get("name"), "Client"),
-                                buildSearchPredicate(root, cb, search)
-                        ),
-                        pageable
-                );
-                break;
-
             case "LAWYER":
                 accounts = accountRepository.findAll(
                         (root, query, cb) -> {
@@ -958,16 +947,6 @@ public class AccountService {
 
                             return cb.and(predicates.toArray(new Predicate[0]));
                         },
-                        pageable
-                );
-                break;
-
-            case "FIRM":
-                accounts = accountRepository.findAll(
-                        (root, query, cb) -> cb.and(
-                                cb.isTrue(root.get("isCompany")),
-                                buildSearchPredicate(root, cb, search)
-                        ),
                         pageable
                 );
                 break;

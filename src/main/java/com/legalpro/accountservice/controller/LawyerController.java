@@ -3,6 +3,9 @@ package com.legalpro.accountservice.controller;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.ClientFullResponseDto;
 import com.legalpro.accountservice.dto.LawyerDto;
+import com.legalpro.accountservice.dto.admin.FirmDashboardSummaryDto;
+import com.legalpro.accountservice.dto.admin.InvitationListResponse;
+import com.legalpro.accountservice.dto.admin.InvitationSummaryDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.mapper.AccountMapper;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
@@ -118,5 +121,61 @@ public class LawyerController {
         );
     }
 
+    @GetMapping("/invitations")
+    public ResponseEntity<ApiResponse<InvitationListResponse>> getInvitations(
+            @RequestParam(required = false, defaultValue = "ALL") String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Invitations fetched successfully",
+                        accountService.getInvitations(status, page, size, userDetails)
+                )
+        );
+    }
 
+    @GetMapping("/invitations/summary")
+    public ResponseEntity<ApiResponse<InvitationSummaryDto>> getInvitationSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Invitation summary fetched successfully",
+                        accountService.getInvitationSummary(userDetails)
+                )
+        );
+    }
+
+    @DeleteMapping("/invitations/{inviteUuid}")
+    public ResponseEntity<ApiResponse<String>> cancelInvitation(
+            @PathVariable UUID inviteUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        accountService.cancelInvitation(inviteUuid, userDetails);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Invitation cancelled successfully",
+                        null
+                )
+        );
+    }
+
+    @GetMapping("/firm/summary")
+    public ResponseEntity<ApiResponse<FirmDashboardSummaryDto>> getFirmSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Firm summary fetched successfully",
+                        accountService.getFirmSummary(userDetails)
+                )
+        );
+    }
 }

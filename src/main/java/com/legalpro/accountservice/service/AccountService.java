@@ -3,13 +3,25 @@ package com.legalpro.accountservice.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legalpro.accountservice.dto.*;
+import com.legalpro.accountservice.dto.admin.FirmDashboardSummaryDto;
+import com.legalpro.accountservice.dto.admin.InvitationDto;
+import com.legalpro.accountservice.dto.admin.InvitationListResponse;
+import com.legalpro.accountservice.dto.admin.InvitationSummaryDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Company;
 import com.legalpro.accountservice.entity.CompanyInvite;
 import com.legalpro.accountservice.entity.Role;
+import com.legalpro.accountservice.enums.AccountStatus;
 import com.legalpro.accountservice.mapper.AccountMapper;
 import com.legalpro.accountservice.repository.*;
+import com.legalpro.accountservice.security.CustomUserDetails;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,10 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,6 +51,7 @@ public class AccountService {
     private final QuoteRepository quoteRepository;
 
     private final LawyerRatingRepository lawyerRatingRepository;
+    private final LegalCaseRepository legalCaseRepository;
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
     public AccountService(AccountRepository accountRepository,
@@ -55,7 +65,8 @@ public class AccountService {
                           CourtSupportMaterialRepository courtSupportMaterialRepository,
                           ClientDocumentRepository clientDocumentRepository,
                           QuoteRepository quoteRepository,
-                          LawyerRatingRepository lawyerRatingRepository) {
+                          LawyerRatingRepository lawyerRatingRepository,
+                          LegalCaseRepository legalCaseRepository) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
@@ -68,6 +79,7 @@ public class AccountService {
         this.clientDocumentRepository = clientDocumentRepository;
         this.quoteRepository = quoteRepository;
         this.lawyerRatingRepository = lawyerRatingRepository;
+        this.legalCaseRepository = legalCaseRepository;
     }
 
     public Account register(RegisterRequest request) throws IOException {
@@ -696,5 +708,188 @@ public class AccountService {
         String last  = pd.hasNonNull("lastName")  ? pd.get("lastName").asText()  : "";
 
         return (first + " " + last).trim();
+    }
+
+    public InvitationSummaryDto getInvitationSummary(CustomUserDetails userDetails) {
+        LocalDateTime now = LocalDateTime.now();
+
+        Account account = accountRepository.findByUuid(userDetails.getUuid())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UUID companyUuid = account.isCompany()
+                ? account.getUuid()
+                : account.getCompanyUuid();
+
+        long totalSent = companyInviteRepository.countByCompanyUuid(companyUuid);
+
+        long accepted = companyInviteRepository.countByCompanyUuidAndUsedTrue(companyUuid);
+
+        long pending = companyInviteRepository
+                .countByCompanyUuidAndUsedFalseAndExpiresAtAfter(companyUuid, now);
+
+        long expired = companyInviteRepository
+                .countByCompanyUuidAndUsedFalseAndExpiresAtBefore(companyUuid, now);
+
+        long declined = 0;
+
+        return InvitationSummaryDto.builder()
+                .totalSent(totalSent)
+                .pending(pending)
+                .accepted(accepted)
+                .declined(declined)
+                .expired(expired)
+                .build();
+    }
+
+    public InvitationListResponse getInvitations(
+            String status,
+            int page,
+            int size,
+            CustomUserDetails userDetails
+    ) {
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by("createdAt").descending()
+        );
+
+        Account account = accountRepository.findByUuid(userDetails.getUuid())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UUID companyUuid = account.isCompany()
+                ? account.getUuid()
+                : account.getCompanyUuid();
+
+        LocalDateTime now = LocalDateTime.now();
+
+        Specification<CompanyInvite> spec = (root, query, cb) -> {
+
+            List<Predicate> predicates = new ArrayList<>();
+
+            // company filter
+            predicates.add(cb.equal(root.get("companyUuid"), companyUuid));
+
+            // status filter
+            switch (status.toUpperCase()) {
+
+                case "PENDING":
+                    predicates.add(cb.isFalse(root.get("used")));
+                    predicates.add(cb.greaterThan(root.get("expiresAt"), now));
+                    break;
+
+                case "ACCEPTED":
+                    predicates.add(cb.isTrue(root.get("used")));
+                    break;
+
+                case "EXPIRED":
+                    predicates.add(cb.isFalse(root.get("used")));
+                    predicates.add(cb.lessThan(root.get("expiresAt"), now));
+                    break;
+
+                case "DECLINED":
+                    // placeholder → return empty
+                    predicates.add(cb.disjunction());
+                    break;
+
+                default:
+                    // ALL → no extra filter
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<CompanyInvite> invitePage = companyInviteRepository.findAll(spec, pageable);
+
+        List<InvitationDto> content = invitePage.getContent()
+                .stream()
+                .map(invite -> mapToInvitationDto(invite, now))
+                .toList();
+
+        return InvitationListResponse.builder()
+                .content(content)
+                .page(invitePage.getNumber())
+                .size(invitePage.getSize())
+                .totalElements(invitePage.getTotalElements())
+                .totalPages(invitePage.getTotalPages())
+                .build();
+    }
+
+    private InvitationDto mapToInvitationDto(CompanyInvite invite, LocalDateTime now) {
+
+        String status;
+
+        if (invite.isUsed()) {
+            status = "ACCEPTED";
+        } else if (invite.getExpiresAt().isBefore(now)) {
+            status = "EXPIRED";
+        } else {
+            status = "PENDING";
+        }
+
+        return InvitationDto.builder()
+                .uuid(invite.getUuid())
+                .email(invite.getEmail())
+                .status(status)
+                .sentAt(invite.getCreatedAt())
+                .expiresAt(invite.getExpiresAt())
+                .usedAt(invite.getUsedAt())
+                .role("Associate") // placeholder
+                .specialization("N/A") // placeholder
+                .build();
+    }
+
+    public void cancelInvitation(UUID inviteUuid, CustomUserDetails userDetails) {
+
+        Account account = accountRepository.findByUuid(userDetails.getUuid())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UUID companyUuid = account.isCompany()
+                ? account.getUuid()
+                : account.getCompanyUuid();
+
+        CompanyInvite invite = companyInviteRepository.findByUuid(inviteUuid)
+                .orElseThrow(() -> new RuntimeException("Invitation not found"));
+
+        if (!invite.getCompanyUuid().equals(companyUuid)) {
+            throw new RuntimeException("Not allowed");
+        }
+
+        if (invite.isUsed()) {
+            throw new RuntimeException("Cannot cancel accepted invitation");
+        }
+
+        companyInviteRepository.delete(invite);
+    }
+
+    public FirmDashboardSummaryDto getFirmSummary(CustomUserDetails userDetails) {
+        Account account = accountRepository.findByUuid(userDetails.getUuid())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UUID companyUuid = account.isCompany()
+                ? account.getUuid()
+                : account.getCompanyUuid();
+
+        long activeLawyers = accountRepository.count(
+                (root, query, cb) -> {
+                    query.distinct(true);
+                    return cb.and(
+                            cb.equal(root.join("roles").get("name"), "Lawyer"),
+                            cb.isFalse(root.get("isCompany")),
+                            cb.equal(root.get("companyUuid"), companyUuid),
+                            cb.equal(root.get("accountStatus"), AccountStatus.ACTIVE)
+                    );
+                }
+        );
+
+        long totalCases = legalCaseRepository.countCasesByCompanyUuid(companyUuid);
+        long pendingInvites = companyInviteRepository.countByCompanyUuidAndUsedFalse(companyUuid);
+
+        return FirmDashboardSummaryDto.builder()
+                .activeLawyers(activeLawyers)
+                .totalCases(totalCases)
+                .pendingInvites(pendingInvites)
+                .performance(0.0)
+                .build();
     }
 }

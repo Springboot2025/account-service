@@ -417,16 +417,9 @@ public class SuperAdminController {
         );
     }
 
-    @GetMapping("/firm/summary")
-    public ResponseEntity<ApiResponse<FirmDashboardSummaryDto>> getFirmSummary(
-            @RequestParam UUID companyUuid
-    ) {
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        200,
-                        "Firm summary fetched successfully",
-                        superAdminService.getFirmSummary(companyUuid)
-                )
-        );
-    }
+
+
+
+
+
 }

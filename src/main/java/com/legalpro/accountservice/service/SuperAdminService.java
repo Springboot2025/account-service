@@ -1021,28 +1021,7 @@ public class SuperAdminService {
         );
     }
 
-    public FirmDashboardSummaryDto getFirmSummary(UUID companyUuid) {
 
-        long activeLawyers = accountRepository.count(
-                (root, query, cb) -> {
-                    query.distinct(true);
-                    return cb.and(
-                            cb.equal(root.join("roles").get("name"), "Lawyer"),
-                            cb.isFalse(root.get("isCompany")),
-                            cb.equal(root.get("companyUuid"), companyUuid),
-                            cb.equal(root.get("accountStatus"), AccountStatus.ACTIVE)
-                    );
-                }
-        );
 
-        long totalCases = legalCaseRepository.countCasesByCompanyUuid(companyUuid);
-        long pendingInvites = companyInviteRepository.countByCompanyUuidAndUsedFalse(companyUuid);
 
-        return FirmDashboardSummaryDto.builder()
-                .activeLawyers(activeLawyers)
-                .totalCases(totalCases)
-                .pendingInvites(pendingInvites)
-                .performance(0.0)
-                .build();
-    }
 }

@@ -717,8 +717,8 @@ public class AccountService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         UUID companyUuid = account.isCompany()
-                ? account.getUuid()
-                : account.getCompanyUuid();
+                ? account.getCompanyUuid()
+                : account.getUuid();
 
         long totalSent = companyInviteRepository.countByCompanyUuid(companyUuid);
 
@@ -758,8 +758,8 @@ public class AccountService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         UUID companyUuid = account.isCompany()
-                ? account.getUuid()
-                : account.getCompanyUuid();
+                ? account.getCompanyUuid()
+                : account.getUuid();
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -845,8 +845,8 @@ public class AccountService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         UUID companyUuid = account.isCompany()
-                ? account.getUuid()
-                : account.getCompanyUuid();
+                ? account.getCompanyUuid()
+                : account.getUuid();
 
         CompanyInvite invite = companyInviteRepository.findByUuid(inviteUuid)
                 .orElseThrow(() -> new RuntimeException("Invitation not found"));
@@ -867,8 +867,8 @@ public class AccountService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         UUID companyUuid = account.isCompany()
-                ? account.getUuid()
-                : account.getCompanyUuid();
+                ? account.getCompanyUuid()
+                : account.getUuid();
 
         long activeLawyers = accountRepository.count(
                 (root, query, cb) -> {

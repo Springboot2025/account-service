@@ -43,6 +43,7 @@ public class SuperAdminService {
     private final SystemSettingRepository systemSettingRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final ActivityLogRepository activityLogRepository;
+    private final CompanyInviteRepository companyInviteRepository;
 
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com/legalpro";
     public List<AccountDto> getUsersByType(String userType) {
@@ -234,7 +235,8 @@ public class SuperAdminService {
             String location,
             String sort,
             int page,
-            int size
+            int size,
+            UUID companyUuid
     ) {
         Sort sortOrder;
 
@@ -273,11 +275,18 @@ public class SuperAdminService {
 
             case "LAWYER":
                 accounts = accountRepository.findAll(
-                        (root, query, cb) -> cb.and(
-                                cb.equal(root.join("roles").get("name"), "Lawyer"),
-                                cb.isFalse(root.get("isCompany")),
-                                buildSearchPredicate(root, cb, search)
-                        ),
+                        (root, query, cb) -> {
+                            List<Predicate> predicates = new ArrayList<>();
+                            predicates.add(cb.equal(root.join("roles").get("name"), "Lawyer"));
+                            predicates.add(cb.isFalse(root.get("isCompany")));
+                            predicates.add(buildSearchPredicate(root, cb, search));
+
+                            if (companyUuid != null) {
+                                predicates.add(cb.equal(root.get("companyUuid"), companyUuid));
+                            }
+
+                            return cb.and(predicates.toArray(new Predicate[0]));
+                        },
                         pageable
                 );
                 break;
@@ -1010,5 +1019,30 @@ public class SuperAdminService {
                         like
                 )
         );
+    }
+
+    public FirmDashboardSummaryDto getFirmSummary(UUID companyUuid) {
+
+        long activeLawyers = accountRepository.count(
+                (root, query, cb) -> {
+                    query.distinct(true);
+                    return cb.and(
+                            cb.equal(root.join("roles").get("name"), "Lawyer"),
+                            cb.isFalse(root.get("isCompany")),
+                            cb.equal(root.get("companyUuid"), companyUuid),
+                            cb.equal(root.get("accountStatus"), AccountStatus.ACTIVE)
+                    );
+                }
+        );
+
+        long totalCases = legalCaseRepository.countCasesByCompanyUuid(companyUuid);
+        long pendingInvites = companyInviteRepository.countByCompanyUuidAndUsedFalse(companyUuid);
+
+        return FirmDashboardSummaryDto.builder()
+                .activeLawyers(activeLawyers)
+                .totalCases(totalCases)
+                .pendingInvites(pendingInvites)
+                .performance(0.0)
+                .build();
     }
 }

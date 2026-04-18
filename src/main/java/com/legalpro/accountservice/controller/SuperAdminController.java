@@ -168,13 +168,14 @@ public class SuperAdminController {
             @RequestParam(required = false) String location,
             @RequestParam(defaultValue = "NEWEST") String sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) UUID companyUuid
     ) {
         return ResponseEntity.ok(
                 ApiResponse.success(
                         200,
                         "Users fetched successfully",
-                        superAdminService.getUsers(type, search, status, location, sort, page, size)
+                        superAdminService.getUsers(type, search, status, location, sort, page, size, companyUuid)
                 )
         );
     }
@@ -413,6 +414,19 @@ public class SuperAdminController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(200, "Case events fetched successfully", response)
+        );
+    }
+
+    @GetMapping("/firm/summary")
+    public ResponseEntity<ApiResponse<FirmDashboardSummaryDto>> getFirmSummary(
+            @RequestParam UUID companyUuid
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Firm summary fetched successfully",
+                        superAdminService.getFirmSummary(companyUuid)
+                )
         );
     }
 }

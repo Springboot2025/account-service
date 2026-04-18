@@ -257,4 +257,18 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long>,
 
     @EntityGraph(attributePaths = {"status", "caseType"})
     Page<LegalCase> findAll(Specification<LegalCase> spec, Pageable pageable);
+
+    @Query("""
+        SELECT COUNT(c)
+        FROM LegalCase c
+        WHERE c.lawyerUuid IN (
+            SELECT a.uuid
+            FROM Account a
+            JOIN a.roles r
+            WHERE r.name = 'Lawyer'
+            AND a.isCompany = false
+            AND a.companyUuid = :companyUuid
+        )
+    """)
+    long countCasesByCompanyUuid(@Param("companyUuid") UUID companyUuid);
 }

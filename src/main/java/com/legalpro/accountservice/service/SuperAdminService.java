@@ -235,8 +235,7 @@ public class SuperAdminService {
             String location,
             String sort,
             int page,
-            int size,
-            UUID companyUuid
+            int size
     ) {
         Sort sortOrder;
 
@@ -275,18 +274,11 @@ public class SuperAdminService {
 
             case "LAWYER":
                 accounts = accountRepository.findAll(
-                        (root, query, cb) -> {
-                            List<Predicate> predicates = new ArrayList<>();
-                            predicates.add(cb.equal(root.join("roles").get("name"), "Lawyer"));
-                            predicates.add(cb.isFalse(root.get("isCompany")));
-                            predicates.add(buildSearchPredicate(root, cb, search));
-
-                            if (companyUuid != null) {
-                                predicates.add(cb.equal(root.get("companyUuid"), companyUuid));
-                            }
-
-                            return cb.and(predicates.toArray(new Predicate[0]));
-                        },
+                        (root, query, cb) -> cb.and(
+                                cb.equal(root.join("roles").get("name"), "Lawyer"),
+                                cb.isFalse(root.get("isCompany")),
+                                buildSearchPredicate(root, cb, search)
+                        ),
                         pageable
                 );
                 break;
@@ -1020,8 +1012,5 @@ public class SuperAdminService {
                 )
         );
     }
-
-
-
 
 }

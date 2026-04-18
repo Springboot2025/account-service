@@ -3,6 +3,7 @@ package com.legalpro.accountservice.controller;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.ClientFullResponseDto;
 import com.legalpro.accountservice.dto.LawyerDto;
+import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
 import com.legalpro.accountservice.dto.admin.FirmDashboardSummaryDto;
 import com.legalpro.accountservice.dto.admin.InvitationListResponse;
 import com.legalpro.accountservice.dto.admin.InvitationSummaryDto;
@@ -175,6 +176,26 @@ public class LawyerController {
                         200,
                         "Firm summary fetched successfully",
                         accountService.getFirmSummary(userDetails)
+                )
+        );
+    }
+
+    @GetMapping("/firmusers")
+    public ResponseEntity<ApiResponse<AdminUserListResponse>> getFirmUsers(
+            @RequestParam(defaultValue = "ALL") String type,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String location,
+            @RequestParam(defaultValue = "NEWEST") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Users fetched successfully",
+                        accountService.getFormUsers(type, search, status, location, sort, page, size, userDetails)
                 )
         );
     }

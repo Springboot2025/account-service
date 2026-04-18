@@ -168,14 +168,13 @@ public class SuperAdminController {
             @RequestParam(required = false) String location,
             @RequestParam(defaultValue = "NEWEST") String sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) UUID companyUuid
+            @RequestParam(defaultValue = "10") int size
     ) {
         return ResponseEntity.ok(
                 ApiResponse.success(
                         200,
                         "Users fetched successfully",
-                        superAdminService.getUsers(type, search, status, location, sort, page, size, companyUuid)
+                        superAdminService.getUsers(type, search, status, location, sort, page, size)
                 )
         );
     }

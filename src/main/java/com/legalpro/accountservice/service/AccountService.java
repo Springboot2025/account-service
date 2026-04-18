@@ -3,10 +3,7 @@ package com.legalpro.accountservice.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legalpro.accountservice.dto.*;
-import com.legalpro.accountservice.dto.admin.FirmDashboardSummaryDto;
-import com.legalpro.accountservice.dto.admin.InvitationDto;
-import com.legalpro.accountservice.dto.admin.InvitationListResponse;
-import com.legalpro.accountservice.dto.admin.InvitationSummaryDto;
+import com.legalpro.accountservice.dto.admin.*;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Company;
 import com.legalpro.accountservice.entity.CompanyInvite;
@@ -15,7 +12,9 @@ import com.legalpro.accountservice.enums.AccountStatus;
 import com.legalpro.accountservice.mapper.AccountMapper;
 import com.legalpro.accountservice.repository.*;
 import com.legalpro.accountservice.security.CustomUserDetails;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -891,5 +890,280 @@ public class AccountService {
                 .pendingInvites(pendingInvites)
                 .performance(0.0)
                 .build();
+    }
+
+    public AdminUserListResponse getFormUsers(
+            String type,
+            String search,
+            String status,
+            String location,
+            String sort,
+            int page,
+            int size,
+            CustomUserDetails userDetails
+    ) {
+        Sort sortOrder;
+
+        Account account = accountRepository.findByUuid(userDetails.getUuid())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UUID companyUuid = account.isCompany()
+                ? account.getCompanyUuid()
+                : account.getUuid();
+
+        switch (sort.toUpperCase()) {
+            case "OLDEST":
+                sortOrder = Sort.by("createdAt").ascending();
+                break;
+
+            case "NAME":
+                sortOrder = Sort.by("email").ascending();
+                break;
+
+            case "MOST_ACTIVE":
+                sortOrder = Sort.by("createdAt").descending(); // placeholder
+                break;
+
+            default:
+                sortOrder = Sort.by("createdAt").descending(); // NEWEST
+        }
+
+        Pageable pageable = PageRequest.of(page, size, sortOrder);
+
+        Page<Account> accounts;
+
+        switch (type.toUpperCase()) {
+
+            case "CLIENT":
+                accounts = accountRepository.findAll(
+                        (root, query, cb) -> cb.and(
+                                cb.equal(root.join("roles").get("name"), "Client"),
+                                buildSearchPredicate(root, cb, search)
+                        ),
+                        pageable
+                );
+                break;
+
+            case "LAWYER":
+                accounts = accountRepository.findAll(
+                        (root, query, cb) -> {
+                            List<Predicate> predicates = new ArrayList<>();
+                            predicates.add(cb.equal(root.join("roles").get("name"), "Lawyer"));
+                            predicates.add(cb.isFalse(root.get("isCompany")));
+                            predicates.add(buildSearchPredicate(root, cb, search));
+
+                            if (companyUuid != null) {
+                                predicates.add(cb.equal(root.get("companyUuid"), companyUuid));
+                            }
+
+                            return cb.and(predicates.toArray(new Predicate[0]));
+                        },
+                        pageable
+                );
+                break;
+
+            case "FIRM":
+                accounts = accountRepository.findAll(
+                        (root, query, cb) -> cb.and(
+                                cb.isTrue(root.get("isCompany")),
+                                buildSearchPredicate(root, cb, search)
+                        ),
+                        pageable
+                );
+                break;
+            default:
+                accounts = accountRepository.findAll(
+                        (root, query, cb) -> {
+
+                            if (search == null || search.isBlank()) {
+                                return cb.conjunction();
+                            }
+
+                            String like = "%" + search.toLowerCase() + "%";
+
+                            return cb.or(
+                                    cb.like(cb.lower(root.get("email")), like),
+                                    cb.like(
+                                            cb.lower(cb.function(
+                                                    "jsonb_extract_path_text",
+                                                    String.class,
+                                                    root.get("personalDetails"),
+                                                    cb.literal("firstName")
+                                            )),
+                                            like
+                                    ),
+                                    cb.like(
+                                            cb.lower(cb.function(
+                                                    "jsonb_extract_path_text",
+                                                    String.class,
+                                                    root.get("personalDetails"),
+                                                    cb.literal("lastName")
+                                            )),
+                                            like
+                                    )
+                            );
+                        },
+                        pageable
+                );
+        }
+
+        List<AdminUserDto> users = accounts.getContent()
+                .stream()
+                .map(this::mapToAdminUserDto)
+                .toList();
+
+        return AdminUserListResponse.builder()
+                .users(users)
+                .page(accounts.getNumber())
+                .size(accounts.getSize())
+                .totalElements(accounts.getTotalElements())
+                .totalPages(accounts.getTotalPages())
+                .build();
+    }
+
+    private AdminUserDto mapToAdminUserDto(Account account) {
+
+        String name = "";
+
+        if (account.getPersonalDetails() != null) {
+            String firstName = account.getPersonalDetails().path("firstName").asText("");
+            String lastName = account.getPersonalDetails().path("lastName").asText("");
+            name = (firstName + " " + lastName).trim();
+        }
+
+        String role = account.getRoles()
+                .stream()
+                .findFirst()
+                .map(r -> r.getName())
+                .orElse("");
+
+        if (Boolean.TRUE.equals(account.isCompany())) {
+            role = "Firm";
+        }
+
+        String profilePictureUrl = convertGcsUrl(account.getProfilePictureUrl());
+
+        String location = "";
+
+        if (account.getAddressDetails() != null) {
+
+            String city =
+                    account.getAddressDetails()
+                            .path("city_suburb")
+                            .asText("");
+
+            String state =
+                    account.getAddressDetails()
+                            .path("state_province")
+                            .asText("");
+
+            location = (city + ", " + state).trim();
+        }
+
+        String status = account.isActive() ? "Active" : "Inactive";
+        AccountStatus accountStatus = account.getAccountStatus();
+
+        String specialization = "";
+
+        if (account.getProfessionalDetails() != null) {
+            specialization = account.getProfessionalDetails()
+                    .path("practiceArea")
+                    .asText("");
+        }
+
+        LocalDateTime joinedAt = account.getCreatedAt();
+
+        int lawyerCount = 0;
+
+        if (Boolean.TRUE.equals(account.isCompany())) {
+            lawyerCount = accountRepository.countByCompanyUuid(account.getUuid());
+
+            if (lawyerCount == 0) {
+                lawyerCount = 1;
+            }
+        }
+
+        double rating = 0;
+
+        boolean isLawyer =
+                account.getRoles()
+                        .stream()
+                        .anyMatch(r -> r.getName().equalsIgnoreCase("Lawyer"));
+
+        if (isLawyer && !Boolean.TRUE.equals(account.isCompany())) {
+
+            BigDecimal avgRating =
+                    lawyerRatingRepository.findAverageRatingByLawyerUuid(account.getUuid());
+
+            rating = avgRating != null ? avgRating.doubleValue() : 0;
+        }
+
+        int cases = 0;
+
+        boolean isClient =
+                account.getRoles()
+                        .stream()
+                        .anyMatch(r -> r.getName().equalsIgnoreCase("Client"));
+
+        if (isClient) {
+            cases = (int) legalCaseRepository.countByClientUuid(account.getUuid());
+        }
+
+        if (isLawyer && !Boolean.TRUE.equals(account.isCompany())) {
+            cases = (int) legalCaseRepository.countByLawyerUuid(account.getUuid());
+        }
+
+        if (account.isCompany()) {
+            cases = (int) legalCaseRepository.countCompanyCases(account.getUuid());
+        }
+
+        return AdminUserDto.builder()
+                .uuid(account.getUuid())
+                .name(name)
+                .email(account.getEmail())
+                .role(role)
+                .location(location)
+                .status(status)
+                .accountStatus(accountStatus)
+                .cases(cases)
+                .rating(rating)
+                .spent(0)
+                .earned(0)
+                .specialization(specialization)
+                .joinedAt(joinedAt)
+                .lawyerCount(lawyerCount)
+                .profilePictureUrl(profilePictureUrl)
+                .build();
+    }
+
+    private Predicate buildSearchPredicate(Root<Account> root, CriteriaBuilder cb, String search) {
+
+        if (search == null || search.isBlank()) {
+            return cb.conjunction();
+        }
+
+        String like = "%" + search.toLowerCase() + "%";
+
+        return cb.or(
+                cb.like(cb.lower(root.get("email")), like),
+                cb.like(
+                        cb.lower(cb.function(
+                                "jsonb_extract_path_text",
+                                String.class,
+                                root.get("personalDetails"),
+                                cb.literal("firstName")
+                        )),
+                        like
+                ),
+                cb.like(
+                        cb.lower(cb.function(
+                                "jsonb_extract_path_text",
+                                String.class,
+                                root.get("personalDetails"),
+                                cb.literal("lastName")
+                        )),
+                        like
+                )
+        );
     }
 }

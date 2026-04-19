@@ -169,7 +169,7 @@ public class LawyerController {
     }
 
     @GetMapping("/firm/summary")
-    public ResponseEntity<ApiResponse<FirmSummaryDto>> getFirmSummary(
+    public ResponseEntity<ApiResponse<FirmDashboardSummaryDto>> getFirmSummary(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         return ResponseEntity.ok(
@@ -258,19 +258,6 @@ public class LawyerController {
                         200,
                         "Firm clients summary fetched successfully",
                         accountService.getFirmClientsSummary(userDetails)
-                )
-        );
-    }
-
-    @GetMapping("/firm/dashboard/summary")
-    public ResponseEntity<ApiResponse<FirmDashboardSummaryDto>> getFirmDashboardSummary(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        200,
-                        "Firm summary fetched successfully",
-                        accountService.getFirmDashboardSummary(userDetails)
                 )
         );
     }

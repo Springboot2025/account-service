@@ -194,4 +194,13 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
 
     List<Account> findAllByUuidIn(Set<UUID> uuids);
     List<Account> findAllByCompanyUuid(UUID companyUuid);
+
+    Page<Account> findAllByUuidIn(List<UUID> uuids, Pageable pageable);
+
+    @Query("""
+    SELECT COUNT(a) FROM Account a
+    WHERE a.uuid IN :clientUuids
+    AND a.createdAt >= :startOfMonth
+""")
+    long countClientsCreatedThisMonth(List<UUID> clientUuids, LocalDateTime startOfMonth);
 }

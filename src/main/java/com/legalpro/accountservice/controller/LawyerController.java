@@ -231,4 +231,34 @@ public class LawyerController {
                 )
         );
     }
+
+    @GetMapping("/firmclients")
+    public ResponseEntity<ApiResponse<ClientListResponseDto>> getFirmClients(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String filter,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Firm clients fetched successfully",
+                        accountService.getFirmClients(search, filter, page, size, userDetails)
+                )
+        );
+    }
+
+    @GetMapping("/firmclients/summary")
+    public ResponseEntity<ApiResponse<FirmClientsSummaryDto>> getFirmClientsSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Firm clients summary fetched successfully",
+                        accountService.getFirmClientsSummary(userDetails)
+                )
+        );
+    }
 }

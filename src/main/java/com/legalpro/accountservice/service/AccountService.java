@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.dto.admin.*;
+import com.legalpro.accountservice.dto.admin.ClientDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Company;
 import com.legalpro.accountservice.entity.CompanyInvite;
@@ -32,6 +33,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
@@ -1239,6 +1241,82 @@ public class AccountService {
         }
 
         return account.getCompanyUuid();
+    }
+
+    public ClientListResponseDto getFirmClients(
+            String search,
+            String filter,
+            int page,
+            int size,
+            CustomUserDetails userDetails
+    ) {
+
+        UUID companyUuid = resolveCompanyUuid(userDetails);
+
+        List<UUID> lawyerUuids = accountRepository.findAllByCompanyUuid(companyUuid)
+                .stream()
+                .map(Account::getUuid)
+                .toList();
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        // Step 1: Get client UUIDs from cases
+        List<UUID> clientUuids = legalCaseRepository.findDistinctClientUuidsByLawyerUuidIn(lawyerUuids);
+
+        // Step 2: Fetch client accounts
+        Page<Account> clients = accountRepository.findAllByUuidIn(clientUuids, pageable);
+
+        List<ClientDto> content = clients.getContent().stream().map(client -> {
+
+            int activeCases = (int) legalCaseRepository
+                    .countByClientUuidAndLawyerUuidIn(client.getUuid(), lawyerUuids);
+
+            return ClientDto.builder()
+                    .uuid(client.getUuid())
+                    .name(extractFullName(client))
+                    .email(client.getEmail())
+                    .phone(extractPhone(client))
+                    .activeCases(activeCases)
+                    .build();
+        }).toList();
+
+        return ClientListResponseDto.builder()
+                .content(content)
+                .page(clients.getNumber())
+                .size(clients.getSize())
+                .totalElements(clients.getTotalElements())
+                .totalPages(clients.getTotalPages())
+                .build();
+    }
+
+    public FirmClientsSummaryDto getFirmClientsSummary(CustomUserDetails userDetails) {
+
+        UUID companyUuid = resolveCompanyUuid(userDetails);
+
+        List<UUID> lawyerUuids = accountRepository.findAllByCompanyUuid(companyUuid)
+                .stream()
+                .map(Account::getUuid)
+                .toList();
+
+        List<UUID> clientUuids = legalCaseRepository.findDistinctClientUuidsByLawyerUuidIn(lawyerUuids);
+
+        long totalClients = clientUuids.size();
+
+        long activeCases = legalCaseRepository.countByLawyerUuidIn(lawyerUuids);
+
+        LocalDateTime startOfMonth = LocalDate.now()
+                .withDayOfMonth(1)
+                .atStartOfDay();
+
+        long newThisMonth = accountRepository
+                .countClientsCreatedThisMonth(clientUuids, startOfMonth);
+
+        return FirmClientsSummaryDto.builder()
+                .totalClients(totalClients)
+                .activeCases(activeCases)
+                .newThisMonth(newThisMonth)
+                .totalRevenue(0) // placeholder
+                .build();
     }
 
     public FirmCasesSummaryDto getFirmCasesSummary(CustomUserDetails userDetails) {

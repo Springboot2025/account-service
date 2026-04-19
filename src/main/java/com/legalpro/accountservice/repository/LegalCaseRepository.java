@@ -277,4 +277,9 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long>,
     long countByLawyerUuidInAndStatus_Name(List<UUID> lawyerUuids, String status);
 
     long countByLawyerUuidIsNull();
+
+    @Query("SELECT DISTINCT c.clientUuid FROM LegalCase c WHERE c.lawyerUuid IN :lawyerUuids")
+    List<UUID> findDistinctClientUuidsByLawyerUuidIn(List<UUID> lawyerUuids);
+
+    long countByClientUuidAndLawyerUuidIn(UUID clientUuid, List<UUID> lawyerUuids);
 }

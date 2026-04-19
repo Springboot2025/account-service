@@ -7,7 +7,7 @@ import lombok.Setter;
 @Builder
 @Getter
 @Setter
-public class FirmDashboardSummaryDto {
+public class FirmSummaryDto {
     private long totalLawyers;
     private long activeCases;
     private long totalClients;

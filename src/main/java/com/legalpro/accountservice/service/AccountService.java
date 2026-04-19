@@ -876,7 +876,7 @@ public class AccountService {
                 ? account.getCompanyUuid()
                 : account.getUuid();
 
-        long activeLawyers = accountRepository.count(
+        long totalLawyers = accountRepository.count(
                 (root, query, cb) -> {
                     query.distinct(true);
                     return cb.and(
@@ -888,13 +888,14 @@ public class AccountService {
                 }
         );
 
-        long totalCases = legalCaseRepository.countCasesByCompanyUuid(companyUuid);
-        long pendingInvites = companyInviteRepository.countByCompanyUuidAndUsedFalse(companyUuid);
+        long activeCases = legalCaseRepository.countActiveCasesByCompanyUuid(companyUuid);
+
+        long totalClients = legalCaseRepository.countDistinctClientsByCompanyUuid(companyUuid);
 
         return FirmDashboardSummaryDto.builder()
-                .activeLawyers(activeLawyers)
-                .totalCases(totalCases)
-                .pendingInvites(pendingInvites)
+                .totalLawyers(totalLawyers)
+                .activeCases(activeCases)
+                .totalClients(totalClients)
                 .performance(0.0)
                 .build();
     }

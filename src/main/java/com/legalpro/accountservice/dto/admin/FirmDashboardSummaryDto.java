@@ -8,8 +8,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class FirmDashboardSummaryDto {
-    private long activeLawyers;
-    private long totalCases;
-    private long pendingInvites;
+    private long totalLawyers;
+    private long activeCases;
+    private long totalClients;
     private double performance;
 }

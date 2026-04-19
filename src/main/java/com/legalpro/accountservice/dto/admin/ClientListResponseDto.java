@@ -10,7 +10,7 @@ import java.util.List;
 @Getter
 @Setter
 public class ClientListResponseDto {
-    private List<ClientDto> content;
+    private List<AdminClientDto> content;
     private int page;
     private int size;
     private long totalElements;

@@ -4,7 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.dto.admin.*;
-import com.legalpro.accountservice.dto.admin.ClientDto;
+import com.legalpro.accountservice.dto.ClientDto;
+import com.legalpro.accountservice.dto.admin.AdminClientDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Company;
 import com.legalpro.accountservice.entity.CompanyInvite;
@@ -1266,17 +1267,18 @@ public class AccountService {
         // Step 2: Fetch client accounts
         Page<Account> clients = accountRepository.findAllByUuidIn(clientUuids, pageable);
 
-        List<ClientDto> content = clients.getContent().stream().map(client -> {
+        List<AdminClientDto> content = clients.getContent().stream().map(client -> {
 
             int activeCases = (int) legalCaseRepository
                     .countByClientUuidAndLawyerUuidIn(client.getUuid(), lawyerUuids);
 
-            return ClientDto.builder()
+            return AdminClientDto.builder()
                     .uuid(client.getUuid())
                     .name(extractFullName(client))
                     .email(client.getEmail())
                     .phone(extractPhone(client))
                     .activeCases(activeCases)
+                    .profilePictureUrl(convertGcsUrl(client.getProfilePictureUrl()))
                     .build();
         }).toList();
 
@@ -1349,5 +1351,25 @@ public class AccountService {
                 .completed(completed)
                 .unassigned(unassigned)
                 .build();
+    }
+
+    private String extractPhone(Account account) {
+
+        if (account == null || account.getContactInformation() == null) {
+            return "";
+        }
+
+        JsonNode contact = account.getContactInformation();
+
+        // adjust key based on your JSON structure
+        if (contact.hasNonNull("phone")) {
+            return contact.get("phone").asText();
+        }
+
+        if (contact.hasNonNull("mobile")) {
+            return contact.get("mobile").asText();
+        }
+
+        return "";
     }
 }

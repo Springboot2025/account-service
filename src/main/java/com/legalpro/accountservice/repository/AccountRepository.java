@@ -193,4 +193,5 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
     long countByRoleName(String roleName);
 
     List<Account> findAllByUuidIn(Set<UUID> uuids);
+    List<Account> findAllByCompanyUuid(UUID companyUuid);
 }

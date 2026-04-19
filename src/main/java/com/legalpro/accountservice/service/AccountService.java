@@ -24,6 +24,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.legalpro.accountservice.entity.LegalCase;
+import com.legalpro.accountservice.specification.CaseSpecification;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -32,7 +34,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class AccountService {
@@ -1144,5 +1148,128 @@ public class AccountService {
                         like
                 )
         );
+    }
+
+    public AdminCaseListResponse getFirmCases(
+            String search,
+            String status,
+            String type,
+            String sort,
+            int page,
+            int size,
+            CustomUserDetails userDetails
+    ) {
+
+        UUID companyUuid = resolveCompanyUuid(userDetails);
+
+        List<UUID> lawyerUuids = accountRepository.findAllByCompanyUuid(companyUuid)
+                .stream()
+                .map(Account::getUuid)
+                .toList();
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                "OLDEST".equalsIgnoreCase(sort)
+                        ? Sort.by("createdAt").ascending()
+                        : Sort.by("createdAt").descending()
+        );
+
+        Specification<LegalCase> baseSpec = CaseSpecification.build(search, status, type);
+
+        Specification<LegalCase> firmSpec = (root, query, cb) ->
+                root.get("lawyerUuid").in(lawyerUuids);
+
+        Specification<LegalCase> finalSpec =
+                baseSpec == null ? firmSpec : baseSpec.and(firmSpec);
+
+        Page<LegalCase> casePage = legalCaseRepository.findAll(finalSpec, pageable);
+
+        Set<UUID> accountUuids = casePage.getContent().stream()
+                .flatMap(c -> Stream.of(c.getClientUuid(), c.getLawyerUuid()))
+                .collect(Collectors.toSet());
+
+        Map<UUID, Account> accounts = accountRepository.findAllByUuidIn(accountUuids)
+                .stream()
+                .collect(Collectors.toMap(Account::getUuid, Function.identity()));
+
+        List<AdminCaseDto> cases = casePage.getContent().stream().map(c -> {
+
+            AdminCaseDto.AdminCaseDtoBuilder dto = AdminCaseDto.builder();
+
+            dto.caseUuid(c.getUuid());
+            dto.caseNumber(c.getCaseNumber());
+            dto.title(c.getName());
+            dto.caseType(c.getCaseType() != null ? c.getCaseType().getName() : null);
+            dto.status(c.getStatus() != null ? c.getStatus().getName() : null);
+            dto.createdAt(c.getCreatedAt());
+
+            Account clientAcc = accounts.get(c.getClientUuid());
+            if (clientAcc != null) {
+                dto.clientName(extractFullName(clientAcc));
+                dto.clientProfilePictureUrl(convertGcsUrl(clientAcc.getProfilePictureUrl()));
+            }
+
+            Account lawyerAcc = accounts.get(c.getLawyerUuid());
+            if (lawyerAcc != null) {
+                dto.lawyerName(extractFullName(lawyerAcc));
+                dto.lawyerProfilePictureUrl(convertGcsUrl(lawyerAcc.getProfilePictureUrl()));
+            }
+
+            return dto.build();
+
+        }).toList();
+
+        return AdminCaseListResponse.builder()
+                .content(cases)
+                .page(casePage.getNumber())
+                .size(casePage.getSize())
+                .totalElements(casePage.getTotalElements())
+                .totalPages(casePage.getTotalPages())
+                .build();
+    }
+
+    private UUID resolveCompanyUuid(CustomUserDetails userDetails) {
+
+        Account account = accountRepository.findByUuid(userDetails.getUuid())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (account.getCompanyUuid() == null) {
+            throw new RuntimeException("User not linked to company");
+        }
+
+        return account.getCompanyUuid();
+    }
+
+    public FirmCasesSummaryDto getFirmCasesSummary(CustomUserDetails userDetails) {
+
+        Account account = accountRepository.findByUuid(userDetails.getUuid())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UUID companyUuid = account.getCompanyUuid();
+
+        if (companyUuid == null) {
+            throw new RuntimeException("User not linked to company");
+        }
+
+        List<UUID> lawyerUuids = accountRepository.findAllByCompanyUuid(companyUuid)
+                .stream()
+                .map(Account::getUuid)
+                .toList();
+
+        long total = legalCaseRepository.countByLawyerUuidIn(lawyerUuids);
+
+        long inProgress = legalCaseRepository.countByLawyerUuidInAndStatus_Name(lawyerUuids, "In Progress");
+
+        long completed = legalCaseRepository.countByLawyerUuidInAndStatus_Name(lawyerUuids, "Completed");
+
+        long unassigned = legalCaseRepository.countByLawyerUuidIsNull();
+
+        return FirmCasesSummaryDto.builder()
+                .total(total)
+                .inProgress(inProgress)
+                .completed(completed)
+                .unassigned(unassigned)
+                .build();
     }
 }

@@ -271,4 +271,10 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long>,
         )
     """)
     long countCasesByCompanyUuid(@Param("companyUuid") UUID companyUuid);
+
+    long countByLawyerUuidIn(List<UUID> lawyerUuids);
+
+    long countByLawyerUuidInAndStatus_Name(List<UUID> lawyerUuids, String status);
+
+    long countByLawyerUuidIsNull();
 }

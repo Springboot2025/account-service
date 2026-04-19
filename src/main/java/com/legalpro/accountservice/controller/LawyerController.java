@@ -3,15 +3,13 @@ package com.legalpro.accountservice.controller;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.ClientFullResponseDto;
 import com.legalpro.accountservice.dto.LawyerDto;
-import com.legalpro.accountservice.dto.admin.AdminUserListResponse;
-import com.legalpro.accountservice.dto.admin.FirmDashboardSummaryDto;
-import com.legalpro.accountservice.dto.admin.InvitationListResponse;
-import com.legalpro.accountservice.dto.admin.InvitationSummaryDto;
+import com.legalpro.accountservice.dto.admin.*;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.mapper.AccountMapper;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.AccountService;
+import com.legalpro.accountservice.service.SuperAdminService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,10 +26,13 @@ public class LawyerController {
 
     private final AccountService accountService;
     private final LegalCaseRepository legalCaseRepository;
+    private final SuperAdminService superAdminService;
 
-    public LawyerController(AccountService accountService, LegalCaseRepository legalCaseRepository) {
+    public LawyerController(AccountService accountService, LegalCaseRepository legalCaseRepository,
+                            SuperAdminService superAdminService) {
         this.accountService = accountService;
         this.legalCaseRepository = legalCaseRepository;
+        this.superAdminService = superAdminService;
     }
 
     @GetMapping("/hello")
@@ -195,6 +196,38 @@ public class LawyerController {
                         200,
                         "Users fetched successfully",
                         accountService.getFormUsers(search, status, location, sort, page, size, userDetails)
+                )
+        );
+    }
+
+    @GetMapping("/firmcases")
+    public ResponseEntity<ApiResponse<AdminCaseListResponse>> getFirmCases(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String type,
+            @RequestParam(defaultValue = "NEWEST") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Firm cases fetched successfully",
+                        accountService.getFirmCases(search, status, type, sort, page, size, userDetails)
+                )
+        );
+    }
+
+    @GetMapping("/firmcases/summary")
+    public ResponseEntity<ApiResponse<FirmCasesSummaryDto>> getFirmCasesSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Firm case summary fetched successfully",
+                        accountService.getFirmCasesSummary(userDetails)
                 )
         );
     }

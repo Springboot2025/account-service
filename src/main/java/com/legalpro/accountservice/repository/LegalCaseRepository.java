@@ -284,19 +284,20 @@ public interface LegalCaseRepository extends JpaRepository<LegalCase, Long>,
     long countByClientUuidAndLawyerUuidIn(UUID clientUuid, List<UUID> lawyerUuids);
 
     @Query("""
-        SELECT COUNT(DISTINCT c.client.uuid)
-        FROM LegalCase c
-        WHERE c.companyUuid = :companyUuid
-          AND c.deletedAt IS NULL
-    """)
-    long countDistinctClientsByCompanyUuid(UUID companyUuid);
-
-    @Query("""
         SELECT COUNT(c)
         FROM LegalCase c
-        WHERE c.companyUuid = :companyUuid
-          AND c.status = 'ACTIVE'
+        JOIN c.status s
+        WHERE c.lawyerUuid IN :lawyerUuids
+          AND c.deletedAt IS NULL
+          AND s.name = 'Active'
+    """)
+    long countActiveCasesByLawyerUuids(List<UUID> lawyerUuids);
+
+    @Query("""
+        SELECT COUNT(DISTINCT c.clientUuid)
+        FROM LegalCase c
+        WHERE c.lawyerUuid IN :lawyerUuids
           AND c.deletedAt IS NULL
     """)
-    long countActiveCasesByCompanyUuid(UUID companyUuid);
+    long countDistinctClientsByLawyerUuids(List<UUID> lawyerUuids);
 }

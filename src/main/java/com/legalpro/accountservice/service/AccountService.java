@@ -1469,4 +1469,20 @@ public class AccountService {
                 })
                 .toList();
     }
+
+    public List<FirmPendingInviteDto> getFirmPendingInvites(CustomUserDetails userDetails) {
+        UUID companyUuid = resolveCompanyUuid(userDetails);
+
+        List<CompanyInvite> invites =
+                companyInviteRepository.findTop3ByCompanyUuidAndUsedFalseOrderByCreatedAtDesc(companyUuid);
+
+        return invites.stream()
+                .map(invite -> FirmPendingInviteDto.builder()
+                        .inviteUuid(invite.getUuid())
+                        .email(invite.getEmail())
+                        .invitedAt(invite.getCreatedAt())
+                        .build()
+                )
+                .toList();
+    }
 }

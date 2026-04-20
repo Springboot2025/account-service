@@ -300,4 +300,17 @@ public class LawyerController {
                 )
         );
     }
+
+    @GetMapping("/firm/dashboard/invitations")
+    public ResponseEntity<ApiResponse<List<FirmPendingInviteDto>>> getFirmPendingInvites(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Pending invites fetched successfully",
+                        accountService.getFirmPendingInvites(userDetails)
+                )
+        );
+    }
 }

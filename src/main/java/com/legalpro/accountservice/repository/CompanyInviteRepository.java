@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,4 +19,6 @@ public interface CompanyInviteRepository extends JpaRepository<CompanyInvite, Lo
 
     long countByCompanyUuidAndUsedFalseAndExpiresAtBefore(UUID companyUuid, LocalDateTime now);
     Optional<CompanyInvite> findByUuid(UUID uuid);
+
+    List<CompanyInvite> findTop3ByCompanyUuidAndUsedFalseOrderByCreatedAtDesc(UUID companyUuid);
 }

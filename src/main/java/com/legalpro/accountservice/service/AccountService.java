@@ -1424,4 +1424,49 @@ public class AccountService {
                 .path("practiceArea")
                 .asText("");
     }
+
+    public List<FirmRecentCaseDto> getFirmRecentCases(CustomUserDetails userDetails) {
+        UUID companyUuid = resolveCompanyUuid(userDetails);
+
+        List<UUID> lawyerUuids = accountRepository.findAllByCompanyUuid(companyUuid)
+                .stream()
+                .map(Account::getUuid)
+                .toList();
+
+        Pageable pageable = PageRequest.of(
+                0,
+                3,
+                Sort.by("createdAt").descending()
+        );
+
+        Specification<LegalCase> spec = (root, query, cb) -> cb.and(
+                root.get("lawyerUuid").in(lawyerUuids),
+                cb.isNull(root.get("deletedAt"))
+        );
+
+        Page<LegalCase> page = legalCaseRepository.findAll(spec, pageable);
+
+        return page.getContent().stream()
+                .map(c -> {
+                    Account lawyer = accountRepository.findByUuid(c.getLawyerUuid()).orElse(null);
+                    Account client = accountRepository.findByUuid(c.getClientUuid()).orElse(null);
+
+                    return FirmRecentCaseDto.builder()
+                            .caseUuid(c.getUuid())
+                            .caseNumber(c.getCaseNumber())
+                            .caseTitle(c.getName())
+
+                            .clientName(extractFullName(client))
+
+                            .status(c.getStatus().getName())
+                            .courtDate(c.getCourtDate())
+
+                            .lawyerName(extractFullName(lawyer))
+                            .profilePictureUrl(convertGcsUrl(
+                                    lawyer != null ? lawyer.getProfilePictureUrl() : null
+                            ))
+                            .build();
+                })
+                .toList();
+    }
 }

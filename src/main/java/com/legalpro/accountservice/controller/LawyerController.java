@@ -287,4 +287,17 @@ public class LawyerController {
                 )
         );
     }
+
+    @GetMapping("/firm/dashboard/recentcases")
+    public ResponseEntity<ApiResponse<List<FirmRecentCaseDto>>> getFirmRecentCases(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Recent cases fetched successfully",
+                        accountService.getFirmRecentCases(userDetails)
+                )
+        );
+    }
 }

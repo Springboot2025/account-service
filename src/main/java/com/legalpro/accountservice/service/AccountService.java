@@ -1392,4 +1392,36 @@ public class AccountService {
                 .performance(0.0)
                 .build();
     }
+
+    public List<LawyerSpecializationDto> getFirmSpecializations(CustomUserDetails userDetails) {
+        UUID companyUuid = resolveCompanyUuid(userDetails);
+
+        List<Account> lawyers = accountRepository.findAllByCompanyUuid(companyUuid);
+
+        Map<String, Long> specializationCount = lawyers.stream()
+                .map(this::extractSpecialization)
+                .filter(spec -> spec != null && !spec.isBlank())
+                .collect(Collectors.groupingBy(
+                        spec -> spec,
+                        Collectors.counting()
+                ));
+
+        return specializationCount.entrySet()
+                .stream()
+                .map(entry -> new LawyerSpecializationDto(
+                        entry.getKey(),
+                        entry.getValue()
+                ))
+                .toList();
+    }
+
+    private String extractSpecialization(Account account) {
+        if (account == null || account.getProfessionalDetails() == null) {
+            return "";
+        }
+
+        return account.getProfessionalDetails()
+                .path("practiceArea")
+                .asText("");
+    }
 }

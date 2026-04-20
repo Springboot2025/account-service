@@ -274,4 +274,17 @@ public class LawyerController {
                 )
         );
     }
+
+    @GetMapping("/firm/dashboard/specializations")
+    public ResponseEntity<ApiResponse<List<LawyerSpecializationDto>>> getFirmSpecializations(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Specializations fetched successfully",
+                        accountService.getFirmSpecializations(userDetails)
+                )
+        );
+    }
 }

@@ -261,4 +261,17 @@ public class LawyerController {
                 )
         );
     }
+
+    @GetMapping("/firm/dashboard/summary")
+    public ResponseEntity<ApiResponse<FirmSummaryDto>> getFirmDashboardSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Firm dashboard summary fetched successfully",
+                        accountService.getFirmDashboardSummary(userDetails)
+                )
+        );
+    }
 }

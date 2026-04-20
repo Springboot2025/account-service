@@ -1372,4 +1372,36 @@ public class AccountService {
 
         return "";
     }
+
+    public FirmSummaryDto getFirmDashboardSummary(CustomUserDetails userDetails) {
+        Account account = accountRepository.findByUuid(userDetails.getUuid())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UUID companyUuid = account.isCompany()
+                ? account.getCompanyUuid()
+                : account.getUuid();
+
+        long totalLawyers = accountRepository.count(
+                (root, query, cb) -> {
+                    query.distinct(true);
+                    return cb.and(
+                            cb.equal(root.join("roles").get("name"), "Lawyer"),
+                            cb.isFalse(root.get("isCompany")),
+                            cb.equal(root.get("companyUuid"), companyUuid),
+                            cb.equal(root.get("accountStatus"), AccountStatus.ACTIVE)
+                    );
+                }
+        );
+
+        long activeCases = legalCaseRepository.countActiveCasesByCompanyUuid(companyUuid);
+
+        long totalClients = legalCaseRepository.countDistinctClientsByCompanyUuid(companyUuid);
+
+        return FirmSummaryDto.builder()
+                .totalLawyers(totalLawyers)
+                .activeCases(activeCases)
+                .totalClients(totalClients)
+                .performance(0.0)
+                .build();
+    }
 }

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -19,14 +20,47 @@ public class CompanyInviteService {
     private final CompanyInviteRepository inviteRepo;
     private final CompanyRepository companyRepo;
     private final EmailService emailService;
-
+    
     public CompanyInvite createInvite(CompanyInviteRequestDto request) {
 
         // Validate company exists
         Company company = companyRepo.findByUuid(request.getCompanyUuid())
                 .orElseThrow(() -> new RuntimeException("Invalid company UUID"));
 
-        // Create invite
+        Optional<CompanyInvite> existingInviteOpt =
+                inviteRepo.findTopByCompanyUuidAndEmailOrderByCreatedAtDesc(
+                        request.getCompanyUuid(),
+                        request.getEmail()
+                );
+
+        // Existing invite handling
+        if (existingInviteOpt.isPresent()) {
+
+            CompanyInvite existingInvite = existingInviteOpt.get();
+
+            // Already accepted
+            if (existingInvite.isUsed()) {
+                throw new RuntimeException("Invite already used");
+            }
+
+            // Active invite exists
+            if (existingInvite.getExpiresAt().isAfter(LocalDateTime.now())) {
+                throw new RuntimeException("Active invite already exists");
+            }
+
+            // Expired invite -> refresh and resend
+            existingInvite.setToken(UUID.randomUUID().toString());
+            existingInvite.setCreatedAt(LocalDateTime.now());
+            existingInvite.setExpiresAt(LocalDateTime.now().plusDays(7));
+
+            inviteRepo.save(existingInvite);
+
+            sendInviteEmail(existingInvite, company);
+
+            return existingInvite;
+        }
+
+        // Create new invite
         CompanyInvite invite = CompanyInvite.builder()
                 .email(request.getEmail())
                 .companyUuid(company.getUuid())

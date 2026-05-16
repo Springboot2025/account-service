@@ -25,4 +25,9 @@ public interface CompanyInviteRepository extends JpaRepository<CompanyInvite, Lo
             UUID companyUuid,
             LocalDateTime now
     );
+
+    Optional<CompanyInvite> findTopByCompanyUuidAndEmailOrderByCreatedAtDesc(
+            UUID companyUuid,
+            String email
+    );
 }

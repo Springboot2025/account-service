@@ -21,4 +21,8 @@ public interface CompanyInviteRepository extends JpaRepository<CompanyInvite, Lo
     Optional<CompanyInvite> findByUuid(UUID uuid);
 
     List<CompanyInvite> findTop3ByCompanyUuidAndUsedFalseOrderByCreatedAtDesc(UUID companyUuid);
+    List<CompanyInvite> findTop3ByCompanyUuidAndUsedFalseAndExpiresAtAfterOrderByCreatedAtDesc(
+            UUID companyUuid,
+            LocalDateTime now
+    );
 }

@@ -1475,7 +1475,11 @@ public class AccountService {
         UUID companyUuid = resolveCompanyUuid(userDetails);
 
         List<CompanyInvite> invites =
-                companyInviteRepository.findTop3ByCompanyUuidAndUsedFalseOrderByCreatedAtDesc(companyUuid);
+                companyInviteRepository
+                        .findTop3ByCompanyUuidAndUsedFalseAndExpiresAtAfterOrderByCreatedAtDesc(
+                                companyUuid,
+                                LocalDateTime.now()
+                        );
 
         return invites.stream()
                 .map(invite -> FirmPendingInviteDto.builder()

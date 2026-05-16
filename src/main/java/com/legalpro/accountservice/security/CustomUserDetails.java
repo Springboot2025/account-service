@@ -80,4 +80,8 @@ public class CustomUserDetails implements UserDetails {
         userDetails.setUuidFromToken(uuid); // ensure UUID comes from token
         return userDetails;
     }
+
+    public boolean isCompany() {
+        return account.isCompany();
+    }
 }

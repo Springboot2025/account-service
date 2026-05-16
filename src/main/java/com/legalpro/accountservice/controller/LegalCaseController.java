@@ -2,6 +2,8 @@ package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.LegalCaseDto;
+import com.legalpro.accountservice.entity.LegalCase;
+import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.LegalCaseService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import java.util.UUID;
 public class LegalCaseController {
 
     private final LegalCaseService legalCaseService;
+    private final LegalCaseRepository legalCaseRepository;
 
     // --- Create Case ---
     @PostMapping
@@ -62,6 +65,14 @@ public class LegalCaseController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         UUID lawyerUuid = userDetails.getUuid();
+
+        if (userDetails.isCompany()) {
+            LegalCase legalCase = legalCaseRepository.findByUuid(caseUuid)
+                    .orElseThrow(() -> new RuntimeException("Case not found"));
+
+            lawyerUuid = legalCase.getLawyerUuid();
+        }
+
         try {
             LegalCaseDto legalCase = legalCaseService.getCase(caseUuid, lawyerUuid);
             return ResponseEntity.ok(ApiResponse.success(200, "Case fetched successfully", legalCase));

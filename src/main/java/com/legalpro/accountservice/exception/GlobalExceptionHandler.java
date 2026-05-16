@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -129,5 +130,18 @@ public class GlobalExceptionHandler {
         if (rootCause == null) return null;
         Matcher matcher = CONSTRAINT_PATTERN.matcher(rootCause);
         return matcher.find() ? matcher.group(1) : null;
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Object>> handleResponseStatusException(
+            ResponseStatusException ex) {
+
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(
+                        ApiResponse.error(
+                                ex.getStatusCode().value(),
+                                ex.getReason()
+                        )
+                );
     }
 }

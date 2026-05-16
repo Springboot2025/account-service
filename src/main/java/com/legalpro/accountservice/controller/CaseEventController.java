@@ -2,7 +2,11 @@ package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.CaseEventDto;
+import com.legalpro.accountservice.entity.Account;
+import com.legalpro.accountservice.entity.LegalCase;
+import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.security.CustomUserDetails;
+import com.legalpro.accountservice.service.AccountService;
 import com.legalpro.accountservice.service.CaseEventService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,9 +22,15 @@ import java.util.UUID;
 public class CaseEventController {
 
     private final CaseEventService caseEventService;
+    private final LegalCaseRepository legalCaseRepository;
+    private final AccountService accountService;
 
-    public CaseEventController(CaseEventService caseEventService) {
+    public CaseEventController(CaseEventService caseEventService,
+                               LegalCaseRepository legalCaseRepository,
+                               AccountService accountService) {
         this.caseEventService = caseEventService;
+        this.legalCaseRepository = legalCaseRepository;
+        this.accountService = accountService;
     }
 
     @PostMapping
@@ -45,9 +55,24 @@ public class CaseEventController {
             @PathVariable UUID caseUuid,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
+        UUID lawyerUuid = user.getUuid();
+
+        Account account = accountService.findByEmail(user.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean isCompany = account.isCompany();
+
+        // Company accessing lawyer case
+        if (isCompany) {
+            LegalCase legalCaseEntity = legalCaseRepository.findByUuid(caseUuid)
+                    .orElseThrow(() -> new RuntimeException("Case not found"));
+
+            lawyerUuid = legalCaseEntity.getLawyerUuid();
+        }
+
         List<CaseEventDto> response = caseEventService.getCaseEvents(
                 caseUuid,
-                user.getUuid()
+                lawyerUuid
         );
 
         return ResponseEntity.ok(

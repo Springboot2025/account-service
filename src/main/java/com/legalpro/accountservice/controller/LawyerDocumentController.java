@@ -2,8 +2,12 @@ package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.LegalCaseDto;
+import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.ClientDocument;
+import com.legalpro.accountservice.entity.LegalCase;
+import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.security.CustomUserDetails;
+import com.legalpro.accountservice.service.AccountService;
 import com.legalpro.accountservice.service.ClientDocumentService;
 import com.legalpro.accountservice.service.LegalCaseService;
 import org.springframework.http.HttpStatus;
@@ -25,11 +29,17 @@ public class LawyerDocumentController {
 
     private final ClientDocumentService clientDocumentService;
     private final LegalCaseService legalCaseService;
+    private final LegalCaseRepository legalCaseRepository;
+    private final AccountService accountService;
 
     public LawyerDocumentController(ClientDocumentService clientDocumentService,
-                                    LegalCaseService legalCaseService) {
+                                    LegalCaseService legalCaseService,
+                                    LegalCaseRepository legalCaseRepository,
+                                    AccountService accountService) {
         this.clientDocumentService = clientDocumentService;
         this.legalCaseService = legalCaseService;
+        this.legalCaseRepository = legalCaseRepository;
+        this.accountService = accountService;
     }
 
     @GetMapping("/documents/{caseUuid}")
@@ -37,7 +47,22 @@ public class LawyerDocumentController {
             @PathVariable UUID caseUuid,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        LegalCaseDto legalCaseDto = legalCaseService.getCase(caseUuid, userDetails.getUuid());
+        UUID lawyerUuid = userDetails.getUuid();
+
+        Account account = accountService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean isCompany = account.isCompany();
+
+        // Company accessing lawyer case
+        if (isCompany) {
+            LegalCase legalCaseEntity = legalCaseRepository.findByUuid(caseUuid)
+                    .orElseThrow(() -> new RuntimeException("Case not found"));
+
+            lawyerUuid = legalCaseEntity.getLawyerUuid();
+        }
+
+        LegalCaseDto legalCaseDto = legalCaseService.getCase(caseUuid, lawyerUuid);
         UUID clientUuid = legalCaseDto.getClientUuid();
 
         List<ClientDocument> docs = clientDocumentService.getClientDocumentsByCase(clientUuid, caseUuid);

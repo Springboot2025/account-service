@@ -1206,6 +1206,7 @@ public class AccountService {
             dto.caseType(c.getCaseType() != null ? c.getCaseType().getName() : null);
             dto.status(c.getStatus() != null ? c.getStatus().getName() : null);
             dto.createdAt(c.getCreatedAt());
+            dto.clientUuid(c.getClientUuid());
 
             Account clientAcc = accounts.get(c.getClientUuid());
             if (clientAcc != null) {

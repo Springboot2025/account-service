@@ -15,6 +15,7 @@ public class AdminCaseDto {
     private String title;
     private String caseType;
 
+    private UUID clientUuid;
     private String clientName;
     private String clientProfilePictureUrl;
 

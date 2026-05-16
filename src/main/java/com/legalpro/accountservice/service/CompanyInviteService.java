@@ -8,6 +8,8 @@ import com.legalpro.accountservice.repository.CompanyRepository;
 import com.legalpro.accountservice.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -20,7 +22,7 @@ public class CompanyInviteService {
     private final CompanyInviteRepository inviteRepo;
     private final CompanyRepository companyRepo;
     private final EmailService emailService;
-    
+
     public CompanyInvite createInvite(CompanyInviteRequestDto request) {
 
         // Validate company exists
@@ -40,12 +42,18 @@ public class CompanyInviteService {
 
             // Already accepted
             if (existingInvite.isUsed()) {
-                throw new RuntimeException("Invite already used");
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Invite already used"
+                );
             }
 
             // Active invite exists
             if (existingInvite.getExpiresAt().isAfter(LocalDateTime.now())) {
-                throw new RuntimeException("Active invite already exists");
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Active invite already exists"
+                );
             }
 
             // Expired invite -> refresh and resend

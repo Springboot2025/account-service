@@ -2,6 +2,7 @@ package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.LegalCaseDto;
+import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.LegalCase;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
 import com.legalpro.accountservice.security.CustomUserDetails;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.legalpro.accountservice.service.AccountService;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,7 @@ public class LegalCaseController {
 
     private final LegalCaseService legalCaseService;
     private final LegalCaseRepository legalCaseRepository;
+    private final AccountService accountService;
 
     // --- Create Case ---
     @PostMapping
@@ -66,11 +69,17 @@ public class LegalCaseController {
     ) {
         UUID lawyerUuid = userDetails.getUuid();
 
-        if (userDetails.isCompany()) {
-            LegalCase legalCase = legalCaseRepository.findByUuid(caseUuid)
+        Account account = accountService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean isCompany = account.isCompany();
+
+        // Company accessing lawyer case
+        if (isCompany) {
+            LegalCase legalCaseEntity = legalCaseRepository.findByUuid(caseUuid)
                     .orElseThrow(() -> new RuntimeException("Case not found"));
 
-            lawyerUuid = legalCase.getLawyerUuid();
+            lawyerUuid = legalCaseEntity.getLawyerUuid();
         }
 
         try {

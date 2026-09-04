@@ -74,7 +74,8 @@ public class SecurityConfig {
         // ✅ Explicitly allow FE origins
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:3000",
-                "https://lawproject-nu.vercel.app"
+                "https://lawproject-nu.vercel.app",
+                "https://bossjustice.com.au"
         ));
         // ✅ Allowed HTTP methods
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

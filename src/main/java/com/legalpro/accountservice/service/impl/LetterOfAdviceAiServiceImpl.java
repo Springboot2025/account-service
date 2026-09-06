@@ -6,6 +6,8 @@ import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.anthropic.models.messages.StopReason;
 import com.anthropic.models.messages.TextBlockParam;
+import com.fasterxml.jackson.core.json.JsonReadFeature;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legalpro.accountservice.dto.LetterOfAdviceContentDto;
@@ -47,6 +49,7 @@ public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
     private final QuoteRepository quoteRepository;
     private final ClientAnswerRepository clientAnswerRepository;
     private final ObjectMapper objectMapper;
+    private final ObjectMapper aiResponseObjectMapper;
     private final String systemPrompt;
 
     @Autowired
@@ -62,6 +65,9 @@ public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
         this.quoteRepository = quoteRepository;
         this.clientAnswerRepository = clientAnswerRepository;
         this.objectMapper = objectMapper;
+        this.aiResponseObjectMapper = objectMapper.copy()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .configure(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(), true);
         this.systemPrompt = new String(
                 new ClassPathResource("prompts/letter-of-advice-system-prompt.txt")
                         .getInputStream()
@@ -160,16 +166,31 @@ public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No text content returned by Claude"));
 
-        String cleanedJson = stripMarkdownCodeFence(rawJson);
+        String cleanedJson = extractJsonObject(stripMarkdownCodeFence(rawJson));
 
         try {
-            return objectMapper.readValue(cleanedJson, LetterOfAdviceContentDto.class);
+            return aiResponseObjectMapper.readValue(cleanedJson, LetterOfAdviceContentDto.class);
         } catch (Exception e) {
             // If this fires often in practice, tighten the system prompt's
             // "return JSON only" instruction, or add a retry with a stricter
             // reminder appended to the user message.
-            throw new IllegalStateException("Claude did not return valid letter JSON: " + rawJson, e);
+            throw new IllegalStateException("Claude did not return valid letter JSON: " + e.getMessage(), e);
         }
+    }
+
+    private String extractJsonObject(String text) {
+        String trimmed = text.trim();
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            return trimmed;
+        }
+
+        int openingBraceIndex = trimmed.indexOf('{');
+        int closingBraceIndex = trimmed.lastIndexOf('}');
+        if (openingBraceIndex == -1 || closingBraceIndex <= openingBraceIndex) {
+            return trimmed;
+        }
+
+        return trimmed.substring(openingBraceIndex, closingBraceIndex + 1).trim();
     }
 
     /**

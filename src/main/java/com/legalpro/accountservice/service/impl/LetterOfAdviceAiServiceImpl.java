@@ -136,13 +136,40 @@ public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No text content returned by Claude"));
 
+        String cleanedJson = stripMarkdownCodeFence(rawJson);
+
         try {
-            return objectMapper.readValue(rawJson, LetterOfAdviceContentDto.class);
+            return objectMapper.readValue(cleanedJson, LetterOfAdviceContentDto.class);
         } catch (Exception e) {
             // If this fires often in practice, tighten the system prompt's
             // "return JSON only" instruction, or add a retry with a stricter
             // reminder appended to the user message.
             throw new IllegalStateException("Claude did not return valid letter JSON: " + rawJson, e);
         }
+    }
+
+    /**
+     * Claude sometimes wraps its JSON response in a markdown code fence
+     * (```json ... ```) despite the system prompt asking for raw JSON only.
+     * Strip that fence if present; leave the text untouched otherwise.
+     */
+    private String stripMarkdownCodeFence(String text) {
+        String trimmed = text.trim();
+        if (!trimmed.startsWith("```")) {
+            return trimmed;
+        }
+
+        int firstNewline = trimmed.indexOf('\n');
+        if (firstNewline == -1) {
+            return trimmed;
+        }
+
+        String withoutOpeningFence = trimmed.substring(firstNewline + 1);
+        int closingFenceIndex = withoutOpeningFence.lastIndexOf("```");
+        if (closingFenceIndex == -1) {
+            return withoutOpeningFence.trim();
+        }
+
+        return withoutOpeningFence.substring(0, closingFenceIndex).trim();
     }
 }

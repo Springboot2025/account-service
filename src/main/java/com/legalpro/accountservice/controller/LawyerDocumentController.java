@@ -5,7 +5,9 @@ import com.legalpro.accountservice.dto.LegalCaseDto;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.ClientDocument;
 import com.legalpro.accountservice.entity.LegalCase;
+import com.legalpro.accountservice.entity.LetterOfAdviceDocument;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
+import com.legalpro.accountservice.repository.LetterOfAdviceDocumentRepository;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.AccountService;
 import com.legalpro.accountservice.service.ClientDocumentService;
@@ -20,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -31,15 +34,18 @@ public class LawyerDocumentController {
     private final LegalCaseService legalCaseService;
     private final LegalCaseRepository legalCaseRepository;
     private final AccountService accountService;
+    private final LetterOfAdviceDocumentRepository letterOfAdviceDocumentRepository;
 
     public LawyerDocumentController(ClientDocumentService clientDocumentService,
                                     LegalCaseService legalCaseService,
                                     LegalCaseRepository legalCaseRepository,
-                                    AccountService accountService) {
+                                    AccountService accountService,
+                                    LetterOfAdviceDocumentRepository letterOfAdviceDocumentRepository) {
         this.clientDocumentService = clientDocumentService;
         this.legalCaseService = legalCaseService;
         this.legalCaseRepository = legalCaseRepository;
         this.accountService = accountService;
+        this.letterOfAdviceDocumentRepository = letterOfAdviceDocumentRepository;
     }
 
     @GetMapping("/documents/{caseUuid}")
@@ -65,7 +71,32 @@ public class LawyerDocumentController {
         LegalCaseDto legalCaseDto = legalCaseService.getCase(caseUuid, lawyerUuid);
         UUID clientUuid = legalCaseDto.getClientUuid();
 
-        List<ClientDocument> docs = clientDocumentService.getClientDocumentsByCase(clientUuid, caseUuid);
+        List<ClientDocument> docs = new ArrayList<>(clientDocumentService.getClientDocumentsByCase(clientUuid, caseUuid));
+
+        Optional<LetterOfAdviceDocument> loa = letterOfAdviceDocumentRepository.findByCaseUuidAndDeletedAtIsNull(caseUuid);
+        loa.ifPresent(letter -> {
+            String frontendBaseUrl = System.getenv("FRONTEND_BASE_URL") != null
+                    ? System.getenv("FRONTEND_BASE_URL")
+                    : "https://bossjustice.com.au";
+            String builderLink = frontendBaseUrl + "/dashboard/communications/letter-of-advice"
+                    + "?caseId=" + caseUuid
+                    + "&chatId=" + letter.getClientUuid()
+                    + "&title=" + (letter.getTitle() != null ? letter.getTitle() : "Letter of Advice");
+
+            docs.add(ClientDocument.builder()
+                    .id(-1L)
+                    .clientUuid(letter.getClientUuid())
+                    .lawyerUuid(letter.getLawyerUuid())
+                    .fileName((letter.getTitle() != null ? letter.getTitle() : "Letter of Advice")
+                            + " (" + letter.getStatus().name().replace('_', ' ') + ")")
+                    .fileType("html")
+                    .fileUrl(builderLink)
+                    .documentType("Letter_of_Advice")
+                    .caseUuid(caseUuid)
+                    .createdAt(letter.getUpdatedAt())
+                    .build());
+        });
+
         return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
     }
 }

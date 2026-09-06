@@ -14,6 +14,7 @@ public interface LegalCaseService {
 
     LegalCaseDto getCase(UUID caseUuid, UUID lawyerUuid);
     LegalCaseDto getCaseByUuid(UUID caseUuid);
+    LegalCaseDto getCaseByQuote(UUID quoteUuid, UUID lawyerUuid);
 
     List<LegalCaseDto> getCasesForLawyer(UUID lawyerUuid);
 

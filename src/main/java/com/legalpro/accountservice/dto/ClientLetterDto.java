@@ -18,6 +18,16 @@ public class ClientLetterDto {
     private LocalDateTime sentDate;
     private String remarks;
 
+    /** "SHARED_DOCUMENT" (default, existing behaviour) or "LETTER_OF_ADVICE". */
+    @Builder.Default
+    private String type = "SHARED_DOCUMENT";
+
+    /** Only set when type is LETTER_OF_ADVICE — the id to view/sign it. */
+    private UUID letterOfAdviceUuid;
+
+    /** Only set when type is LETTER_OF_ADVICE — SENT_TO_CLIENT or CLIENT_SIGNED. */
+    private String status;
+
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class CaseInfo {
         private UUID uuid;

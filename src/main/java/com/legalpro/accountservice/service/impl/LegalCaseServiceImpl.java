@@ -176,6 +176,18 @@ public class LegalCaseServiceImpl implements LegalCaseService {
     }
 
     @Override
+    public LegalCaseDto getCaseByQuote(UUID quoteUuid, UUID lawyerUuid) {
+        LegalCase legalCase = legalCaseRepository.findByQuoteUuid(quoteUuid)
+                .orElseThrow(() -> new IllegalArgumentException("No case has been created for this quote yet"));
+
+        if (!legalCase.getLawyerUuid().equals(lawyerUuid)) {
+            throw new SecurityException("Access denied");
+        }
+
+        return mapper.toDto(legalCase);
+    }
+
+    @Override
     public LegalCaseDto getCaseByUuid(UUID caseUuid) {
         LegalCase legalCase = legalCaseRepository.findByUuid(caseUuid)
                 .orElseThrow(() -> new IllegalArgumentException("Case not found"));

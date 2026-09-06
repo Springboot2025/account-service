@@ -94,6 +94,24 @@ public class LegalCaseController {
         }
     }
 
+    // --- Resolve the case created from a given quote (once the client has booked) ---
+    @GetMapping("/by-quote/{quoteUuid}")
+    public ResponseEntity<ApiResponse<LegalCaseDto>> getCaseByQuote(
+            @PathVariable UUID quoteUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        try {
+            LegalCaseDto legalCase = legalCaseService.getCaseByQuote(quoteUuid, userDetails.getUuid());
+            return ResponseEntity.ok(ApiResponse.success(200, "Case fetched successfully", legalCase));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), e.getMessage()));
+        }
+    }
+
     // --- Get All Cases for Lawyer ---
     @GetMapping
     public ResponseEntity<ApiResponse<List<LegalCaseDto>>> getCasesForLawyer(

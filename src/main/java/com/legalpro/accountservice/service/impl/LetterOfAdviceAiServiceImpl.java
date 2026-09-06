@@ -1,8 +1,11 @@
 package com.legalpro.accountservice.service.impl;
 
 import com.anthropic.client.AnthropicClient;
+import com.anthropic.models.messages.CacheControlEphemeral;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
+import com.anthropic.models.messages.StopReason;
+import com.anthropic.models.messages.TextBlockParam;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legalpro.accountservice.dto.LetterOfAdviceContentDto;
@@ -22,19 +25,22 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
 
-    // Sonnet 4.6 is the right default for this task: strong legal drafting quality
-    // at a per-letter cost that stays sane at platform scale. Swap to Opus only if
-    // drafting quality on complex matters (e.g. serious indictable offences) proves
-    // it's worth the higher cost. Passed as a raw string (the SDK's Model type
-    // accepts either its typed constants or a plain string) to avoid depending on
-    // an exact Model enum constant name that may not exist in the pinned SDK version.
-    private static final String MODEL = "claude-sonnet-4-6";
+    // Sonnet 5 is the right default for this task: strong legal drafting quality
+    // at a per-letter cost that stays sane at platform scale ($2/$10 per
+    // million input/output tokens -- cheaper than 4.6's $3/$15, and it's the
+    // newer model). Swap to Opus only if drafting quality on complex matters
+    // (e.g. serious indictable offences) proves it's worth the higher cost.
+    // Passed as a raw string (the SDK's Model type accepts either its typed
+    // constants or a plain string) to avoid depending on an exact Model enum
+    // constant name that may not exist in the pinned SDK version.
+    private static final String MODEL = "claude-sonnet-5";
 
     private final AnthropicClient anthropicClient;
     private final LegalCaseRepository legalCaseRepository;
@@ -87,8 +93,20 @@ public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
 
         MessageCreateParams params = MessageCreateParams.builder()
                 .model(MODEL)
-                .maxTokens(4096L)
-                .system(systemPrompt)
+                // A full structured letter can legitimately run long (many facts,
+                // a long narrative, several resolution options). 4096 was too
+                // tight and was silently truncating some responses mid-JSON —
+                // Claude would return cut-off, unparseable content for longer
+                // matters while shorter ones happened to fit and succeeded.
+                .maxTokens(8192L)
+                // The system prompt is identical on every call — mark it cached
+                // so repeat generations only pay full input price for the
+                // case-specific data, not the (much larger) instructions.
+                .system(MessageCreateParams.System.ofTextBlockParams(List.of(
+                        TextBlockParam.builder()
+                                .text(systemPrompt)
+                                .cacheControl(CacheControlEphemeral.builder().build())
+                                .build())))
                 .addUserMessage(userContent)
                 .build();
 
@@ -99,6 +117,12 @@ public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
             throw new IllegalStateException(
                     "AI letter drafting is not available right now. If this persists, check that "
                             + "Workload Identity Federation is correctly configured for this service.", e);
+        }
+
+        if (message.stopReason().isPresent() && message.stopReason().get() == StopReason.MAX_TOKENS) {
+            throw new IllegalStateException(
+                    "Claude's response was cut off before it finished drafting the letter (too long for "
+                            + "the current output limit). Try again, or shorten the requested scope.");
         }
 
         return extractLetterContent(message);

@@ -41,7 +41,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // ✅ Allow preflight OPTIONS requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/api/address/**", "/api/search/**", "/api/devices/**", "/api/notifications/**", "/api/ratings/**", "/api/companies/**", "/api/webhooks/**", "/api/feedback/**", "/api/subscribers/**", "/api/contact/**", "/api/disputes/**", "/api/invites/**", "/api/public/**").permitAll()
+                        // "/api/stripe/webhook" (not "/api/webhooks/**") is the
+                        // controller's real mapping -- Stripe's own signed
+                        // webhook calls carry no Authorization header and were
+                        // being rejected by anyRequest().authenticated() below
+                        // since the old allowlist pattern didn't actually match it.
+                        .requestMatchers("/api/auth/**", "/api/address/**", "/api/search/**", "/api/devices/**", "/api/notifications/**", "/api/ratings/**", "/api/companies/**", "/api/webhooks/**", "/api/stripe/webhook", "/api/feedback/**", "/api/subscribers/**", "/api/contact/**", "/api/disputes/**", "/api/invites/**", "/api/public/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()
                 )

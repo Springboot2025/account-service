@@ -86,10 +86,15 @@ public class ProfessionalMaterialServiceImpl implements ProfessionalMaterialServ
         // -----------------------------------------------------
         UUID materialUuid = UUID.randomUUID();
 
+        com.legalpro.accountservice.util.UploadValidation.validate(
+                file, com.legalpro.accountservice.util.UploadValidation.DOCUMENT_CONTENT_TYPES);
+        String safeFileName = com.legalpro.accountservice.util.UploadValidation.sanitizeFileName(
+                file.getOriginalFilename());
+
         String objectName =
                 lawyerUuid + "/" +
                         caseUuid + "/" +
-                        materialUuid + "-" + file.getOriginalFilename();
+                        materialUuid + "-" + safeFileName;
 
         BlobInfo blobInfo = BlobInfo.newBuilder(BUCKET_NAME, objectName)
                 .setContentType(file.getContentType())
@@ -181,24 +186,25 @@ public class ProfessionalMaterialServiceImpl implements ProfessionalMaterialServ
                             .documents(new ArrayList<>())
                             .build();
 
-            for (ProfessionalMaterial material : entry.getValue()) {
+            // parallelStream() since toPublicUrl() signs each file URL with a
+            // real network call -- no reason to pay that cost serially.
+            List<ClientProfessionalMaterialsResponseDto.DocumentDto> docDtos =
+                    entry.getValue().parallelStream()
+                            .map(material -> ClientProfessionalMaterialsResponseDto.DocumentDto.builder()
+                                    .uuid(material.getUuid().toString())
+                                    .fileName(material.getFileName())
+                                    .fileType(material.getFileType())
+                                    .followUp(material.getFollowUp())
+                                    .description(material.getDescription())
+                                    .createdAt(
+                                            material.getCreatedAt()
+                                                    .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                                    )
+                                    .fileUrl(toPublicUrl(material.getFileUrl()))
+                                    .build())
+                            .toList();
 
-                ClientProfessionalMaterialsResponseDto.DocumentDto docDto =
-                        ClientProfessionalMaterialsResponseDto.DocumentDto.builder()
-                                .uuid(material.getUuid().toString())
-                                .fileName(material.getFileName())
-                                .fileType(material.getFileType())
-                                .followUp(material.getFollowUp())
-                                .description(material.getDescription())
-                                .createdAt(
-                                        material.getCreatedAt()
-                                                .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                                )
-                                .fileUrl(toPublicUrl(material.getFileUrl()))
-                                .build();
-
-                categoryDto.getDocuments().add(docDto);
-            }
+            categoryDto.getDocuments().addAll(docDtos);
 
             response.add(categoryDto);
         }

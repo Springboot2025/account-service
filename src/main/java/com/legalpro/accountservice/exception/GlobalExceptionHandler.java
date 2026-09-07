@@ -1,6 +1,8 @@
 package com.legalpro.accountservice.exception;
 
 import com.legalpro.accountservice.dto.ApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,10 @@ import java.util.regex.Pattern;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String GENERIC_SERVER_ERROR_MESSAGE =
+            "Something went wrong on our end. Please try again, or contact support if this continues.";
 
     private static final Pattern CONSTRAINT_PATTERN = Pattern.compile("constraint\\s+\"([^\"]+)\"", Pattern.CASE_INSENSITIVE);
 
@@ -64,24 +70,29 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "Forbidden: " + ex.getMessage()));
     }
 
-    // Handle runtime (business) exceptions
+    // Handle runtime (business) exceptions. IllegalArgumentException/
+    // IllegalStateException are the ones our own code throws deliberately as
+    // user-facing validation messages (e.g. "Unsupported file type") -- safe
+    // to return as-is. Anything else is unexpected: the real detail (which
+    // can include SQL fragments, internal class names, file paths) goes to
+    // the server log only, never to the client.
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<String>> handleRuntimeException(RuntimeException ex) {
         if (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
         }
-        ex.printStackTrace(); // log server-side issues
+        log.error("Unhandled RuntimeException", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), ex.getMessage()));
+                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), GENERIC_SERVER_ERROR_MESSAGE));
     }
 
     // Generic fallback for any other exceptions
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<String>> handleGenericException(Exception ex) {
-        ex.printStackTrace(); // ✅ full stack trace in logs
+        log.error("Unhandled Exception", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), ex.getMessage()));
+                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), GENERIC_SERVER_ERROR_MESSAGE));
     }
 
     // Handle endpoint not found (404)
@@ -101,6 +112,11 @@ public class GlobalExceptionHandler {
         String constraintName = extractConstraintName(rootCause);
         String message;
 
+        // Known constraints get a specific, safe, user-facing message. Any
+        // other constraint name (or none at all) falls back to a generic
+        // message -- the raw constraint/rootCause text can reveal table and
+        // column names and isn't meant for API clients. Full detail is
+        // still logged server-side below either way.
         if (constraintName != null) {
             switch (constraintName) {
                 case "uq_client_file":
@@ -116,11 +132,13 @@ public class GlobalExceptionHandler {
                     message = "Duplicate entry: An answer already exists for this client and question type.";
                     break;
                 default:
-                    message = "Database constraint violation: " + constraintName;
+                    message = "This request conflicts with existing data.";
             }
         } else {
-            message = "Database error: " + rootCause;
+            message = "This request conflicts with existing data.";
         }
+
+        log.warn("DataIntegrityViolationException: constraint={}, rootCause={}", constraintName, rootCause);
 
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error(HttpStatus.CONFLICT.value(), message));

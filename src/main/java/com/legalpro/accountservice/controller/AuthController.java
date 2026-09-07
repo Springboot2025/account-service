@@ -47,6 +47,7 @@ public class AuthController {
     private final SubscriberRepository subscriberRepository;
     private final CompanyRepository companyRepository;
     private final DeviceTokenService deviceTokenService;
+    private final com.legalpro.accountservice.repository.RefreshSessionRepository refreshSessionRepository;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtUtil jwtUtil,
@@ -55,7 +56,8 @@ public class AuthController {
                           TokenBlacklistService tokenBlacklistService,
                           SubscriberRepository subscriberRepository,
                           CompanyRepository companyRepository,
-                          DeviceTokenService deviceTokenService) {
+                          DeviceTokenService deviceTokenService,
+                          com.legalpro.accountservice.repository.RefreshSessionRepository refreshSessionRepository) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.accountService = accountService;
@@ -64,6 +66,20 @@ public class AuthController {
         this.subscriberRepository = subscriberRepository;
         this.companyRepository = companyRepository;
         this.deviceTokenService = deviceTokenService;
+        this.refreshSessionRepository = refreshSessionRepository;
+    }
+
+    private com.legalpro.accountservice.entity.RefreshSession createRefreshSession(
+            UUID userUuid, String jti, String familyId) {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        return com.legalpro.accountservice.entity.RefreshSession.builder()
+                .jti(jti)
+                .familyId(familyId)
+                .userUuid(userUuid)
+                .issuedAt(now)
+                .expiresAt(now.plusSeconds(jwtUtil.getRefreshTokenExpirationMs() / 1000))
+                .revoked(false)
+                .build();
     }
 
     @PostMapping("/login")
@@ -126,6 +142,12 @@ public class AuthController {
                     isCompanyMember,
                     companyName
             );
+            // A fresh login starts a new rotation family. Every subsequent
+            // /refresh call issues a new refresh token in the SAME family,
+            // so reuse of an already-redeemed one can be detected and the
+            // whole family revoked (see /refresh below).
+            String refreshJti = UUID.randomUUID().toString();
+            String refreshFamilyId = UUID.randomUUID().toString();
             String refreshToken = jwtUtil.generateRefreshToken(
                     account.getUuid(),
                     userDetails.getUsername(),
@@ -133,8 +155,10 @@ public class AuthController {
                     isSubscribed,
                     isCompany,
                     isCompanyMember,
-                    companyName
+                    companyName,
+                    refreshJti
             );
+            refreshSessionRepository.save(createRefreshSession(account.getUuid(), refreshJti, refreshFamilyId));
 
             // ✅ Allow local dev without HTTPS
             boolean isLocalhost = "localhost".equalsIgnoreCase(request.getServerName());
@@ -224,6 +248,31 @@ public class AuthController {
         String username = claims.getSubject();
         String uuidStr = claims.get("uuid", String.class);  // ✅ extract uuid
         UUID uuid = UUID.fromString(uuidStr);
+        String presentedJti = claims.getId();
+
+        // Rotation + reuse detection. A refresh token issued before this
+        // migration has no tracked session at all -- reject it and require a
+        // fresh login rather than silently trusting an untracked token.
+        com.legalpro.accountservice.entity.RefreshSession session =
+                presentedJti != null ? refreshSessionRepository.findById(presentedJti).orElse(null) : null;
+
+        if (session == null || session.isRevoked()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED.value(),
+                            "Session has been revoked. Please log in again."));
+        }
+        if (session.getUsedAt() != null) {
+            // This exact refresh token was already redeemed once before --
+            // someone else has a copy of it. Kill the whole rotation chain,
+            // not just this one token.
+            refreshSessionRepository.revokeFamily(session.getFamilyId());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED.value(),
+                            "Suspicious activity detected on this session. Please log in again."));
+        }
+
+        session.setUsedAt(java.time.LocalDateTime.now());
+        refreshSessionRepository.save(session);
 
         @SuppressWarnings("unchecked")
         Collection<String> roles = (Collection<String>) claims.get("roles");
@@ -238,9 +287,12 @@ public class AuthController {
         boolean isCompanyMember = Boolean.TRUE.equals(claims.get("isCompanyMember", Boolean.class));
         String companyName = claims.get("companyName", String.class);
 
-        // ✅ Generate new tokens with uuid included
+        // ✅ Generate new tokens with uuid included -- new refresh token stays
+        // in the same rotation family as the one just redeemed.
         String newAccessToken = jwtUtil.generateAccessToken(uuid, username, authorities, isSubscribed, isCompany, isCompanyMember, companyName);
-        String newRefreshToken = jwtUtil.generateRefreshToken(uuid, username, authorities, isSubscribed, isCompany, isCompanyMember, companyName);
+        String newRefreshJti = UUID.randomUUID().toString();
+        String newRefreshToken = jwtUtil.generateRefreshToken(uuid, username, authorities, isSubscribed, isCompany, isCompanyMember, companyName, newRefreshJti);
+        refreshSessionRepository.save(createRefreshSession(uuid, newRefreshJti, session.getFamilyId()));
 
         // ✅ Allow local dev without HTTPS
         boolean isLocalhost = "localhost".equalsIgnoreCase(request.getServerName());
@@ -358,6 +410,7 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<String>> logout(
             @RequestHeader(name = "Authorization", required = false) String authHeader,
+            @CookieValue(value = "refreshToken", required = false) String refreshToken,
             HttpServletRequest request,
             HttpServletResponse response,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -383,6 +436,23 @@ public class AuthController {
                 }
             } catch (Exception e) {
                 // If token is invalid already, we just continue — cookie is still cleared
+            }
+        }
+
+        // Revoke the refresh token's entire rotation family -- previously
+        // logout only cleared the cookie client-side; the refresh token
+        // itself stayed valid until its natural 30-day expiry, so a copy
+        // captured before logout (a stolen cookie, a proxy log) could keep
+        // minting new access tokens indefinitely.
+        if (refreshToken != null && jwtUtil.validateToken(refreshToken)) {
+            try {
+                String jti = jwtUtil.extractJti(refreshToken);
+                if (jti != null) {
+                    refreshSessionRepository.findById(jti)
+                            .ifPresent(session -> refreshSessionRepository.revokeFamily(session.getFamilyId()));
+                }
+            } catch (Exception e) {
+                // Already-invalid refresh token: nothing to revoke, cookie is still cleared
             }
         }
 

@@ -202,11 +202,16 @@ public class DocumentTemplateCenterServiceImpl
 
         for (MultipartFile file : files) {
             try {
+                com.legalpro.accountservice.util.UploadValidation.validate(
+                        file, com.legalpro.accountservice.util.UploadValidation.DOCUMENT_CONTENT_TYPES);
+                String safeFileName = com.legalpro.accountservice.util.UploadValidation.sanitizeFileName(
+                        file.getOriginalFilename());
+
                 String objectName =
                         lawyerUuid + "/" +
                                 subheading.getUuid() + "/" +
                                 UUID.randomUUID() + "-" +
-                                file.getOriginalFilename();
+                                safeFileName;
 
                 BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
                         .setContentType(file.getContentType())
@@ -252,9 +257,11 @@ public class DocumentTemplateCenterServiceImpl
 
     @Override
     public List<DocumentTemplateCenterDto> getDocumentsByLawyer(UUID lawyerUuid) {
+        // parallelStream() so the GCS URL signing each toDto() does happens
+        // concurrently instead of one file at a time.
         return documentRepository
                 .findAllByLawyerUuidAndDeletedAtIsNull(lawyerUuid)
-                .stream()
+                .parallelStream()
                 .map(DocumentTemplateCenterMapper::toDto)
                 .toList();
     }
@@ -275,7 +282,7 @@ public class DocumentTemplateCenterServiceImpl
     ) {
         return documentRepository
                 .findAllBySubheadingIdAndLawyerUuidAndDeletedAtIsNull(subheadingId, lawyerUuid)
-                .stream()
+                .parallelStream()
                 .map(DocumentTemplateCenterMapper::toDto)
                 .toList();
     }
@@ -341,7 +348,7 @@ public class DocumentTemplateCenterServiceImpl
                         documentsBySubheading.getOrDefault(subheading.getId(), List.of());
 
                 List<DocumentTemplateCenterDto> documentDtos =
-                        subheadingDocs.stream()
+                        subheadingDocs.parallelStream()
                                 .map(doc -> {
                                     return DocumentTemplateCenterMapper.toDto(doc);
                                 })

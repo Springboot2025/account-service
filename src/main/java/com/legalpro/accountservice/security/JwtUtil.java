@@ -29,24 +29,31 @@ public class JwtUtil {
         this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
+    public long getRefreshTokenExpirationMs() {
+        return refreshTokenExpirationMs;
+    }
+
     // --- Generate Access Token ---
     public String generateAccessToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed, boolean isCompany,
                                       boolean isCompanyMember,
                                       String companyName) {
-        return generateToken(uuid, username, authorities, subscribed, isCompany, isCompanyMember, companyName, accessTokenExpirationMs);
+        return generateToken(uuid, username, authorities, subscribed, isCompany, isCompanyMember, companyName,
+                accessTokenExpirationMs, UUID.randomUUID().toString());
     }
 
-    // --- Generate Refresh Token ---
+    // --- Generate Refresh Token. Caller supplies the jti so it can persist a
+    // RefreshSession row keyed by the same id before/after this returns. ---
     public String generateRefreshToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed, boolean isCompany,
                                        boolean isCompanyMember,
-                                       String companyName) {
-        return generateToken(uuid, username, authorities, subscribed, isCompany, isCompanyMember, companyName, refreshTokenExpirationMs);
+                                       String companyName, String jti) {
+        return generateToken(uuid, username, authorities, subscribed, isCompany, isCompanyMember, companyName,
+                refreshTokenExpirationMs, jti);
     }
 
-    // --- Core token generator (now includes uuid) ---
+    // --- Core token generator (now includes uuid + jti) ---
     private String generateToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed, boolean isCompany,
                                  boolean isCompanyMember,
-                                 String companyName, long expirationMs) {
+                                 String companyName, long expirationMs, String jti) {
         Set<String> roles = authorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toSet());
@@ -55,6 +62,7 @@ public class JwtUtil {
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
+                .setId(jti)
                 .setSubject(username)                   // email as subject
                 .claim("uuid", uuid.toString())         // ✅ add uuid claim
                 .claim("roles", roles)

@@ -54,8 +54,13 @@ public class CourtSupportMaterialService {
                 throw new RuntimeException("File with name " + file.getOriginalFilename() + " already exists");
             }
 
+            com.legalpro.accountservice.util.UploadValidation.validate(
+                    file, com.legalpro.accountservice.util.UploadValidation.DOCUMENT_CONTENT_TYPES);
+            String safeFileName = com.legalpro.accountservice.util.UploadValidation.sanitizeFileName(
+                    file.getOriginalFilename());
+
             // Generate unique filename for GCS
-            String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
+            String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + safeFileName;
 
             // Upload to GCS
             BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
@@ -87,10 +92,10 @@ public class CourtSupportMaterialService {
 
         // These entities are already detached by this point (no active
         // transaction spans this method), so setting a signed URL here is
-        // safe -- it will not be flushed back to the database.
-        for (CourtSupportMaterial material : materials) {
-            material.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(material.getFileUrl()));
-        }
+        // safe -- it will not be flushed back to the database. Signed in
+        // parallel since each signing call is a real network round-trip.
+        materials.parallelStream().forEach(material ->
+                material.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(material.getFileUrl())));
 
         return materials;
     }
@@ -114,8 +119,13 @@ public class CourtSupportMaterialService {
             throw new RuntimeException("Client already has a file with name: " + file.getOriginalFilename());
         }
 
+        com.legalpro.accountservice.util.UploadValidation.validate(
+                file, com.legalpro.accountservice.util.UploadValidation.DOCUMENT_CONTENT_TYPES);
+        String safeFileName = com.legalpro.accountservice.util.UploadValidation.sanitizeFileName(
+                file.getOriginalFilename());
+
         // Generate unique GCS object name
-        String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
+        String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + safeFileName;
 
         // Upload file to GCS
         BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
@@ -165,9 +175,8 @@ public class CourtSupportMaterialService {
         List<CourtSupportMaterial> materials = repository.findAllByClientUuidAndCaseUuidAndDeletedAtIsNull(clientUuid, caseUuid);
 
         // Already-detached entities here too -- safe to mutate for the response.
-        for (CourtSupportMaterial material : materials) {
-            material.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(material.getFileUrl()));
-        }
+        materials.parallelStream().forEach(material ->
+                material.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(material.getFileUrl())));
 
         return materials;
     }

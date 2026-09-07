@@ -22,7 +22,13 @@ public class ProfilePictureService {
     private final AccountRepository accountRepository;
     private final Storage storage;
 
-    private final String bucketName = "legalpro-client-docs-au";
+    // A dedicated, fully public bucket -- profile pictures are avatars meant
+    // to be shown to anyone (lawyer public profiles) or are otherwise not
+    // sensitive, so signing them on every read was pure overhead: a real
+    // network round-trip to Google's IAM API per picture per page load, for
+    // content with no confidentiality requirement. Actual documents
+    // (passports, licences, court evidence) stay in the private bucket.
+    private final String bucketName = "legalpro-profile-pictures-au";
     private static final String PUBLIC_BASE = "https://storage.googleapis.com";
 
     @Transactional
@@ -56,16 +62,15 @@ public class ProfilePictureService {
 
         storage.create(blobInfo, file.getBytes());
 
-        // The bucket is private -- store the gs:// reference (not a public
-        // URL) and hand back a short-lived signed URL for immediate display.
-        // Every other read path already converts this reference to a fresh
-        // signed URL via GcsUrlSigner at response time.
-        String gsUrl = "gs://" + bucketName + "/" + objectName;
+        // The bucket is public -- store and return the direct URL. No
+        // signing needed (and GcsUrlSigner recognizes this bucket and skips
+        // signing too, for any older records still pointing at it).
+        String publicUrl = PUBLIC_BASE + "/" + bucketName + "/" + objectName;
 
-        account.setProfilePictureUrl(gsUrl);
+        account.setProfilePictureUrl(publicUrl);
         accountRepository.save(account);
 
-        return com.legalpro.accountservice.util.GcsUrlSigner.sign(gsUrl);
+        return publicUrl;
     }
 }
 

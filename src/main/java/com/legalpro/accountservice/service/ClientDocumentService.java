@@ -38,8 +38,13 @@ public class ClientDocumentService {
             String documentType = documentTypes.get(i);
             MultipartFile file = files.get(i);
 
+            com.legalpro.accountservice.util.UploadValidation.validate(
+                    file, com.legalpro.accountservice.util.UploadValidation.DOCUMENT_CONTENT_TYPES);
+            String safeFileName = com.legalpro.accountservice.util.UploadValidation.sanitizeFileName(
+                    file.getOriginalFilename());
+
             // Generate unique filename
-            String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
+            String objectName = clientUuid + "/" + UUID.randomUUID() + "-" + safeFileName;
 
             // Upload to GCS
             BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
@@ -76,18 +81,19 @@ public class ClientDocumentService {
     public List<ClientDocument> getClientDocuments(UUID clientUuid) {
         List<ClientDocument> docs = repository.findAllByClientUuidAndDeletedAtIsNull(clientUuid);
 
-        for (ClientDocument doc : docs) {
-            doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl()));
-        }
+        // Signing each URL is a real network call -- fan them out in
+        // parallel instead of one at a time so a list of N documents costs
+        // roughly one signing call's worth of time instead of N.
+        docs.parallelStream().forEach(doc ->
+                doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl())));
 
         return docs;
     }
 
     public List<ClientDocument> getClientDocumentsForLawyer(UUID clientUuid, UUID lawyerUuid) {
         List<ClientDocument> docs = repository.findAllByClientUuidAndLawyerUuidAndDeletedAtIsNull(clientUuid, lawyerUuid);
-        for (ClientDocument doc : docs) {
-            doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl()));
-        }
+        docs.parallelStream().forEach(doc ->
+                doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl())));
         return docs;
     }
 
@@ -109,9 +115,8 @@ public class ClientDocumentService {
     public List<ClientDocument> getClientDocumentsByCase(UUID clientUuid, UUID caseUuid) {
         List<ClientDocument> docs = repository.findAllByClientUuidAndCaseUuidAndDeletedAtIsNull(clientUuid, caseUuid);
 
-        for (ClientDocument doc : docs) {
-            doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl()));
-        }
+        docs.parallelStream().forEach(doc ->
+                doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl())));
 
         return docs;
     }
@@ -119,9 +124,8 @@ public class ClientDocumentService {
     public List<ClientDocument> getClientDocumentsByCase(UUID caseUuid) {
         List<ClientDocument> docs = repository.findByCaseUuidAndDeletedAtIsNull(caseUuid);
 
-        for (ClientDocument doc : docs) {
-            doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl()));
-        }
+        docs.parallelStream().forEach(doc ->
+                doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl())));
 
         return docs;
     }

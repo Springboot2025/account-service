@@ -1,9 +1,10 @@
 package com.legalpro.accountservice.service.impl;
 
 import com.anthropic.client.AnthropicClient;
+import com.anthropic.core.http.StreamResponse;
 import com.anthropic.models.messages.CacheControlEphemeral;
-import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
+import com.anthropic.models.messages.RawMessageStreamEvent;
 import com.anthropic.models.messages.StopReason;
 import com.anthropic.models.messages.TextBlockParam;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
@@ -30,6 +31,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 @Service
 public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
@@ -77,7 +80,7 @@ public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
     }
 
     @Override
-    public LetterOfAdviceContentDto generate(UUID lawyerUuid, UUID caseUuid, LetterOfAdviceGenerateRequest request) {
+    public LetterOfAdviceContentDto generate(UUID lawyerUuid, UUID caseUuid, LetterOfAdviceGenerateRequest request, Consumer<String> onTextDelta) {
         LegalCase legalCase = legalCaseRepository.findByUuid(caseUuid)
                 .orElseThrow(() -> new RuntimeException("Case not found"));
 
@@ -104,7 +107,12 @@ public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
                 // tight and was silently truncating some responses mid-JSON —
                 // Claude would return cut-off, unparseable content for longer
                 // matters while shorter ones happened to fit and succeeded.
-                .maxTokens(8192L)
+                // 8192 was still hit in production on a "comprehensive"-style
+                // letter with a long optionsForResolution array. Raised to
+                // 16000 (Anthropic's recommended non-streaming default) to
+                // push the ceiling well above realistic letter sizes; the
+                // stopReason==MAX_TOKENS guard below stays as a backstop.
+                .maxTokens(16000L)
                 // The system prompt is identical on every call — mark it cached
                 // so repeat generations only pay full input price for the
                 // case-specific data, not the (much larger) instructions.
@@ -116,22 +124,47 @@ public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
                 .addUserMessage(userContent)
                 .build();
 
-        Message message;
-        try {
-            message = anthropicClient.messages().create(params);
+        // Streamed rather than a single blocking create() call so the caller
+        // (the controller, over SSE) can forward live progress to the browser
+        // instead of the request just sitting there for the full ~1-2 minute
+        // drafting time with no feedback. We still assemble the full text
+        // ourselves and parse it only once the stream ends -- the letter is
+        // structured JSON, not something that can be usefully rendered
+        // half-formed.
+        StringBuilder rawText = new StringBuilder();
+        AtomicReference<StopReason> finalStopReason = new AtomicReference<>();
+        try (StreamResponse<RawMessageStreamEvent> streamResponse = anthropicClient.messages().createStreaming(params)) {
+            streamResponse.stream().forEach(event -> {
+                event.contentBlockDelta()
+                        .flatMap(delta -> delta.delta().text())
+                        .ifPresent(textDelta -> {
+                            rawText.append(textDelta.text());
+                            onTextDelta.accept(textDelta.text());
+                        });
+                event.messageDelta()
+                        .flatMap(delta -> delta.delta().stopReason())
+                        .ifPresent(finalStopReason::set);
+            });
         } catch (RuntimeException e) {
             throw new IllegalStateException(
                     "AI letter drafting is not available right now. If this persists, check that "
                             + "Workload Identity Federation is correctly configured for this service.", e);
         }
 
-        if (message.stopReason().isPresent() && message.stopReason().get() == StopReason.MAX_TOKENS) {
+        // StopReason is not a true Java enum (it's a Kotlin-generated wrapper
+        // class with a custom equals()) -- "==" compares object identity and
+        // is essentially always false here, silently defeating this entire
+        // check since a freshly-deserialized StopReason is never the same
+        // instance as the StopReason.MAX_TOKENS constant. Every truncated
+        // response has been falling through to the generic JSON-parse error
+        // below instead of this clear message. Must use .equals().
+        if (finalStopReason.get() != null && finalStopReason.get().equals(StopReason.MAX_TOKENS)) {
             throw new IllegalStateException(
                     "Claude's response was cut off before it finished drafting the letter (too long for "
                             + "the current output limit). Try again, or shorten the requested scope.");
         }
 
-        return extractLetterContent(message);
+        return extractLetterContent(rawText.toString());
     }
 
     private Map<String, Object> buildCaseData(LegalCase legalCase, Quote quote, LetterOfAdviceGenerateRequest request) {
@@ -159,12 +192,10 @@ public class LetterOfAdviceAiServiceImpl implements LetterOfAdviceAiService {
                 .orElse(null);
     }
 
-    private LetterOfAdviceContentDto extractLetterContent(Message message) {
-        String rawJson = message.content().stream()
-                .flatMap(block -> block.text().stream())
-                .map(textBlock -> textBlock.text())
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No text content returned by Claude"));
+    private LetterOfAdviceContentDto extractLetterContent(String rawJson) {
+        if (rawJson == null || rawJson.isBlank()) {
+            throw new IllegalStateException("No text content returned by Claude");
+        }
 
         String cleanedJson = extractJsonObject(stripMarkdownCodeFence(rawJson));
 

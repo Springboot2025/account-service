@@ -415,12 +415,20 @@ public class AccountService {
         return accountRepository.findByVerificationToken(token);
     }
 
-    public void setPassword(UUID uuid, String rawPassword) {
+    public void setPassword(UUID uuid, UUID verificationToken, String rawPassword) {
         Account account = accountRepository.findByUuid(uuid)
                 .orElseThrow(() -> new RuntimeException("Invalid account UUID"));
 
         if (!account.isVerified()) {
             throw new RuntimeException("Account is not verified yet");
+        }
+
+        // The account UUID alone is not a secret -- it appears in ordinary API
+        // responses throughout the platform. The verification token proves the
+        // caller actually received the verification email; without checking it,
+        // anyone who learns a target's UUID could set that account's password.
+        if (account.getVerificationToken() == null || !account.getVerificationToken().equals(verificationToken)) {
+            throw new RuntimeException("Invalid or expired verification token");
         }
 
         account.setPassword(passwordEncoder.encode(rawPassword));
@@ -661,10 +669,7 @@ public class AccountService {
     }
 
     private String convertGcsUrl(String fileUrl) {
-        if (fileUrl != null && fileUrl.startsWith("gs://")) {
-            return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
-        }
-        return fileUrl;
+        return com.legalpro.accountservice.util.GcsUrlSigner.sign(fileUrl);
     }
 
     @Transactional(readOnly = true)

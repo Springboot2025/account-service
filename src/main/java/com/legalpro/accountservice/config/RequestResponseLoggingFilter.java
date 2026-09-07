@@ -12,9 +12,33 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class RequestResponseLoggingFilter extends OncePerRequestFilter {
+
+    // Headers that carry live session credentials -- logging these in
+    // plaintext lets anyone with log access hijack an active session, which
+    // is a much bigger exposure surface than database access alone.
+    private static final Set<String> SENSITIVE_HEADERS = Set.of(
+            "authorization", "cookie", "set-cookie"
+    );
+
+    // JSON body fields that carry credentials/tokens across auth endpoints
+    // (login response, set-password, reset-password, register, etc.). Bodies
+    // are logged as raw strings here rather than parsed, so this redacts by
+    // pattern rather than by walking a parsed object.
+    private static final Pattern SENSITIVE_BODY_FIELD = Pattern.compile(
+            "\"(password|newPassword|confirmPassword|currentPassword|accessToken|refreshToken|token)\"\\s*:\\s*\"[^\"]*\"",
+            Pattern.CASE_INSENSITIVE
+    );
+
+    private static String redactBody(String body) {
+        Matcher matcher = SENSITIVE_BODY_FIELD.matcher(body);
+        return matcher.replaceAll(mr -> "\"" + mr.group(1) + "\":\"[REDACTED]\"");
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -40,7 +64,12 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         msg.append(request.getMethod()).append(" ").append(request.getRequestURI()).append("\n");
 
         Collections.list(request.getHeaderNames())
-                .forEach(header -> msg.append(header).append(": ").append(request.getHeader(header)).append("\n"));
+                .forEach(header -> {
+                    String value = SENSITIVE_HEADERS.contains(header.toLowerCase())
+                            ? "[REDACTED]"
+                            : request.getHeader(header);
+                    msg.append(header).append(": ").append(value).append("\n");
+                });
 
         String contentType = request.getContentType();
         if (contentType == null) contentType = "";
@@ -50,7 +79,7 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
             byte[] buf = request.getContentAsByteArray();
             if (buf.length > 0) {
                 String body = new String(buf, StandardCharsets.UTF_8);
-                msg.append("Body: ").append(body).append("\n");
+                msg.append("Body: ").append(redactBody(body)).append("\n");
             }
         } else if (contentType.contains("multipart/form-data")) {
             msg.append("Multipart request: skipping raw body logging\n");
@@ -68,7 +97,12 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         msg.append("Status: ").append(response.getStatus()).append("\n");
 
         response.getHeaderNames()
-                .forEach(header -> msg.append(header).append(": ").append(response.getHeader(header)).append("\n"));
+                .forEach(header -> {
+                    String value = SENSITIVE_HEADERS.contains(header.toLowerCase())
+                            ? "[REDACTED]"
+                            : response.getHeader(header);
+                    msg.append(header).append(": ").append(value).append("\n");
+                });
 
         String contentType = response.getContentType();
         if (contentType == null) contentType = "";
@@ -76,7 +110,7 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         byte[] buf = response.getContentAsByteArray();
         if (buf.length > 0 && (contentType.startsWith("application/json") || contentType.startsWith("text/"))) {
             String body = new String(buf, StandardCharsets.UTF_8);
-            msg.append("Body: ").append(body).append("\n");
+            msg.append("Body: ").append(redactBody(body)).append("\n");
         } else if (!contentType.isEmpty()) {
             msg.append("Non-text response body skipped: Content-Type=").append(contentType).append("\n");
         }

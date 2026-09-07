@@ -56,13 +56,16 @@ public class ProfilePictureService {
 
         storage.create(blobInfo, file.getBytes());
 
-        String publicUrl = PUBLIC_BASE + "/" + bucketName + "/" + objectName;
+        // The bucket is private -- store the gs:// reference (not a public
+        // URL) and hand back a short-lived signed URL for immediate display.
+        // Every other read path already converts this reference to a fresh
+        // signed URL via GcsUrlSigner at response time.
+        String gsUrl = "gs://" + bucketName + "/" + objectName;
 
-        // Save URL to DB
-        account.setProfilePictureUrl(publicUrl);
+        account.setProfilePictureUrl(gsUrl);
         accountRepository.save(account);
 
-        return publicUrl;
+        return com.legalpro.accountservice.util.GcsUrlSigner.sign(gsUrl);
     }
 }
 

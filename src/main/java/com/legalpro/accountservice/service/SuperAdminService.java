@@ -157,10 +157,7 @@ public class SuperAdminService {
     }
 
     private String convertGcsUrl(String fileUrl) {
-        if (fileUrl != null && fileUrl.startsWith("gs://")) {
-            return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
-        }
-        return fileUrl;
+        return com.legalpro.accountservice.util.GcsUrlSigner.sign(fileUrl);
     }
 
 

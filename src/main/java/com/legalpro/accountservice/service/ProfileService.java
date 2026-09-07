@@ -16,8 +16,6 @@ public class ProfileService {
 
     private final AccountRepository accountRepository;
 
-    private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com/legalpro";
-
     /**
      * Bulk-load Account entities for given UUIDs
      */
@@ -38,14 +36,9 @@ public class ProfileService {
     }
 
     /**
-     * GCS URL converter
+     * GCS URL converter -- signs a short-lived URL for the stored reference.
      */
     public String convertGcsUrl(String fileUrl) {
-        if (fileUrl == null) return null;
-
-        if (fileUrl.startsWith("gs://")) {
-            return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
-        }
-        return fileUrl;
+        return com.legalpro.accountservice.util.GcsUrlSigner.sign(fileUrl);
     }
 }

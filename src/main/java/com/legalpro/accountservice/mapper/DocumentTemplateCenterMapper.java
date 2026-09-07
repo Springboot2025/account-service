@@ -20,7 +20,7 @@ public class DocumentTemplateCenterMapper {
                 .subheadingId(entity.getSubheading().getId())
                 .fileName(entity.getFileName())
                 .fileType(entity.getFileType())
-                .fileUrl(entity.getFileUrl())
+                .fileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(entity.getFileUrl()))
                 .createdAt(entity.getCreatedAt())
                 .build();
     }

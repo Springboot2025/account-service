@@ -155,10 +155,7 @@ public class ClientLetterServiceImpl implements ClientLetterService {
 
     private ClientLetterDto toDto(ClientLetterView v) {
 
-        String publicUrl = v.getFileUrl();
-        if (publicUrl != null && publicUrl.startsWith("gs://")) {
-            publicUrl = GCS_PUBLIC_BASE + "/" + publicUrl.substring(5);
-        }
+        String publicUrl = com.legalpro.accountservice.util.GcsUrlSigner.sign(v.getFileUrl());
 
         return ClientLetterDto.builder()
                 .sharedUuid(v.getSharedUuid())

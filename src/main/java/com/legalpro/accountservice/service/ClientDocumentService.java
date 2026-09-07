@@ -77,18 +77,18 @@ public class ClientDocumentService {
         List<ClientDocument> docs = repository.findAllByClientUuidAndDeletedAtIsNull(clientUuid);
 
         for (ClientDocument doc : docs) {
-            String fileUrl = doc.getFileUrl();
-            if (fileUrl != null && fileUrl.startsWith("gs://")) {
-                String withoutScheme = fileUrl.substring("gs://".length()); 
-                doc.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
-            }
+            doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl()));
         }
 
         return docs;
     }
 
     public List<ClientDocument> getClientDocumentsForLawyer(UUID clientUuid, UUID lawyerUuid) {
-        return repository.findAllByClientUuidAndLawyerUuidAndDeletedAtIsNull(clientUuid, lawyerUuid);
+        List<ClientDocument> docs = repository.findAllByClientUuidAndLawyerUuidAndDeletedAtIsNull(clientUuid, lawyerUuid);
+        for (ClientDocument doc : docs) {
+            doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl()));
+        }
+        return docs;
     }
 
     public Optional<ClientDocument> getDocument(Long id) {
@@ -110,11 +110,7 @@ public class ClientDocumentService {
         List<ClientDocument> docs = repository.findAllByClientUuidAndCaseUuidAndDeletedAtIsNull(clientUuid, caseUuid);
 
         for (ClientDocument doc : docs) {
-            String fileUrl = doc.getFileUrl();
-            if (fileUrl != null && fileUrl.startsWith("gs://")) {
-                String withoutScheme = fileUrl.substring("gs://".length());
-                doc.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
-            }
+            doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl()));
         }
 
         return docs;
@@ -124,11 +120,7 @@ public class ClientDocumentService {
         List<ClientDocument> docs = repository.findByCaseUuidAndDeletedAtIsNull(caseUuid);
 
         for (ClientDocument doc : docs) {
-            String fileUrl = doc.getFileUrl();
-            if (fileUrl != null && fileUrl.startsWith("gs://")) {
-                String withoutScheme = fileUrl.substring("gs://".length());
-                doc.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
-            }
+            doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl()));
         }
 
         return docs;

@@ -79,6 +79,22 @@ public class LegalCaseController {
             LegalCase legalCaseEntity = legalCaseRepository.findByUuid(caseUuid)
                     .orElseThrow(() -> new RuntimeException("Case not found"));
 
+            // The case's own assigned lawyer must actually be a member of the
+            // requesting company -- without this check, any company account
+            // could read any lawyer's case anywhere on the platform simply by
+            // supplying its UUID, since the line below would otherwise just
+            // echo the case's own lawyer back at the ownership check that
+            // follows, making it trivially pass regardless of affiliation.
+            Account caseLawyerAccount = accountService.findByUuid(legalCaseEntity.getLawyerUuid())
+                    .orElseThrow(() -> new RuntimeException("Case not found"));
+
+            if (caseLawyerAccount.getCompanyUuid() == null
+                    || !caseLawyerAccount.getCompanyUuid().equals(account.getUuid())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(),
+                                "This case does not belong to a lawyer at your company"));
+            }
+
             lawyerUuid = legalCaseEntity.getLawyerUuid();
         }
 

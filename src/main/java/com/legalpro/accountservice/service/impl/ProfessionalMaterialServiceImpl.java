@@ -120,7 +120,7 @@ public class ProfessionalMaterialServiceImpl implements ProfessionalMaterialServ
         // -----------------------------------------------------
         // 5️⃣ Build response (PUBLIC URL)
         // -----------------------------------------------------
-        String publicUrl = GCS_PUBLIC_BASE + "/" + BUCKET_NAME + "/" + objectName;
+        String publicUrl = com.legalpro.accountservice.util.GcsUrlSigner.sign(gsUrl);
 
         ProfessionalMaterialResponseDto response = new ProfessionalMaterialResponseDto();
         response.setUuid(material.getUuid());
@@ -206,11 +206,7 @@ public class ProfessionalMaterialServiceImpl implements ProfessionalMaterialServ
         return response;
     }
 
-    // 🔁 gs:// → https://storage.googleapis.com
     private String toPublicUrl(String fileUrl) {
-        if (fileUrl != null && fileUrl.startsWith("gs://")) {
-            return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
-        }
-        return fileUrl;
+        return com.legalpro.accountservice.util.GcsUrlSigner.sign(fileUrl);
     }
 }

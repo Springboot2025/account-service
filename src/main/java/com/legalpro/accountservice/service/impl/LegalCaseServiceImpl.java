@@ -500,12 +500,7 @@ public class LegalCaseServiceImpl implements LegalCaseService {
     }
 
     private static String convertGcsUrl(String fileUrl) {
-        if (fileUrl == null) return null;
-
-        if (fileUrl.startsWith("gs://")) {
-            return GCS_PUBLIC_BASE + "/" + fileUrl.substring("gs://".length());
-        }
-        return fileUrl;
+        return com.legalpro.accountservice.util.GcsUrlSigner.sign(fileUrl);
     }
 
     private String extractFullName(Account account) {

@@ -255,13 +255,7 @@ public class DocumentTemplateCenterServiceImpl
         return documentRepository
                 .findAllByLawyerUuidAndDeletedAtIsNull(lawyerUuid)
                 .stream()
-                .map(doc -> {
-                    if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
-                        String withoutScheme = doc.getFileUrl().substring("gs://".length());
-                        doc.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
-                    }
-                    return DocumentTemplateCenterMapper.toDto(doc);
-                })
+                .map(DocumentTemplateCenterMapper::toDto)
                 .toList();
     }
 
@@ -282,13 +276,7 @@ public class DocumentTemplateCenterServiceImpl
         return documentRepository
                 .findAllBySubheadingIdAndLawyerUuidAndDeletedAtIsNull(subheadingId, lawyerUuid)
                 .stream()
-                .map(doc -> {
-                    if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
-                        String withoutScheme = doc.getFileUrl().substring("gs://".length());
-                        doc.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
-                    }
-                    return DocumentTemplateCenterMapper.toDto(doc);
-                })
+                .map(DocumentTemplateCenterMapper::toDto)
                 .toList();
     }
 
@@ -355,8 +343,6 @@ public class DocumentTemplateCenterServiceImpl
                 List<DocumentTemplateCenterDto> documentDtos =
                         subheadingDocs.stream()
                                 .map(doc -> {
-                                    // 🔁 reuse existing public URL conversion
-                                    convertToPublicUrl(doc);
                                     return DocumentTemplateCenterMapper.toDto(doc);
                                 })
                                 .toList();
@@ -383,13 +369,6 @@ public class DocumentTemplateCenterServiceImpl
         }
 
         return response;
-    }
-
-    private void convertToPublicUrl(DocumentTemplateCenter doc) {
-        if (doc.getFileUrl() != null && doc.getFileUrl().startsWith("gs://")) {
-            String withoutScheme = doc.getFileUrl().substring("gs://".length());
-            doc.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
-        }
     }
 
     public DocumentTemplateCenterSummaryDto getSummary(UUID lawyerUuid) {

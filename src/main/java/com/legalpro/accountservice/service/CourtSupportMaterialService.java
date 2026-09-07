@@ -85,13 +85,11 @@ public class CourtSupportMaterialService {
     public List<CourtSupportMaterial> getMaterials(UUID clientUuid) {
         List<CourtSupportMaterial> materials = repository.findAllByClientUuidAndDeletedAtIsNull(clientUuid);
 
-        // Convert gs:// URLs to https:// URLs
+        // These entities are already detached by this point (no active
+        // transaction spans this method), so setting a signed URL here is
+        // safe -- it will not be flushed back to the database.
         for (CourtSupportMaterial material : materials) {
-            String fileUrl = material.getFileUrl();
-            if (fileUrl != null && fileUrl.startsWith("gs://")) {
-                String withoutScheme = fileUrl.substring("gs://".length());
-                material.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
-            }
+            material.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(material.getFileUrl()));
         }
 
         return materials;
@@ -166,13 +164,9 @@ public class CourtSupportMaterialService {
     public List<CourtSupportMaterial> getMaterialsByCase(UUID clientUuid, UUID caseUuid) {
         List<CourtSupportMaterial> materials = repository.findAllByClientUuidAndCaseUuidAndDeletedAtIsNull(clientUuid, caseUuid);
 
-        // Convert gs:// URLs to https:// URLs
+        // Already-detached entities here too -- safe to mutate for the response.
         for (CourtSupportMaterial material : materials) {
-            String fileUrl = material.getFileUrl();
-            if (fileUrl != null && fileUrl.startsWith("gs://")) {
-                String withoutScheme = fileUrl.substring("gs://".length());
-                material.setFileUrl(GCS_PUBLIC_BASE + "/" + withoutScheme);
-            }
+            material.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(material.getFileUrl()));
         }
 
         return materials;

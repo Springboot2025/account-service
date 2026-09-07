@@ -11,7 +11,7 @@ public class CourtSupportMaterialMapper {
                 .clientUuid(e.getClientUuid())
                 .fileName(e.getFileName())
                 .fileType(e.getFileType())
-                .fileUrl(e.getFileUrl())
+                .fileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(e.getFileUrl()))
                 .caseUuid(e.getCaseUuid())
                 .description(e.getDescription())
                 .createdAt(e.getCreatedAt())

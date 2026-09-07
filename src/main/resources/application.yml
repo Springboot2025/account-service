@@ -10,7 +10,7 @@ spring:
   datasource:
     url: jdbc:postgresql:///legalpro?cloudSqlInstance=ecstatic-seeker-474703-d4:australia-southeast2:legalpro-postgres-au&socketFactory=com.google.cloud.sql.postgres.SocketFactory
     username: legalpro
-    password: legalPro42#
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       initialization-fail-timeout: 0
@@ -26,10 +26,6 @@ spring:
     baseline-on-migrate: true
     out-of-order: true
 
-jwt:
-  secret: legalPro42
-  expirationMs: 86400000
-
 logging:
   level:
     org.springframework.web.multipart: DEBUG
@@ -41,7 +37,7 @@ server:
 
 google:
   api:
-    key: AIzaSyCd-N4mWAZ5qUixQKACUTogkYunUVYD-LE
+    key: ${GOOGLE_API_KEY}
 
 springdoc:
   api-docs:

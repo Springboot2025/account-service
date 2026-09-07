@@ -291,16 +291,25 @@ public class AuthController {
     public ResponseEntity<ApiResponse<String>> setPassword(@RequestBody Map<String, String> body) {
         String password = body.get("password");
         String uuidStr = body.get("uuid");
+        String tokenStr = body.get("token");
 
-        if (uuidStr == null || password == null) {
+        if (uuidStr == null || password == null || tokenStr == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(400, "UUID and password are required"));
+                    .body(ApiResponse.error(400, "UUID, verification token, and password are required"));
         }
 
-        UUID uuid = UUID.fromString(uuidStr);
+        UUID uuid;
+        UUID token;
+        try {
+            uuid = UUID.fromString(uuidStr);
+            token = UUID.fromString(tokenStr);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(400, "Invalid UUID or token format"));
+        }
 
         try {
-            accountService.setPassword(uuid, password);
+            accountService.setPassword(uuid, token, password);
             return ResponseEntity.ok(ApiResponse.success(200, "Password set successfully", null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)

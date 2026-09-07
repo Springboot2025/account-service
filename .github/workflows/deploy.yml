@@ -1,0 +1,72 @@
+name: Deploy Backend to Cloud Run (Melbourne)
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ecstatic-seeker-474703-d4
+  REGION: australia-southeast2
+  REPOSITORY: legalpro-repo
+  SERVICE_NAME: account-service
+  IMAGE_REGISTRY: us-central1-docker.pkg.dev
+  RUNTIME_SERVICE_ACCOUNT: anthropic-wif@ecstatic-seeker-474703-d4.iam.gserviceaccount.com
+  CLOUDSQL_INSTANCE: ecstatic-seeker-474703-d4:australia-southeast2:legalpro-postgres-au
+
+# Required so the OIDC auth step can request a short-lived Google token --
+# no long-lived key ever touches this repo or GitHub's secret store.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Keyless auth via Workload Identity Federation: GitHub issues this job
+      # a short-lived OIDC token, which Google exchanges for permission to
+      # impersonate account-service-deployer@... -- scoped by GCP-side IAM to
+      # only this repo, and it never appears anywhere as a storable secret.
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/46546576073/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+          service_account: account-service-deployer@ecstatic-seeker-474703-d4.iam.gserviceaccount.com
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push image via Cloud Build
+        run: |
+          IMAGE_URI="${{ env.IMAGE_REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}"
+          gcloud builds submit \
+            --tag "$IMAGE_URI:${{ github.sha }}" \
+            --project "${{ env.PROJECT_ID }}"
+          gcloud container images add-tag \
+            "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest" --quiet
+
+      # Application secrets are referenced by name from Secret Manager here
+      # (--set-secrets), never passed as literal values -- so none of them
+      # need to exist as a GitHub secret, and none of them appear in this
+      # workflow's logs, in the deploy command, or in the resulting Cloud Run
+      # revision spec. Only genuinely non-sensitive config uses --set-env-vars.
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE_URI="${{ env.IMAGE_REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          gcloud run deploy "${{ env.SERVICE_NAME }}" \
+            --image="$IMAGE_URI" \
+            --platform=managed \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}" \
+            --allow-unauthenticated \
+            --set-cloudsql-instances="${{ env.CLOUDSQL_INSTANCE }}" \
+            --service-account="${{ env.RUNTIME_SERVICE_ACCOUNT }}" \
+            --set-secrets="JWT_SECRET=jwt-secret:latest,SENDGRID_API_KEY=sendgrid-api-key:latest,STRIPE_SECRET_KEY=stripe-secret-key:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret:latest,GOOGLE_API_KEY=google-api-key:latest,DB_PASSWORD=db-password:latest" \
+            --set-env-vars="STRIPE_PUBLISHABLE_KEY=pk_test_51SQ9eSCc2zUKTpNVRXn1Nt1OTW7TRuCykp76d7dHpFcqWyoDYz4WW4rABmTq8iHxVEKCBvgKanIxNbTTKObt05y300wFWAEDVI,ANTHROPIC_FEDERATION_RULE_ID=fdrl_01JwLkiPWZjDCktuixq3CVVr,ANTHROPIC_ORGANIZATION_ID=2c3f3577-55a7-44a0-ae47-d32f9310d578,ANTHROPIC_SERVICE_ACCOUNT_ID=svac_01Xmh9AW7pzckkSYf3FDN8qb,ANTHROPIC_WORKSPACE_ID=wrkspc_01BFAcJJ8xvNvjSpfbKgZnEk,ANTHROPIC_IDENTITY_TOKEN_FILE=/tmp/anthropic-identity-token.jwt" \
+            --execution-environment=gen2 \
+            --timeout=900s

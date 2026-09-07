@@ -13,12 +13,21 @@ import java.util.stream.Collectors;
 @Component
 public class JwtUtil {
 
-    private final String jwtSecret = "super_secure_secret_key_for_jwt_1234567890";
-
     private final long accessTokenExpirationMs = 24 * 60 * 60 * 1000;       // 1 day
     private final long refreshTokenExpirationMs = 30L * 24 * 60 * 60 * 1000; // 30 days
 
-    private final Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+    private final Key key;
+
+    public JwtUtil() {
+        String jwtSecret = System.getenv("JWT_SECRET");
+        if (jwtSecret == null || jwtSecret.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT_SECRET environment variable is not set. A hardcoded/fallback secret is " +
+                            "not acceptable here -- refusing to start rather than sign tokens with a " +
+                            "predictable key.");
+        }
+        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+    }
 
     // --- Generate Access Token ---
     public String generateAccessToken(UUID uuid, String username, Collection<? extends GrantedAuthority> authorities, boolean subscribed, boolean isCompany,

@@ -23,7 +23,7 @@ public class DisputeDocumentServiceImpl implements DisputeDocumentService {
 
     private final DisputeDocumentRepository disputeDocumentRepository;
     private final Storage storage = StorageOptions.getDefaultInstance().getService();
-    private final String bucketName = "legalpro-dispute-docs"; // create or reuse bucket
+    private final String bucketName = "legalpro-dispute-docs-au";
 
     @Override
     public void uploadDocuments(UUID disputeUuid, List<MultipartFile> files) throws IOException {

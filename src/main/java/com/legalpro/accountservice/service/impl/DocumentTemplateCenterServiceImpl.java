@@ -196,7 +196,7 @@ public class DocumentTemplateCenterServiceImpl
         // 2. Upload files to GCS + persist DB records
         // =========================================================
         Storage storage = StorageOptions.getDefaultInstance().getService();
-        String bucketName = "legalpro-documents-template-center";
+        String bucketName = "legalpro-documents-template-center-au";
 
         List<DocumentTemplateCenterDto> response = new ArrayList<>();
 

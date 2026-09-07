@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 @Service
 public class ProfessionalMaterialServiceImpl implements ProfessionalMaterialService {
 
-    private static final String BUCKET_NAME = "legalpro-professional-materials";
+    private static final String BUCKET_NAME = "legalpro-professional-materials-au";
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
     private final ProfessionalMaterialRepository materialRepository;

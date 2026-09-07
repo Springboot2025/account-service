@@ -22,7 +22,7 @@ public class ProfilePictureService {
     private final AccountRepository accountRepository;
     private final Storage storage;
 
-    private final String bucketName = "legalpro-client-docs";
+    private final String bucketName = "legalpro-client-docs-au";
     private static final String PUBLIC_BASE = "https://storage.googleapis.com";
 
     @Transactional

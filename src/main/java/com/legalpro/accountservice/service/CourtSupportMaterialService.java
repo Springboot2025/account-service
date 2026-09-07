@@ -22,7 +22,7 @@ public class CourtSupportMaterialService {
     private final LegalCaseRepository legalCaseRepository;
     private final ActivityLogService activityLogService;
     private final Storage storage;
-    private final String bucketName = "legalpro-client-docs"; // ✅ dedicated bucket
+    private final String bucketName = "legalpro-client-docs-au"; // ✅ dedicated bucket
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
     public CourtSupportMaterialService(CourtSupportMaterialRepository repository,

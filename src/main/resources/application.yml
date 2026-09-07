@@ -8,7 +8,7 @@ spring:
       max-request-size: 100MB
       file-size-threshold: 2MB
   datasource:
-    url: jdbc:postgresql:///legalpro?cloudSqlInstance=ecstatic-seeker-474703-d4:us-central1:legalpro-postgres&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+    url: jdbc:postgresql:///legalpro?cloudSqlInstance=ecstatic-seeker-474703-d4:australia-southeast2:legalpro-postgres-au&socketFactory=com.google.cloud.sql.postgres.SocketFactory
     username: legalpro
     password: legalPro42#
     driver-class-name: org.postgresql.Driver

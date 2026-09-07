@@ -21,7 +21,7 @@ public class ClientDocumentService {
 
     private final ClientDocumentRepository repository;
     private final Storage storage;
-    private final String bucketName = "legalpro-client-docs"; // GCS bucket name
+    private final String bucketName = "legalpro-client-docs-au"; // GCS bucket name
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com";
 
     public ClientDocumentService(ClientDocumentRepository repository) {

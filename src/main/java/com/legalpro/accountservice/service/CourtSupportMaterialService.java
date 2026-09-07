@@ -60,6 +60,7 @@ public class CourtSupportMaterialService {
             // Upload to GCS
             BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
                     .setContentType(file.getContentType())
+                    .setCacheControl("public, max-age=31536000, immutable")
                     .build();
             storage.create(blobInfo, file.getBytes());
 
@@ -121,6 +122,7 @@ public class CourtSupportMaterialService {
         // Upload file to GCS
         BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
                 .setContentType(file.getContentType())
+                .setCacheControl("public, max-age=31536000, immutable")
                 .build();
         storage.create(blobInfo, file.getBytes());
 

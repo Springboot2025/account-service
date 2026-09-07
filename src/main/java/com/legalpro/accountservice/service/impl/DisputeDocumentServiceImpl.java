@@ -34,6 +34,7 @@ public class DisputeDocumentServiceImpl implements DisputeDocumentService {
 
             BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
                     .setContentType(file.getContentType())
+                    .setCacheControl("public, max-age=31536000, immutable")
                     .build();
 
             storage.create(blobInfo, file.getBytes());

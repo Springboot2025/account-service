@@ -51,6 +51,7 @@ public class ProfilePictureService {
         // Upload to GCS
         BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName)
                 .setContentType(contentType)
+                .setCacheControl("public, max-age=31536000, immutable")
                 .build();
 
         storage.create(blobInfo, file.getBytes());

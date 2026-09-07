@@ -93,6 +93,7 @@ public class ProfessionalMaterialServiceImpl implements ProfessionalMaterialServ
 
         BlobInfo blobInfo = BlobInfo.newBuilder(BUCKET_NAME, objectName)
                 .setContentType(file.getContentType())
+                .setCacheControl("public, max-age=31536000, immutable")
                 .build();
 
         storage.create(blobInfo, file.getBytes());

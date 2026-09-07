@@ -44,9 +44,32 @@ jobs:
       - name: Build and push image via Cloud Build
         run: |
           IMAGE_URI="${{ env.IMAGE_REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}"
-          gcloud builds submit \
+
+          # --async + poll instead of letting gcloud stream build logs
+          # directly: log-streaming's permission check doesn't reliably
+          # succeed under WIF-based impersonated credentials (seen failing
+          # repeatedly with "must be Viewer/Owner of the project" even after
+          # granting roles/viewer), even though the build itself completes
+          # fine server-side every time. Polling sidesteps that check entirely.
+          BUILD_ID=$(gcloud builds submit \
             --tag "$IMAGE_URI:${{ github.sha }}" \
-            --project "${{ env.PROJECT_ID }}"
+            --project "${{ env.PROJECT_ID }}" \
+            --async \
+            --format="value(id)")
+          echo "Cloud Build ID: $BUILD_ID"
+
+          STATUS="QUEUED"
+          while [ "$STATUS" = "QUEUED" ] || [ "$STATUS" = "WORKING" ]; do
+            sleep 10
+            STATUS=$(gcloud builds describe "$BUILD_ID" --project "${{ env.PROJECT_ID }}" --format="value(status)")
+            echo "Build status: $STATUS"
+          done
+
+          if [ "$STATUS" != "SUCCESS" ]; then
+            echo "Build did not succeed (status: $STATUS)"
+            exit 1
+          fi
+
           gcloud container images add-tag \
             "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest" --quiet
 

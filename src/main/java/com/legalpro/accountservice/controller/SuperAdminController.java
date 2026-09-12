@@ -3,6 +3,9 @@ package com.legalpro.accountservice.controller;
 import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.dto.admin.*;
 import com.legalpro.accountservice.entity.ClientDocument;
+import com.legalpro.accountservice.entity.TicketCategory;
+import com.legalpro.accountservice.entity.TicketPriority;
+import com.legalpro.accountservice.entity.TicketStatus;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.security.CustomUserDetails;
@@ -13,12 +16,15 @@ import com.legalpro.accountservice.service.SuperAdminService;
 import com.legalpro.accountservice.service.AccountService;
 import com.legalpro.accountservice.service.ClientDocumentService;
 import com.legalpro.accountservice.service.CaseEventService;
+import com.legalpro.accountservice.service.SupportTicketService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,12 +40,14 @@ public class SuperAdminController {
     private final AccountService accountService;
     private final ClientDocumentService clientDocumentService;
     private final CaseEventService caseEventService;
+    private final SupportTicketService supportTicketService;
 
     public SuperAdminController(SuperAdminService superAdminService, ContactRequestService contactRequestService,
                                 DisputeService disputeService, LegalCaseService legalCaseService,
                                 AccountService accountService,
                                 ClientDocumentService clientDocumentService,
-                                CaseEventService caseEventService) {
+                                CaseEventService caseEventService,
+                                SupportTicketService supportTicketService) {
         this.superAdminService = superAdminService;
         this.contactRequestService = contactRequestService;
         this.disputeService = disputeService;
@@ -47,6 +55,7 @@ public class SuperAdminController {
         this.accountService = accountService;
         this.clientDocumentService = clientDocumentService;
         this.caseEventService = caseEventService;
+        this.supportTicketService = supportTicketService;
     }
     @GetMapping("/hello")
     public ResponseEntity<ApiResponse<String>> helloSuperAdmin() {
@@ -416,9 +425,52 @@ public class SuperAdminController {
         );
     }
 
+    // --- Support Tickets ---
 
+    @GetMapping("/support/tickets")
+    public ResponseEntity<ApiResponse<AdminTicketListResponse>> getSupportTickets(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) TicketStatus status,
+            @RequestParam(required = false) TicketPriority priority,
+            @RequestParam(required = false) TicketCategory category,
+            @RequestParam(required = false) String search
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Tickets fetched successfully",
+                supportTicketService.getTicketsForAdmin(page, size, status, priority, category, search)));
+    }
 
+    @GetMapping("/support/tickets/summary")
+    public ResponseEntity<ApiResponse<TicketSummaryDto>> getSupportTicketsSummary() {
+        return ResponseEntity.ok(ApiResponse.success(200, "Ticket summary fetched successfully",
+                supportTicketService.getTicketsSummaryForAdmin()));
+    }
 
+    @GetMapping("/support/tickets/{ticketUuid}")
+    public ResponseEntity<ApiResponse<SupportTicketDetailDto>> getSupportTicketDetail(
+            @PathVariable UUID ticketUuid
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Ticket fetched successfully",
+                supportTicketService.getTicketDetail(ticketUuid, null, true)));
+    }
 
+    @PostMapping("/support/tickets/{ticketUuid}/replies")
+    public ResponseEntity<ApiResponse<SupportTicketDetailDto>> replyToSupportTicket(
+            @PathVariable UUID ticketUuid,
+            @RequestParam String message,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) throws IOException {
+        return ResponseEntity.ok(ApiResponse.success(200, "Reply added successfully",
+                supportTicketService.addReply(ticketUuid, userDetails.getUuid(), message, files, true)));
+    }
 
+    @PutMapping("/support/tickets/{ticketUuid}/status")
+    public ResponseEntity<ApiResponse<?>> updateSupportTicketStatus(
+            @PathVariable UUID ticketUuid,
+            @RequestParam TicketStatus status
+    ) {
+        supportTicketService.updateStatus(ticketUuid, status);
+        return ResponseEntity.ok(ApiResponse.success(200, "Ticket status updated", null));
+    }
 }

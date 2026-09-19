@@ -13,7 +13,11 @@ import java.util.UUID;
 @Repository
 public interface LetterOfAdviceDocumentRepository extends JpaRepository<LetterOfAdviceDocument, Long> {
 
-    Optional<LetterOfAdviceDocument> findByCaseUuidAndDeletedAtIsNull(UUID caseUuid);
+    // The one letter currently being worked on for a case (older ones are
+    // superseded, not deleted).
+    Optional<LetterOfAdviceDocument> findByCaseUuidAndDeletedAtIsNullAndSupersededAtIsNull(UUID caseUuid);
+
+    List<LetterOfAdviceDocument> findAllByCaseUuidAndDeletedAtIsNullOrderByCreatedAtAsc(UUID caseUuid);
 
     List<LetterOfAdviceDocument> findAllByClientUuidAndStatusInAndDeletedAtIsNullOrderBySentToClientAtDesc(
             UUID clientUuid, Collection<LetterOfAdviceStatus> statuses);

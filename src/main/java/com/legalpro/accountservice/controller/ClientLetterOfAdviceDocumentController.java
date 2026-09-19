@@ -1,6 +1,8 @@
 package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
+import com.legalpro.accountservice.dto.LetterOfAdviceChangeRequestCreateRequest;
+import com.legalpro.accountservice.dto.LetterOfAdviceChangeRequestDto;
 import com.legalpro.accountservice.dto.LetterOfAdviceDocumentDto;
 import com.legalpro.accountservice.dto.SignatureRequest;
 import com.legalpro.accountservice.security.CustomUserDetails;
@@ -42,5 +44,16 @@ public class ClientLetterOfAdviceDocumentController {
     ) {
         LetterOfAdviceDocumentDto signed = documentService.clientSign(userDetails.getUuid(), documentUuid, request);
         return ResponseEntity.ok(ApiResponse.success(200, "Letter of Advice signed successfully", signed));
+    }
+
+    @PostMapping("/{documentUuid}/change-requests")
+    public ResponseEntity<ApiResponse<LetterOfAdviceChangeRequestDto>> requestChanges(
+            @PathVariable UUID documentUuid,
+            @RequestBody LetterOfAdviceChangeRequestCreateRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        LetterOfAdviceChangeRequestDto created =
+                documentService.createChangeRequest(userDetails.getUuid(), documentUuid, request);
+        return ResponseEntity.ok(ApiResponse.success(200, "Your request has been sent to your lawyer", created));
     }
 }

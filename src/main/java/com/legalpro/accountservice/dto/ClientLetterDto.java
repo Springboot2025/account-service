@@ -28,6 +28,9 @@ public class ClientLetterDto {
     /** Only set when type is LETTER_OF_ADVICE — SENT_TO_CLIENT or CLIENT_SIGNED. */
     private String status;
 
+    /** Only meaningful for LETTER_OF_ADVICE -- the lawyer has since started a newer letter. */
+    private boolean superseded;
+
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class CaseInfo {
         private UUID uuid;

@@ -1,16 +1,22 @@
 package com.legalpro.accountservice.service.impl;
 
+import com.legalpro.accountservice.dto.LetterOfAdviceChangeRequestCreateRequest;
+import com.legalpro.accountservice.dto.LetterOfAdviceChangeRequestDto;
 import com.legalpro.accountservice.dto.LetterOfAdviceDocumentDto;
+import com.legalpro.accountservice.dto.LetterOfAdviceHistoryItemDto;
 import com.legalpro.accountservice.dto.LetterOfAdviceDocumentSaveRequest;
 import com.legalpro.accountservice.dto.SendLetterOfAdviceRequest;
 import com.legalpro.accountservice.dto.SignatureRequest;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.LegalCase;
+import com.legalpro.accountservice.entity.LetterOfAdviceChangeRequest;
 import com.legalpro.accountservice.entity.LetterOfAdviceDocument;
+import com.legalpro.accountservice.enums.LetterOfAdviceChangeCategory;
 import com.legalpro.accountservice.enums.LetterOfAdviceStatus;
 import com.legalpro.accountservice.mapper.LetterOfAdviceDocumentMapper;
 import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.LegalCaseRepository;
+import com.legalpro.accountservice.repository.LetterOfAdviceChangeRequestRepository;
 import com.legalpro.accountservice.repository.LetterOfAdviceDocumentRepository;
 import com.legalpro.accountservice.service.DeviceTokenService;
 import com.legalpro.accountservice.service.EmailService;
@@ -23,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,6 +40,7 @@ import java.util.UUID;
 public class LetterOfAdviceDocumentServiceImpl implements LetterOfAdviceDocumentService {
 
     private final LetterOfAdviceDocumentRepository documentRepository;
+    private final LetterOfAdviceChangeRequestRepository changeRequestRepository;
     private final LetterOfAdviceDocumentMapper documentMapper;
     private final LegalCaseRepository legalCaseRepository;
     private final AccountRepository accountRepository;
@@ -42,7 +50,7 @@ public class LetterOfAdviceDocumentServiceImpl implements LetterOfAdviceDocument
 
     @Override
     public Optional<LetterOfAdviceDocumentDto> getForLawyerByCase(UUID lawyerUuid, UUID caseUuid) {
-        return documentRepository.findByCaseUuidAndDeletedAtIsNull(caseUuid)
+        return documentRepository.findByCaseUuidAndDeletedAtIsNullAndSupersededAtIsNull(caseUuid)
                 .filter(doc -> doc.getLawyerUuid().equals(lawyerUuid))
                 .map(documentMapper::toDto);
     }
@@ -73,7 +81,7 @@ public class LetterOfAdviceDocumentServiceImpl implements LetterOfAdviceDocument
             throw new RuntimeException("Access denied: not your case");
         }
 
-        LetterOfAdviceDocument entity = documentRepository.findByCaseUuidAndDeletedAtIsNull(caseUuid)
+        LetterOfAdviceDocument entity = documentRepository.findByCaseUuidAndDeletedAtIsNullAndSupersededAtIsNull(caseUuid)
                 .orElse(null);
 
         if (entity == null) {
@@ -177,6 +185,9 @@ public class LetterOfAdviceDocumentServiceImpl implements LetterOfAdviceDocument
                 .findByUuidAndClientUuidAndDeletedAtIsNull(documentUuid, clientUuid)
                 .orElseThrow(() -> new RuntimeException("Letter of Advice not found"));
 
+        if (entity.getSupersededAt() != null) {
+            throw new IllegalStateException("This Letter of Advice has been replaced by a newer version");
+        }
         if (entity.getStatus() != LetterOfAdviceStatus.SENT_TO_CLIENT) {
             throw new IllegalStateException("This Letter of Advice is not yet ready for your signature");
         }
@@ -202,6 +213,110 @@ public class LetterOfAdviceDocumentServiceImpl implements LetterOfAdviceDocument
         return documentMapper.toDto(saved);
     }
 
+
+    private static final int MAX_CHANGE_REQUEST_MESSAGE_LENGTH = 2000;
+
+    @Override
+    @Transactional
+    public LetterOfAdviceChangeRequestDto createChangeRequest(
+            UUID clientUuid, UUID documentUuid, LetterOfAdviceChangeRequestCreateRequest request) {
+        String message = request.getMessage() == null ? "" : request.getMessage().trim();
+        if (message.isEmpty()) {
+            throw new IllegalArgumentException("Please describe the changes you would like");
+        }
+        if (message.length() > MAX_CHANGE_REQUEST_MESSAGE_LENGTH) {
+            throw new IllegalArgumentException(
+                    "Your message is too long (maximum " + MAX_CHANGE_REQUEST_MESSAGE_LENGTH + " characters)");
+        }
+
+        LetterOfAdviceChangeCategory category;
+        try {
+            category = LetterOfAdviceChangeCategory.valueOf(
+                    request.getCategory() == null ? "" : request.getCategory().trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Please choose what the issue is about");
+        }
+
+        LetterOfAdviceDocument document = documentRepository
+                .findByUuidAndClientUuidAndDeletedAtIsNull(documentUuid, clientUuid)
+                .orElseThrow(() -> new RuntimeException("Letter of Advice not found"));
+
+        if (document.getSupersededAt() != null) {
+            throw new IllegalStateException("This Letter of Advice has been replaced by a newer version");
+        }
+        if (document.getStatus() != LetterOfAdviceStatus.SENT_TO_CLIENT) {
+            throw new IllegalStateException("Changes can only be requested before you have signed this letter");
+        }
+
+        LetterOfAdviceChangeRequest saved = changeRequestRepository.save(
+                LetterOfAdviceChangeRequest.builder()
+                        .documentUuid(documentUuid)
+                        .clientUuid(clientUuid)
+                        .category(category)
+                        .message(message)
+                        .build());
+
+        String clientName = accountRepository.findByUuid(clientUuid)
+                .map(this::extractName)
+                .filter(name -> name != null && !name.isBlank())
+                .orElse("Your client");
+
+        notifyUser(
+                document.getLawyerUuid(),
+                "Changes requested on Letter of Advice",
+                clientName + " has requested changes to \"" + document.getTitle() + "\".",
+                document.getUuid(),
+                "LETTER_OF_ADVICE_CHANGE_REQUEST"
+        );
+
+        return toChangeRequestDto(saved);
+    }
+
+    @Override
+    public List<LetterOfAdviceChangeRequestDto> getChangeRequestsForLawyer(UUID lawyerUuid, UUID documentUuid) {
+        findOwnedByLawyer(lawyerUuid, documentUuid);
+        return changeRequestRepository.findAllByDocumentUuidOrderByCreatedAtDesc(documentUuid)
+                .stream()
+                .map(this::toChangeRequestDto)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public LetterOfAdviceChangeRequestDto markChangeRequestRead(UUID lawyerUuid, UUID documentUuid, UUID requestUuid) {
+        findOwnedByLawyer(lawyerUuid, documentUuid);
+        LetterOfAdviceChangeRequest changeRequest = changeRequestRepository
+                .findByUuidAndDocumentUuid(requestUuid, documentUuid)
+                .orElseThrow(() -> new RuntimeException("Change request not found"));
+        if (changeRequest.getReadAt() == null) {
+            changeRequest.setReadAt(LocalDateTime.now());
+            changeRequest = changeRequestRepository.save(changeRequest);
+        }
+        return toChangeRequestDto(changeRequest);
+    }
+
+    @Override
+    @Transactional
+    public void markAllChangeRequestsRead(UUID lawyerUuid, UUID documentUuid) {
+        findOwnedByLawyer(lawyerUuid, documentUuid);
+        LocalDateTime now = LocalDateTime.now();
+        List<LetterOfAdviceChangeRequest> unread =
+                changeRequestRepository.findAllByDocumentUuidAndReadAtIsNull(documentUuid);
+        unread.forEach(item -> item.setReadAt(now));
+        changeRequestRepository.saveAll(unread);
+    }
+
+    private LetterOfAdviceChangeRequestDto toChangeRequestDto(LetterOfAdviceChangeRequest entity) {
+        return LetterOfAdviceChangeRequestDto.builder()
+                .uuid(entity.getUuid())
+                .documentUuid(entity.getDocumentUuid())
+                .category(entity.getCategory())
+                .message(entity.getMessage())
+                .createdAt(entity.getCreatedAt())
+                .readAt(entity.getReadAt())
+                .build();
+    }
+
     private String extractName(Account account) {
         if (account == null || account.getPersonalDetails() == null) return null;
         var personalDetails = account.getPersonalDetails();
@@ -211,9 +326,13 @@ public class LetterOfAdviceDocumentServiceImpl implements LetterOfAdviceDocument
     }
 
     private void notifyUser(UUID userUuid, String title, String body, UUID documentUuid) {
+        notifyUser(userUuid, title, body, documentUuid, "LETTER_OF_ADVICE");
+    }
+
+    private void notifyUser(UUID userUuid, String title, String body, UUID documentUuid, String type) {
         try {
             Map<String, String> data = new HashMap<>();
-            data.put("type", "LETTER_OF_ADVICE");
+            data.put("type", type);
             data.put("documentUuid", documentUuid.toString());
 
             deviceTokenService.getTokensForUser(userUuid)
@@ -230,6 +349,65 @@ public class LetterOfAdviceDocumentServiceImpl implements LetterOfAdviceDocument
         LetterOfAdviceDocument entity = findOwnedByLawyer(lawyerUuid, documentUuid);
         entity.setDeletedAt(LocalDateTime.now());
         documentRepository.save(entity);
+    }
+
+
+    @Override
+    @Transactional
+    public LetterOfAdviceDocumentDto supersede(UUID lawyerUuid, UUID documentUuid) {
+        LetterOfAdviceDocument entity = findOwnedByLawyer(lawyerUuid, documentUuid);
+        if (entity.getSupersededAt() != null) {
+            throw new IllegalStateException("This Letter of Advice has already been replaced");
+        }
+        if (entity.getStatus() == LetterOfAdviceStatus.DRAFT) {
+            throw new IllegalStateException("A draft doesn't need replacing -- edit it directly");
+        }
+
+        entity.setSupersededAt(LocalDateTime.now());
+        LetterOfAdviceDocument saved = documentRepository.save(entity);
+
+        // Only worth telling the client if they were waiting on this one.
+        if (saved.getStatus() == LetterOfAdviceStatus.SENT_TO_CLIENT) {
+            notifyUser(
+                    saved.getClientUuid(),
+                    "Letter of Advice replaced",
+                    "Your lawyer is preparing an updated version of \"" + saved.getTitle()
+                            + "\". You don't need to sign this one.",
+                    saved.getUuid()
+            );
+        }
+
+        return documentMapper.toDto(saved);
+    }
+
+    @Override
+    public List<LetterOfAdviceHistoryItemDto> getHistoryForLawyer(UUID lawyerUuid, UUID caseUuid) {
+        List<LetterOfAdviceDocument> documents =
+                documentRepository.findAllByCaseUuidAndDeletedAtIsNullOrderByCreatedAtAsc(caseUuid).stream()
+                        .filter(doc -> doc.getLawyerUuid().equals(lawyerUuid))
+                        .toList();
+
+        List<LetterOfAdviceHistoryItemDto> history = new java.util.ArrayList<>();
+        for (int i = 0; i < documents.size(); i++) {
+            LetterOfAdviceDocument doc = documents.get(i);
+            history.add(LetterOfAdviceHistoryItemDto.builder()
+                    .uuid(doc.getUuid())
+                    .version(i + 1)
+                    .title(doc.getTitle())
+                    .status(doc.getStatus())
+                    .current(doc.getSupersededAt() == null)
+                    .createdAt(doc.getCreatedAt())
+                    .lawyerSignedAt(doc.getLawyerSignedAt())
+                    .sentToClientAt(doc.getSentToClientAt())
+                    .clientSignedAt(doc.getClientSignedAt())
+                    .supersededAt(doc.getSupersededAt())
+                    .changeRequestCount(changeRequestRepository.countByDocumentUuid(doc.getUuid()))
+                    .unreadChangeRequestCount(
+                            changeRequestRepository.countByDocumentUuidAndReadAtIsNull(doc.getUuid()))
+                    .build());
+        }
+        java.util.Collections.reverse(history); // newest first
+        return history;
     }
 
     private LetterOfAdviceDocument findOwnedByLawyer(UUID lawyerUuid, UUID documentUuid) {

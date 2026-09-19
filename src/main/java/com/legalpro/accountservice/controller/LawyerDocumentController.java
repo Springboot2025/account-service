@@ -73,7 +73,7 @@ public class LawyerDocumentController {
 
         List<ClientDocument> docs = new ArrayList<>(clientDocumentService.getClientDocumentsByCase(clientUuid, caseUuid));
 
-        Optional<LetterOfAdviceDocument> loa = letterOfAdviceDocumentRepository.findByCaseUuidAndDeletedAtIsNull(caseUuid);
+        Optional<LetterOfAdviceDocument> loa = letterOfAdviceDocumentRepository.findByCaseUuidAndDeletedAtIsNullAndSupersededAtIsNull(caseUuid);
         loa.ifPresent(letter -> {
             String frontendBaseUrl = System.getenv("FRONTEND_BASE_URL") != null
                     ? System.getenv("FRONTEND_BASE_URL")

@@ -24,6 +24,7 @@ public class LetterOfAdviceDocumentMapper {
                 .clientSignature(entity.getClientSignature())
                 .clientSignedAt(entity.getClientSignedAt())
                 .sentToClientAt(entity.getSentToClientAt())
+                .supersededAt(entity.getSupersededAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

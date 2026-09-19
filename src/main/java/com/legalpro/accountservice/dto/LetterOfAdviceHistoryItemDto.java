@@ -9,25 +9,24 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/** One version of a case's Letter of Advice, for the lawyer's history view. */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LetterOfAdviceDocumentDto {
+public class LetterOfAdviceHistoryItemDto {
     private UUID uuid;
-    private UUID lawyerUuid;
-    private UUID clientUuid;
-    private UUID caseUuid;
-    private UUID templateUuid;
+    /** 1 for the first letter written for the case, 2 for the next, and so on. */
+    private int version;
     private String title;
-    private String content;
     private LetterOfAdviceStatus status;
-    private String lawyerSignature;
-    private LocalDateTime lawyerSignedAt;
-    private String clientSignature;
-    private LocalDateTime clientSignedAt;
-    private LocalDateTime sentToClientAt;
-    private LocalDateTime supersededAt;
+    /** True for the one letter currently being worked on / awaiting the client. */
+    private boolean current;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDateTime lawyerSignedAt;
+    private LocalDateTime sentToClientAt;
+    private LocalDateTime clientSignedAt;
+    private LocalDateTime supersededAt;
+    private long changeRequestCount;
+    private long unreadChangeRequestCount;
 }

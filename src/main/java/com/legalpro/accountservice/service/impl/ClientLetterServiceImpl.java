@@ -113,6 +113,7 @@ public class ClientLetterServiceImpl implements ClientLetterService {
                     .type("LETTER_OF_ADVICE")
                     .letterOfAdviceUuid(loa.getUuid())
                     .status(loa.getStatus().name())
+                    .superseded(loa.getSupersededAt() != null)
 
                     .caseInfo(
                             ClientLetterDto.CaseInfo.builder()

@@ -1,7 +1,9 @@
 package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
+import com.legalpro.accountservice.dto.LetterOfAdviceChangeRequestDto;
 import com.legalpro.accountservice.dto.LetterOfAdviceDocumentDto;
+import com.legalpro.accountservice.dto.LetterOfAdviceHistoryItemDto;
 import com.legalpro.accountservice.dto.LetterOfAdviceDocumentSaveRequest;
 import com.legalpro.accountservice.dto.SendLetterOfAdviceRequest;
 import com.legalpro.accountservice.dto.SignatureRequest;
@@ -13,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -79,5 +82,51 @@ public class LawyerLetterOfAdviceDocumentController {
     ) {
         documentService.deleteForLawyer(userDetails.getUuid(), documentUuid);
         return ResponseEntity.ok(ApiResponse.success(200, "Letter of Advice deleted successfully", null));
+    }
+
+    @GetMapping("/letter-of-advice/{documentUuid}/change-requests")
+    public ResponseEntity<ApiResponse<List<LetterOfAdviceChangeRequestDto>>> getChangeRequests(
+            @PathVariable UUID documentUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Change requests fetched successfully",
+                documentService.getChangeRequestsForLawyer(userDetails.getUuid(), documentUuid)));
+    }
+
+    @PutMapping("/letter-of-advice/{documentUuid}/change-requests/{requestUuid}/read")
+    public ResponseEntity<ApiResponse<LetterOfAdviceChangeRequestDto>> markChangeRequestRead(
+            @PathVariable UUID documentUuid,
+            @PathVariable UUID requestUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Change request marked as read",
+                documentService.markChangeRequestRead(userDetails.getUuid(), documentUuid, requestUuid)));
+    }
+
+    @PutMapping("/letter-of-advice/{documentUuid}/change-requests/read-all")
+    public ResponseEntity<ApiResponse<Void>> markAllChangeRequestsRead(
+            @PathVariable UUID documentUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        documentService.markAllChangeRequestsRead(userDetails.getUuid(), documentUuid);
+        return ResponseEntity.ok(ApiResponse.success(200, "All change requests marked as read", null));
+    }
+
+    @GetMapping("/cases/{caseUuid}/letter-of-advice/history")
+    public ResponseEntity<ApiResponse<List<LetterOfAdviceHistoryItemDto>>> getHistory(
+            @PathVariable UUID caseUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Letter of Advice history fetched successfully",
+                documentService.getHistoryForLawyer(userDetails.getUuid(), caseUuid)));
+    }
+
+    @PostMapping("/letter-of-advice/{documentUuid}/supersede")
+    public ResponseEntity<ApiResponse<LetterOfAdviceDocumentDto>> supersede(
+            @PathVariable UUID documentUuid,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Letter of Advice replaced -- you can now draft a new one",
+                documentService.supersede(userDetails.getUuid(), documentUuid)));
     }
 }

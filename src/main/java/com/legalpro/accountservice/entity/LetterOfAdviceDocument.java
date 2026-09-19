@@ -61,6 +61,11 @@ public class LetterOfAdviceDocument {
     @Column(name = "sent_to_client_at")
     private LocalDateTime sentToClientAt;
 
+    // Set when the lawyer starts a newer letter for the same case; the old
+    // one stays visible (with its sent/signed dates) but is no longer current.
+    @Column(name = "superseded_at")
+    private LocalDateTime supersededAt;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

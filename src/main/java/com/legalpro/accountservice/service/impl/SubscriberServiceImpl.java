@@ -81,7 +81,7 @@ public class SubscriberServiceImpl implements SubscriberService {
                     <p>%s</p>
                     <br/>
                     <p>Warm regards,</p>
-                    <p><b>Boss Law Team</b></p>
+                    <p><b>Boss Justice Team</b></p>
                 </body>
             </html>
             """.formatted(messageBody);

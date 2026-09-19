@@ -82,6 +82,11 @@ local-dev gap, not a missing config value.
 | Variable | Secret Manager name | Fetch with |
 |---|---|---|
 | `SENDGRID_API_KEY` | `sendgrid-api-key` | `gcloud secrets versions access latest --secret=sendgrid-api-key --project=ecstatic-seeker-474703-d4` |
+| `RESEND_API_KEY` (only used when `EMAIL_PROVIDER=resend`) | `resend-api-key` | `gcloud secrets versions access latest --secret=resend-api-key --project=ecstatic-seeker-474703-d4` |
+
+To send email through Resend locally, also set `EMAIL_PROVIDER=resend` and
+`RESEND_FROM_EMAIL=noreply@bossjustice.com.au` (the verified Resend domain).
+Leave `EMAIL_PROVIDER` unset to keep using SendGrid.
 
 ## Optional (safe defaults already in code)
 

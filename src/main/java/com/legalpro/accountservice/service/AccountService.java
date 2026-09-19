@@ -237,7 +237,7 @@ public class AccountService {
 
         /*String bodyHtml =
                 "<p>Hello " + account.getEmail() + ",</p>"
-                        + "<p>Thanks for signing up to Boss Law Online Services.</p>"
+                        + "<p>Thanks for signing up to Boss Justice Online Services.</p>"
                         + "<p>Click below to verify your email:</p>"
                         + "<a href=\"" + verificationUrl + "\">Verify your email</a>";*/
 
@@ -251,7 +251,7 @@ public class AccountService {
                 .replace("${verificationLink}", verificationUrl)
                 .replace("${userName}", fullName);
 
-        emailService.sendEmail(account.getEmail(), "Boss Law Verification", bodyHtml);
+        emailService.sendEmail(account.getEmail(), "Boss Justice Verification", bodyHtml);
 
         return account;
     }

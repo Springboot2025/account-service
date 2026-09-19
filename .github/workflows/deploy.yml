@@ -89,7 +89,7 @@ jobs:
             --allow-unauthenticated \
             --set-cloudsql-instances="${{ env.CLOUDSQL_INSTANCE }}" \
             --service-account="${{ env.RUNTIME_SERVICE_ACCOUNT }}" \
-            --set-secrets="JWT_SECRET=jwt-secret:latest,SENDGRID_API_KEY=sendgrid-api-key:latest,STRIPE_SECRET_KEY=stripe-secret-key:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret:latest,GOOGLE_API_KEY=google-api-key:latest,DB_PASSWORD=db-password:latest" \
-            --set-env-vars="STRIPE_PUBLISHABLE_KEY=pk_test_51SQ9eSCc2zUKTpNVRXn1Nt1OTW7TRuCykp76d7dHpFcqWyoDYz4WW4rABmTq8iHxVEKCBvgKanIxNbTTKObt05y300wFWAEDVI,ANTHROPIC_FEDERATION_RULE_ID=fdrl_01JwLkiPWZjDCktuixq3CVVr,ANTHROPIC_ORGANIZATION_ID=2c3f3577-55a7-44a0-ae47-d32f9310d578,ANTHROPIC_SERVICE_ACCOUNT_ID=svac_01Xmh9AW7pzckkSYf3FDN8qb,ANTHROPIC_WORKSPACE_ID=wrkspc_01BFAcJJ8xvNvjSpfbKgZnEk,ANTHROPIC_IDENTITY_TOKEN_FILE=/tmp/anthropic-identity-token.jwt" \
+            --set-secrets="JWT_SECRET=jwt-secret:latest,SENDGRID_API_KEY=sendgrid-api-key:latest,RESEND_API_KEY=resend-api-key:latest,STRIPE_SECRET_KEY=stripe-secret-key:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret:latest,GOOGLE_API_KEY=google-api-key:latest,DB_PASSWORD=db-password:latest" \
+            --set-env-vars="EMAIL_PROVIDER=resend,RESEND_FROM_EMAIL=noreply@bossjustice.com.au,STRIPE_PUBLISHABLE_KEY=pk_test_51SQ9eSCc2zUKTpNVRXn1Nt1OTW7TRuCykp76d7dHpFcqWyoDYz4WW4rABmTq8iHxVEKCBvgKanIxNbTTKObt05y300wFWAEDVI,ANTHROPIC_FEDERATION_RULE_ID=fdrl_01JwLkiPWZjDCktuixq3CVVr,ANTHROPIC_ORGANIZATION_ID=2c3f3577-55a7-44a0-ae47-d32f9310d578,ANTHROPIC_SERVICE_ACCOUNT_ID=svac_01Xmh9AW7pzckkSYf3FDN8qb,ANTHROPIC_WORKSPACE_ID=wrkspc_01BFAcJJ8xvNvjSpfbKgZnEk,ANTHROPIC_IDENTITY_TOKEN_FILE=/tmp/anthropic-identity-token.jwt" \
             --execution-environment=gen2 \
             --timeout=900s

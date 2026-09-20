@@ -39,6 +39,11 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         Matcher matcher = SENSITIVE_BODY_FIELD.matcher(body);
         return matcher.replaceAll(mr -> "\"" + mr.group(1) + "\":\"[REDACTED]\"");
     }
+    
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return request.getRequestURI().endsWith("/letter-of-advice/generate");
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,

@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.service;
 
+import com.legalpro.accountservice.util.FrontendUrl;
 import com.legalpro.accountservice.dto.CompanyInviteRequestDto;
 import com.legalpro.accountservice.entity.Company;
 import com.legalpro.accountservice.entity.CompanyInvite;
@@ -98,7 +99,7 @@ public class CompanyInviteService {
     }
 
     private void sendInviteEmail(CompanyInvite invite, Company company) {
-        String url = "https://lawproject-nu.vercel.app/register/company-invite?token=" + invite.getToken();
+        String url = FrontendUrl.of("/register/company-invite?token=") + invite.getToken();
 
         String subject = "Invitation to join " + company.getName();
 

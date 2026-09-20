@@ -21,6 +21,7 @@
         max-width: 600px;
         margin: 0 auto;
         background-color: #ffffff;
+        border: 2px solid #0066ff;
         border-radius: 16px;
         overflow: hidden;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -161,11 +162,38 @@
           margin-bottom: 24px;
         }
       }
+    
+      /* Footer links stay white in every state. Mail clients restyle links
+         blue (and auto-link emails, phone numbers and addresses on their
+         own), so this covers normal, visited, hover and active, plus the
+         Apple / Gmail / Samsung auto-link overrides. */
+      .email-footer a,
+      .email-footer a:link,
+      .email-footer a:visited,
+      .email-footer a:hover,
+      .email-footer a:active {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        text-decoration: none !important;
+      }
+      a[x-apple-data-detectors] {
+        color: inherit !important;
+        text-decoration: none !important;
+        font-size: inherit !important;
+        font-family: inherit !important;
+        font-weight: inherit !important;
+        line-height: inherit !important;
+      }
+      u + .body .email-footer a,
+      #MessageViewBody .email-footer a {
+        color: #ffffff !important;
+        text-decoration: none !important;
+      }
     </style>
   </head>
-  <body>
+  <body class="body">
     <div class="email-wrapper">
-      <div class="email-container">
+      <div class="email-container" style="border: 2px solid #0066FF; border-radius: 16px;">
         <div class="email-header">
           <div class="logo">
             <div class="logo-text">Boss Justice</div>
@@ -222,12 +250,12 @@
           <p class="footer-tagline">⚖️ Defending Your Rights</p>
           <div class="footer-divider"></div>
           <p class="footer-text">
-            📧 support@bossjustice.com.au<br />
-            📱 1-800-BOSS-LAW<br />
-            📍 123 Legal Street, Sydney NSW 2000
+            📧 <a href="mailto:support@bossjustice.com.au" style="color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; text-decoration: none !important;">support@bossjustice.com.au</a><br />
+            📱 <a href="tel:+18002677529" style="color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; text-decoration: none !important;">1-800-BOSS-LAW</a><br />
+            📍 <a href="https://www.google.com/maps/search/?api=1&amp;query=123+Legal+Street,+Sydney+NSW+2000" style="color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; text-decoration: none !important;">123 Legal Street, Sydney NSW 2000</a>
           </p>
           <p class="footer-text">
-            This email was sent to <strong>${userEmail}</strong>
+            This email was sent to <strong><a href="mailto:${userEmail}" style="color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; text-decoration: none !important;">${userEmail}</a></strong>
           </p>
         </div>
       </div>

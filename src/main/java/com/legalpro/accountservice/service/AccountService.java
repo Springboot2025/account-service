@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.service;
 
+import com.legalpro.accountservice.util.FrontendUrl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legalpro.accountservice.dto.*;
@@ -233,7 +234,7 @@ public class AccountService {
         }
 
         // 7. Send verification email
-        String verificationUrl = "https://lawproject-nu.vercel.app/set-password?token=" + account.getVerificationToken();
+        String verificationUrl = FrontendUrl.of("/set-password?token=") + account.getVerificationToken();
 
         /*String bodyHtml =
                 "<p>Hello " + account.getEmail() + ",</p>"
@@ -446,7 +447,7 @@ public class AccountService {
         account.setUpdatedAt(LocalDateTime.now());
         accountRepository.save(account);
 
-        String resetUrl = "https://lawproject-nu.vercel.app/reset-password?token=" + token;
+        String resetUrl = FrontendUrl.of("/reset-password?token=") + token;
 
         /*String bodyHtml = "<p>Hello " + account.getEmail() + ",</p>"
                 + "<p>You requested to reset your password. Click below:</p>"

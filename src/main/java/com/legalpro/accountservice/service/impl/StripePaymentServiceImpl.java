@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.service.impl;
 
+import com.legalpro.accountservice.util.FrontendUrl;
 import com.legalpro.accountservice.entity.StripeAccount;
 import com.legalpro.accountservice.repository.StripeAccountRepository;
 import com.legalpro.accountservice.service.StripePaymentService;
@@ -26,8 +27,8 @@ public class StripePaymentServiceImpl implements StripePaymentService {
 
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl("https://lawproject-nu.vercel.app/pay/success?lawyer=" + lawyerUuid)
-                .setCancelUrl("https://lawproject-nu.vercel.app/pay/cancel")
+                .setSuccessUrl(FrontendUrl.of("/pay/success?lawyer=") + lawyerUuid)
+                .setCancelUrl(FrontendUrl.of("/pay/cancel"))
                 .addLineItem(
                         SessionCreateParams.LineItem.builder()
                                 .setQuantity(1L)

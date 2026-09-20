@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.service.impl;
 
+import com.legalpro.accountservice.util.FrontendUrl;
 import com.legalpro.accountservice.entity.Invoice;
 import com.legalpro.accountservice.entity.StripeAccount;
 import com.legalpro.accountservice.repository.InvoiceRepository;
@@ -47,8 +48,8 @@ public class StripeCheckoutServiceImpl implements StripeCheckoutService {
         try {
             SessionCreateParams params = SessionCreateParams.builder()
                     .setMode(SessionCreateParams.Mode.PAYMENT)
-                    .setSuccessUrl("https://lawproject-nu.vercel.app/pay/success?invoice=" + invoiceUuid)
-                    .setCancelUrl("https://lawproject-nu.vercel.app/pay/cancel")
+                    .setSuccessUrl(FrontendUrl.of("/pay/success?invoice=") + invoiceUuid)
+                    .setCancelUrl(FrontendUrl.of("/pay/cancel"))
                     .addLineItem(
                             SessionCreateParams.LineItem.builder()
                                     .setQuantity(1L)

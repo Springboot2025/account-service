@@ -6,7 +6,9 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,40 +23,119 @@ public class AddressController {
 
     @GetMapping("/autocomplete")
     public ResponseEntity<Map> searchAddress(@RequestParam String input) {
+        try {
+            return ResponseEntity.ok(typeAheadSearch(input));
+        } catch (Exception ex) {
+            // e.g. the key isn't enabled for the autocomplete endpoint --
+            // still return something useful rather than an empty dropdown.
+            return ResponseEntity.ok(textSearchStartingWith(input));
+        }
+    }
 
-        String url = "https://places.googleapis.com/v1/places:searchText";
-
+   
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> typeAheadSearch(String input) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Goog-Api-Key", googleApiKey);
 
-        headers.set("X-Goog-FieldMask",
-                "places.id," +
-                        "places.displayName.text," +
-                        "places.formattedAddress," +
-                        "places.location," +
-                        "places.addressComponents"
-        );
-
         Map<String, Object> body = new HashMap<>();
-
-        // ⭐ Forces AU-only + address-only
-        body.put("textQuery", "address in Australia " + input);
-
+        body.put("input", input);
+        body.put("includedRegionCodes", List.of("au"));
         body.put("regionCode", "AU");
         body.put("languageCode", "en-AU");
 
-        // ⭐ Strict bounding box for Australia
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "https://places.googleapis.com/v1/places:autocomplete",
+                HttpMethod.POST,
+                new HttpEntity<>(body, headers),
+                Map.class);
+
+        List<Map<String, Object>> places = new ArrayList<>();
+        Object suggestions = response.getBody() == null ? null : response.getBody().get("suggestions");
+        if (suggestions instanceof List<?> suggestionList) {
+            for (Object suggestion : suggestionList) {
+                if (!(suggestion instanceof Map<?, ?> suggestionMap)
+                        || !(suggestionMap.get("placePrediction") instanceof Map<?, ?> prediction)) {
+                    continue; // a "query prediction" (a search phrase), not a place
+                }
+
+                Object placeId = prediction.get("placeId");
+                String fullText = nestedText(prediction.get("text"));
+                if (placeId == null || fullText == null) continue;
+
+                Map<?, ?> structured = prediction.get("structuredFormat") instanceof Map<?, ?> m ? m : Map.of();
+                String mainText = nestedText(structured.get("mainText"));
+
+                Map<String, Object> place = new LinkedHashMap<>();
+                place.put("id", placeId);
+                place.put("displayName", Map.of("text", mainText != null ? mainText : fullText));
+                place.put("formattedAddress", fullText.replaceFirst(",\\s*Australia$", ""));
+                places.add(place);
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("places", places);
+        return result;
+    }
+
+    private static String nestedText(Object holder) {
+        return holder instanceof Map<?, ?> map && map.get("text") instanceof String text ? text : null;
+    }
+
+    /**
+     * Fallback if the type-ahead call fails: the old Text Search, kept only to
+     * results that start with what was typed (in the place's name or its
+     * address) so indirect matches still don't leak through.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> textSearchStartingWith(String input) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Goog-Api-Key", googleApiKey);
+        headers.set("X-Goog-FieldMask",
+                "places.id,places.displayName.text,places.formattedAddress");
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("textQuery", "address in Australia " + input);
+        body.put("regionCode", "AU");
+        body.put("languageCode", "en-AU");
         Map<String, Object> low = Map.of("latitude", -44.0, "longitude", 112.0);
         Map<String, Object> high = Map.of("latitude", -10.0, "longitude", 154.0);
         body.put("locationRestriction", Map.of("rectangle", Map.of("low", low, "high", high)));
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "https://places.googleapis.com/v1/places:searchText",
+                HttpMethod.POST,
+                new HttpEntity<>(body, headers),
+                Map.class);
 
-        ResponseEntity<Map> response =
-                restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+        return startingWith(response.getBody(), input);
+    }
 
-        return ResponseEntity.ok(response.getBody());
+    /** Keeps places whose name or address starts with the typed text. */
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> startingWith(Map<String, Object> body, String input) {
+        if (body == null || !(body.get("places") instanceof List<?> places)) {
+            return body;
+        }
+        String typed = input.trim().toLowerCase();
+
+        List<Object> matching = places.stream()
+                .filter(place -> {
+                    if (!(place instanceof Map<?, ?> map)) return false;
+                    String name = nestedText(map.get("displayName"));
+                    Object address = map.get("formattedAddress");
+                    return (name != null && name.toLowerCase().startsWith(typed))
+                            || (address instanceof String a && a.toLowerCase().startsWith(typed));
+                })
+                .map(place -> (Object) place)
+                .toList();
+
+        Map<String, Object> filtered = new HashMap<>(body);
+        filtered.put("places", matching);
+        return filtered;
     }
 
     @GetMapping("/details")

@@ -1,5 +1,6 @@
 package com.legalpro.accountservice.controller;
 
+import com.legalpro.accountservice.util.FrontendUrl;
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.StripeAccountDto;
 import com.legalpro.accountservice.security.CustomUserDetails;
@@ -28,8 +29,8 @@ public class LawyerStripeController {
     ) {
         String url = stripeAccountService.createOrGetOnboardingLink(
                 user.getUuid(),
-                "https://lawproject-nu.vercel.app/stripe/onboarding",
-                "https://lawproject-nu.vercel.app/stripe/onboarding"
+                FrontendUrl.of("/stripe/onboarding"),
+                FrontendUrl.of("/stripe/onboarding")
         );
 
         return ResponseEntity.ok(ApiResponse.success(

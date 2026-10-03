@@ -1,0 +1,1111 @@
+{
+  "info": {
+    "name": "PayWay — Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Our PayWay APIs incl. error cases, plus PayWay's own APIs for debugging. Set baseUrl, email, password, publishableKey, secretKey (sandbox only — never commit or share a collection with keys filled in). Docs: docs/payway/PAYWAY_INTEGRATION.md, CODE_WALKTHROUGH.md"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Our API — happy path",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "description": "Log in as a lawyer (individual) or firm admin. Saves accessToken.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "pm.test('logged in', () => pm.expect(d.data.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('accessToken', d.data.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Card token (PayWay)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://api.payway.com.au/rest/v1/single-use-tokens",
+            "description": "PayWay API, publishable key. In the app payway.js does this. Saves singleUseTokenId (single use, expires in 10 minutes) — run again before every payment.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "paymentMethod",
+                  "value": "creditCard",
+                  "type": "text"
+                },
+                {
+                  "key": "cardNumber",
+                  "value": "4564710000000004",
+                  "type": "text"
+                },
+                {
+                  "key": "cardholderName",
+                  "value": "Test Lawyer",
+                  "type": "text"
+                },
+                {
+                  "key": "cvn",
+                  "value": "847",
+                  "type": "text"
+                },
+                {
+                  "key": "expiryDateMonth",
+                  "value": "02",
+                  "type": "text"
+                },
+                {
+                  "key": "expiryDateYear",
+                  "value": "29",
+                  "type": "text"
+                }
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{publishableKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "pm.test('token created', () => pm.expect(d.singleUseTokenId).to.be.a('string'));",
+                  "pm.collectionVariables.set('singleUseTokenId', d.singleUseTokenId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Make payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payway/payments",
+            "description": "Creates the PayWay customer with the card (PUT /customers), charges totalAmount (POST /transactions), saves the payment; approved → invoice PAID + subscription active. Run 'Card token' first. amount must equal the plan's price for planDuration (planId 1 = $20/$200, 2 = $50/$500 in the default data).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": {{amount}},\n  \"gstAmount\": {{gstAmount}},\n  \"totalAmount\": {{totalAmount}},\n  \"singleUseTokenId\": \"{{singleUseTokenId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 10% GST, as the frontend does",
+                  "const amount = Number(pm.collectionVariables.get('amount'));",
+                  "const gst = Math.round(amount * 10) / 100;",
+                  "pm.collectionVariables.set('gstAmount', gst.toFixed(2));",
+                  "pm.collectionVariables.set('totalAmount', (amount + gst).toFixed(2));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('approved', () => pm.response.to.have.status(200));",
+                  "const x = pm.response.json().data || {};",
+                  "if (x.customerNumber) pm.collectionVariables.set('customerNumber', x.customerNumber);",
+                  "if (x.orderNumber) pm.collectionVariables.set('orderNumber', x.orderNumber);",
+                  "if (x.paywayTransactionId) pm.collectionVariables.set('paywayTransactionId', String(x.paywayTransactionId));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 Approved",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/payway/payments",
+                "description": "Creates the PayWay customer with the card (PUT /customers), charges totalAmount (POST /transactions), saves the payment; approved → invoice PAID + subscription active. Run 'Card token' first. amount must equal the plan's price for planDuration (planId 1 = $20/$200, 2 = $50/$500 in the default data).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": {{amount}},\n  \"gstAmount\": {{gstAmount}},\n  \"totalAmount\": {{totalAmount}},\n  \"singleUseTokenId\": \"{{singleUseTokenId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"status\": \"success\",\n  \"message\": \"Payment approved\",\n  \"data\": {\n    \"uuid\": \"f96515ea-7a0f-44be-9859-f4ad016b0807\",\n    \"orderNumber\": \"BJ261004-00000002\",\n    \"invoiceNumber\": \"INV261004-00000001\",\n    \"invoiceStatus\": \"PAID\",\n    \"periodStart\": \"2026-10-04\",\n    \"periodEnd\": \"2026-11-04\",\n    \"subscriptionUuid\": \"5a078ac2-70f2-4951-a594-35baf43a3a33\",\n    \"subscriptionStatus\": 1,\n    \"renewsAt\": \"2026-11-04T00:00:00\",\n    \"status\": \"APPROVED\",\n    \"planId\": 1,\n    \"planDuration\": \"monthly\",\n    \"customerNumber\": \"LAW-4\",\n    \"amount\": 20.0,\n    \"gstAmount\": 2.0,\n    \"totalAmount\": 22.0,\n    \"currency\": \"aud\",\n    \"paywayTransactionId\": 4527933816,\n    \"receiptNumber\": \"4527933816\",\n    \"responseCode\": \"08\",\n    \"responseText\": \"Honour with identification\",\n    \"cardScheme\": \"visa\",\n    \"maskedCardNumber\": \"456471...004\",\n    \"settlementDate\": \"2026-10-04\",\n    \"errorMessage\": null,\n    \"createdAt\": \"2026-10-03T19:51:25.718124\"\n  }\n}"
+            },
+            {
+              "name": "402 Declined",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/payway/payments",
+                "description": "Creates the PayWay customer with the card (PUT /customers), charges totalAmount (POST /transactions), saves the payment; approved → invoice PAID + subscription active. Run 'Card token' first. amount must equal the plan's price for planDuration (planId 1 = $20/$200, 2 = $50/$500 in the default data).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": {{amount}},\n  \"gstAmount\": {{gstAmount}},\n  \"totalAmount\": {{totalAmount}},\n  \"singleUseTokenId\": \"{{singleUseTokenId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Payment Required",
+              "code": 402,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 402,\n  \"status\": \"error\",\n  \"message\": \"Payment declined: Not sufficient funds\",\n  \"data\": {\n    \"uuid\": \"d96f25db-dddf-42b7-b43e-4f221bac379a\",\n    \"orderNumber\": \"BJ261004-00000001\",\n    \"invoiceNumber\": \"INV261004-00000001\",\n    \"invoiceStatus\": \"DUE\",\n    \"periodStart\": \"2026-10-04\",\n    \"periodEnd\": \"2026-11-04\",\n    \"subscriptionUuid\": null,\n    \"subscriptionStatus\": null,\n    \"renewsAt\": null,\n    \"status\": \"DECLINED\",\n    \"planId\": 1,\n    \"planDuration\": \"monthly\",\n    \"customerNumber\": \"LAW-4\",\n    \"amount\": 20.0,\n    \"gstAmount\": 2.0,\n    \"totalAmount\": 22.0,\n    \"currency\": \"aud\",\n    \"paywayTransactionId\": 4527933815,\n    \"receiptNumber\": \"4527933815\",\n    \"responseCode\": \"51\",\n    \"responseText\": \"Not sufficient funds\",\n    \"cardScheme\": \"visa\",\n    \"maskedCardNumber\": \"456471...020\",\n    \"settlementDate\": \"2026-10-04\",\n    \"errorMessage\": null,\n    \"createdAt\": \"2026-10-03T19:51:23.656163\"\n  }\n}"
+            },
+            {
+              "name": "409 Already subscribed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/payway/payments",
+                "description": "Creates the PayWay customer with the card (PUT /customers), charges totalAmount (POST /transactions), saves the payment; approved → invoice PAID + subscription active. Run 'Card token' first. amount must equal the plan's price for planDuration (planId 1 = $20/$200, 2 = $50/$500 in the default data).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": {{amount}},\n  \"gstAmount\": {{gstAmount}},\n  \"totalAmount\": {{totalAmount}},\n  \"singleUseTokenId\": \"{{singleUseTokenId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 409,\n  \"status\": \"error\",\n  \"message\": \"You already have an active subscription\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "422 Token used/expired",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/payway/payments",
+                "description": "Creates the PayWay customer with the card (PUT /customers), charges totalAmount (POST /transactions), saves the payment; approved → invoice PAID + subscription active. Run 'Card token' first. amount must equal the plan's price for planDuration (planId 1 = $20/$200, 2 = $50/$500 in the default data).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": {{amount}},\n  \"gstAmount\": {{gstAmount}},\n  \"totalAmount\": {{totalAmount}},\n  \"singleUseTokenId\": \"{{singleUseTokenId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 422,\n  \"status\": \"error\",\n  \"message\": \"Invalid single use token.  Tokens expire after 10 minutes, may only be used once and must be used by the PayWay facility under which they were created.\",\n  \"data\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Billing history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payway/invoices",
+            "description": "The payer's invoices, newest first (PAID / OVERDUE / DUE renewals)."
+          },
+          "response": [
+            {
+              "name": "200 Billing history",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/payway/invoices",
+                "description": "The payer's invoices, newest first (PAID / OVERDUE / DUE renewals)."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"status\": \"success\",\n  \"message\": \"Billing history fetched\",\n  \"data\": [\n    {\n      \"invoiceUuid\": \"14fb96bb-191d-4b08-8c11-54786e29f079\",\n      \"invoiceNumber\": \"INV261004-00000001\",\n      \"invoiceType\": \"INITIAL\",\n      \"date\": \"2026-10-04\",\n      \"description\": \"Subscription for Individual Lawyers — Monthly\",\n      \"planId\": 1,\n      \"planName\": \"Subscription for Individual Lawyers\",\n      \"planDuration\": \"monthly\",\n      \"periodStart\": \"2026-10-04\",\n      \"periodEnd\": \"2026-11-04\",\n      \"amount\": 20.0,\n      \"gstAmount\": 2.0,\n      \"totalAmount\": 22.0,\n      \"currency\": \"aud\",\n      \"status\": \"PAID\",\n      \"paidAt\": \"2026-10-03T19:51:27.534716\",\n      \"orderNumber\": \"BJ261004-00000002\",\n      \"receiptNumber\": \"4527933816\",\n      \"cardScheme\": \"visa\",\n      \"maskedCardNumber\": \"456471...004\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Our API — errors",
+      "item": [
+        {
+          "name": "Card token — low funds card ($10 limit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://api.payway.com.au/rest/v1/single-use-tokens",
+            "description": "Sandbox card with a $10 limit: a $22 payment is declined 51 'Not sufficient funds'. Saves singleUseTokenId.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "paymentMethod",
+                  "value": "creditCard",
+                  "type": "text"
+                },
+                {
+                  "key": "cardNumber",
+                  "value": "4564710000000020",
+                  "type": "text"
+                },
+                {
+                  "key": "cardholderName",
+                  "value": "Test Lawyer",
+                  "type": "text"
+                },
+                {
+                  "key": "cvn",
+                  "value": "234",
+                  "type": "text"
+                },
+                {
+                  "key": "expiryDateMonth",
+                  "value": "05",
+                  "type": "text"
+                },
+                {
+                  "key": "expiryDateYear",
+                  "value": "30",
+                  "type": "text"
+                }
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{publishableKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "pm.test('token created', () => pm.expect(d.singleUseTokenId).to.be.a('string'));",
+                  "pm.collectionVariables.set('singleUseTokenId', d.singleUseTokenId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Make payment — declined (402)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payway/payments",
+            "description": "Run the low-funds token first. Expect 402, invoice stays DUE.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": {{amount}},\n  \"gstAmount\": {{gstAmount}},\n  \"totalAmount\": {{totalAmount}},\n  \"singleUseTokenId\": \"{{singleUseTokenId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 10% GST, as the frontend does",
+                  "const amount = Number(pm.collectionVariables.get('amount'));",
+                  "const gst = Math.round(amount * 10) / 100;",
+                  "pm.collectionVariables.set('gstAmount', gst.toFixed(2));",
+                  "pm.collectionVariables.set('totalAmount', (amount + gst).toFixed(2));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('402', () => pm.response.to.have.status(402));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "402 Declined",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/payway/payments",
+                "description": "Run the low-funds token first. Expect 402, invoice stays DUE.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": {{amount}},\n  \"gstAmount\": {{gstAmount}},\n  \"totalAmount\": {{totalAmount}},\n  \"singleUseTokenId\": \"{{singleUseTokenId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Payment Required",
+              "code": 402,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 402,\n  \"status\": \"error\",\n  \"message\": \"Payment declined: Not sufficient funds\",\n  \"data\": {\n    \"uuid\": \"d96f25db-dddf-42b7-b43e-4f221bac379a\",\n    \"orderNumber\": \"BJ261004-00000001\",\n    \"invoiceNumber\": \"INV261004-00000001\",\n    \"invoiceStatus\": \"DUE\",\n    \"periodStart\": \"2026-10-04\",\n    \"periodEnd\": \"2026-11-04\",\n    \"subscriptionUuid\": null,\n    \"subscriptionStatus\": null,\n    \"renewsAt\": null,\n    \"status\": \"DECLINED\",\n    \"planId\": 1,\n    \"planDuration\": \"monthly\",\n    \"customerNumber\": \"LAW-4\",\n    \"amount\": 20.0,\n    \"gstAmount\": 2.0,\n    \"totalAmount\": 22.0,\n    \"currency\": \"aud\",\n    \"paywayTransactionId\": 4527933815,\n    \"receiptNumber\": \"4527933815\",\n    \"responseCode\": \"51\",\n    \"responseText\": \"Not sufficient funds\",\n    \"cardScheme\": \"visa\",\n    \"maskedCardNumber\": \"456471...020\",\n    \"settlementDate\": \"2026-10-04\",\n    \"errorMessage\": null,\n    \"createdAt\": \"2026-10-03T19:51:23.656163\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Make payment — wrong amount (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payway/payments",
+            "description": "amount doesn't match the plan price → 400.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": 1,\n  \"gstAmount\": 0.1,\n  \"totalAmount\": 1.1,\n  \"singleUseTokenId\": \"{{singleUseTokenId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Make payment — missing fields (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payway/payments",
+            "description": "Validation errors per field in data → 400.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": {{amount}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "400 Bad Request",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/payway/payments",
+                "description": "Validation errors per field in data → 400.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": {{amount}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 400,\n  \"status\": \"error\",\n  \"message\": \"Validation failed\",\n  \"data\": {\n    \"singleUseTokenId\": \"must not be blank\",\n    \"totalAmount\": \"must not be null\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Make payment — reused token (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payway/payments",
+            "description": "Sends the last token again (already used) → 422 from PayWay. If you're already subscribed you get 409 first.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": {{amount}},\n  \"gstAmount\": {{gstAmount}},\n  \"totalAmount\": {{totalAmount}},\n  \"singleUseTokenId\": \"{{singleUseTokenId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 10% GST, as the frontend does",
+                  "const amount = Number(pm.collectionVariables.get('amount'));",
+                  "const gst = Math.round(amount * 10) / 100;",
+                  "pm.collectionVariables.set('gstAmount', gst.toFixed(2));",
+                  "pm.collectionVariables.set('totalAmount', (amount + gst).toFixed(2));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 or 409', () => pm.expect(pm.response.code).to.be.oneOf([422, 409]));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "422 Token used/expired",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/payway/payments",
+                "description": "Sends the last token again (already used) → 422 from PayWay. If you're already subscribed you get 409 first.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"planId\": {{planId}},\n  \"planDuration\": \"{{planDuration}}\",\n  \"amount\": {{amount}},\n  \"gstAmount\": {{gstAmount}},\n  \"totalAmount\": {{totalAmount}},\n  \"singleUseTokenId\": \"{{singleUseTokenId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 422,\n  \"status\": \"error\",\n  \"message\": \"Invalid single use token.  Tokens expire after 10 minutes, may only be used once and must be used by the PayWay facility under which they were created.\",\n  \"data\": null\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. PayWay API (debug, secret key)",
+      "item": [
+        {
+          "name": "Get customer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://api.payway.com.au/rest/v1/customers/{{customerNumber}}",
+            "description": "Saved card + contact for LAW-<id> / FIRM-<id>.",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{secretKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Transactions by customer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://api.payway.com.au/rest/v1/transactions/search-customer?customerNumber={{customerNumber}}",
+            "description": "All payments for a customer number.",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{secretKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Transactions by order number",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://api.payway.com.au/rest/v1/transactions/search-order?orderNumber={{orderNumber}}",
+            "description": "Find a payment by our order number (BJ<yyMMdd>-<seq>).",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{secretKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get transaction",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://api.payway.com.au/rest/v1/transactions/{{paywayTransactionId}}",
+            "description": "Full details of one PayWay transaction.",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{secretKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Save customer (what our API does)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://api.payway.com.au/rest/v1/customers/{{customerNumber}}",
+            "description": "Creates/replaces the customer with the card behind singleUseTokenId (run a Card token request first). Our API calls this in Make payment.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "singleUseTokenId",
+                  "value": "{{singleUseTokenId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "merchantId",
+                  "value": "TEST",
+                  "type": "text"
+                },
+                {
+                  "key": "customerName",
+                  "value": "Test Lawyer",
+                  "type": "text"
+                },
+                {
+                  "key": "emailAddress",
+                  "value": "test@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "sendEmailReceipts",
+                  "value": "false",
+                  "type": "text"
+                }
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{secretKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Replace saved card",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://api.payway.com.au/rest/v1/customers/{{customerNumber}}/payment-setup",
+            "description": "Swap the saved card (e.g. to the low-funds card to test renewal declines). Run a Card token request first.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "singleUseTokenId",
+                  "value": "{{singleUseTokenId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "merchantId",
+                  "value": "TEST",
+                  "type": "text"
+                }
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{secretKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Charge customer (what the renewal job does)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://api.payway.com.au/rest/v1/transactions",
+            "description": "Charges the saved card by customer number — no token. Use a new orderNumber each time.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "transactionType",
+                  "value": "payment",
+                  "type": "text"
+                },
+                {
+                  "key": "customerNumber",
+                  "value": "{{customerNumber}}",
+                  "type": "text"
+                },
+                {
+                  "key": "principalAmount",
+                  "value": "1.00",
+                  "type": "text"
+                },
+                {
+                  "key": "currency",
+                  "value": "aud",
+                  "type": "text"
+                },
+                {
+                  "key": "orderNumber",
+                  "value": "MANUAL-TEST-1",
+                  "type": "text"
+                }
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{secretKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "publishableKey",
+      "value": ""
+    },
+    {
+      "key": "singleUseTokenId",
+      "value": ""
+    },
+    {
+      "key": "planId",
+      "value": "1"
+    },
+    {
+      "key": "planDuration",
+      "value": "monthly"
+    },
+    {
+      "key": "amount",
+      "value": "20.00"
+    },
+    {
+      "key": "gstAmount",
+      "value": ""
+    },
+    {
+      "key": "totalAmount",
+      "value": ""
+    },
+    {
+      "key": "secretKey",
+      "value": ""
+    },
+    {
+      "key": "customerNumber",
+      "value": "LAW-4"
+    },
+    {
+      "key": "orderNumber",
+      "value": ""
+    },
+    {
+      "key": "paywayTransactionId",
+      "value": ""
+    }
+  ]
+}

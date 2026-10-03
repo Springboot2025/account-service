@@ -15,6 +15,10 @@ import java.util.UUID;
 @Builder
 public class UserSubscription {
 
+    public static final int STATUS_INACTIVE = 0;
+    public static final int STATUS_ACTIVE = 1;
+    public static final int STATUS_CANCELLED = 2;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -46,6 +50,10 @@ public class UserSubscription {
 
     @Column(name = "renews_at")
     private LocalDateTime renewsAt;
+
+    // PayWay customer holding the saved card: LAW-<accounts.id> | FIRM-<companies.id>
+    @Column(name = "payway_customer_number", length = 20)
+    private String paywayCustomerNumber;
 
     @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;

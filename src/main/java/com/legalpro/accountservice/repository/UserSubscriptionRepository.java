@@ -57,4 +57,18 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
     // for plan breakdown (API 2 later)
     List<UserSubscription> findByPlanIdAndStatus(Long planId, Integer status);
     Optional<UserSubscription> findByUuid(UUID uuid);
+
+    // the payer's current subscription (latest row)
+    Optional<UserSubscription> findFirstByUserUuidAndDeletedAtIsNullOrderByIdDesc(UUID userUuid);
+
+    // active subscriptions with a saved PayWay card whose billing date has come
+    @Query("""
+        SELECT us.id
+        FROM UserSubscription us
+        WHERE us.status = 1
+        AND us.deletedAt IS NULL
+        AND us.paywayCustomerNumber IS NOT NULL
+        AND us.renewsAt <= :now
+    """)
+    List<Long> findIdsDueForRenewal(LocalDateTime now);
 }

@@ -39,6 +39,14 @@ google:
   api:
     key: ${GOOGLE_API_KEY}
 
+payway:
+  base-url: ${PAYWAY_BASE_URL:https://api.payway.com.au/rest/v1}
+  secret-key: ${PAYWAY_SECRET_KEY:}
+  publishable-key: ${PAYWAY_PUBLISHABLE_KEY:}
+  merchant-id: ${PAYWAY_MERCHANT_ID:}
+  auto-renew-enabled: ${PAYWAY_RENEWAL_AUTO_ENABLED:false}
+  renewal-cron: ${PAYWAY_RENEWAL_CRON:0 0 2 * * *}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

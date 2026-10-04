@@ -55,6 +55,13 @@ public class UserSubscription {
     @Column(name = "payway_customer_number", length = 20)
     private String paywayCustomerNumber;
 
+    // Set when the subscriber cancels; access continues until renewsAt
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Column(name = "cancel_reason", columnDefinition = "TEXT")
+    private String cancelReason;
+
     @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 

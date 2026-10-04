@@ -6,6 +6,7 @@ import com.legalpro.accountservice.enums.SubscriptionInvoiceType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,4 +29,8 @@ public interface SubscriptionInvoiceRepository extends JpaRepository<Subscriptio
 
     // billing history: newest period first
     List<SubscriptionInvoice> findByUserUuidAndDeletedAtIsNullOrderByPeriodStartDescIdDesc(UUID userUuid);
+
+    // cancel: open renewal invoices of a subscription (DUE / OVERDUE) to void
+    List<SubscriptionInvoice> findByUserSubscriptionUuidAndInvoiceTypeAndStatusInAndDeletedAtIsNull(
+            UUID userSubscriptionUuid, SubscriptionInvoiceType invoiceType, Collection<SubscriptionInvoiceStatus> statuses);
 }

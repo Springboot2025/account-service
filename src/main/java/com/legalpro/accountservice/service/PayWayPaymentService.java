@@ -2,6 +2,8 @@ package com.legalpro.accountservice.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.legalpro.accountservice.dto.payway.BillingHistoryItemDto;
+import com.legalpro.accountservice.dto.payway.CancelSubscriptionRequest;
+import com.legalpro.accountservice.dto.payway.CancelSubscriptionResponse;
 import com.legalpro.accountservice.dto.payway.MakePaymentRequest;
 import com.legalpro.accountservice.dto.payway.PayWayPaymentResponse;
 import com.legalpro.accountservice.dto.payway.PayWayTransactionResponse;
@@ -174,6 +176,81 @@ public class PayWayPaymentService {
     }
 
     private record Outcome(SubscriptionInvoice invoice, UserSubscription subscription) {
+    }
+
+    // ---------------------------------------------------------------------
+    // Cancel
+    // ---------------------------------------------------------------------
+
+    /**
+     * Stops renewals: status -> cancelled, so the renewal job no longer charges the
+     * saved card. Access continues until renews_at; no refund. Open renewal invoices
+     * (DUE / OVERDUE) are voided so they stop being retried.
+     *
+     * Then, as a second lock, PayWay "stop all payments" on the customer, so nothing
+     * can charge the card even by mistake. The DB cancel is what counts: if the PayWay
+     * call fails the cancel still succeeds (paywayPaymentsStopped = false, logged and
+     * audited). Saving a card on re-subscribe clears PayWay's stop flag.
+     */
+    public CancelSubscriptionResponse cancelSubscription(UUID userUuid, CancelSubscriptionRequest request) {
+        loadPayer(userUuid);
+        String reason = request != null && request.getReason() != null && !request.getReason().isBlank()
+                ? request.getReason().trim() : null;
+
+        CancelSubscriptionResponse response = transactionTemplate.execute(status -> {
+            UserSubscription sub = userSubscriptionRepository.findFirstByUserUuidAndDeletedAtIsNullOrderByIdDesc(userUuid)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No subscription found"));
+            if (sub.getStatus() != UserSubscription.STATUS_ACTIVE) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "No active subscription to cancel");
+            }
+
+            List<SubscriptionInvoice> openRenewals = invoiceRepository
+                    .findByUserSubscriptionUuidAndInvoiceTypeAndStatusInAndDeletedAtIsNull(sub.getUuid(),
+                            SubscriptionInvoiceType.RENEWAL,
+                            List.of(SubscriptionInvoiceStatus.DUE, SubscriptionInvoiceStatus.OVERDUE));
+            openRenewals.forEach(inv -> inv.setStatus(SubscriptionInvoiceStatus.VOID));
+            invoiceRepository.saveAll(openRenewals);
+
+            LocalDateTime now = LocalDateTime.now();
+            sub.setStatus(UserSubscription.STATUS_CANCELLED);
+            sub.setCancelledAt(now);
+            sub.setCancelReason(reason);
+            sub.setUpdatedAt(now);
+            sub = userSubscriptionRepository.save(sub);
+            log.info("🛑 Subscription {} cancelled by {}, access until {}, {} open renewal invoice(s) voided",
+                    sub.getUuid(), userUuid, sub.getRenewsAt(), openRenewals.size());
+
+            String planName = subscriptionRepository.findById(sub.getPlanId())
+                    .map(Subscription::getPlanName).orElse(null);
+            return CancelSubscriptionResponse.builder()
+                    .subscriptionUuid(sub.getUuid())
+                    .status(sub.getStatus())
+                    .planId(sub.getPlanId())
+                    .planName(planName)
+                    .planDuration(sub.getPlanDuration())
+                    .startDate(sub.getStartDate())
+                    .accessUntil(sub.getRenewsAt())
+                    .cancelledAt(sub.getCancelledAt())
+                    .cancelReason(sub.getCancelReason())
+                    .voidedInvoices(openRenewals.size())
+                    .paywayPaymentsStopped(false)
+                    .build();
+        });
+
+        // Second lock on PayWay, outside the DB transaction
+        userSubscriptionRepository.findByUuid(response.getSubscriptionUuid())
+                .map(UserSubscription::getPaywayCustomerNumber)
+                .ifPresent(customerNumber -> {
+                    try {
+                        payWayClient.stopPayments(userUuid, customerNumber);
+                        response.setPaywayPaymentsStopped(true);
+                        log.info("🔒 PayWay payments stopped for {}", customerNumber);
+                    } catch (RuntimeException e) {
+                        log.warn("⚠️ Subscription {} cancelled, but stopping PayWay payments for {} failed: {}",
+                                response.getSubscriptionUuid(), customerNumber, e.getMessage());
+                    }
+                });
+        return response;
     }
 
     // ---------------------------------------------------------------------
@@ -425,6 +502,8 @@ public class PayWayPaymentService {
         sub.setPlanId(txn.getPlanId());
         sub.setPlanDuration(txn.getPlanDuration());
         sub.setStatus(UserSubscription.STATUS_ACTIVE);
+        sub.setCancelledAt(null);
+        sub.setCancelReason(null);
         if (sub.getStartDate() == null) {
             sub.setStartDate(now); // member since
         }

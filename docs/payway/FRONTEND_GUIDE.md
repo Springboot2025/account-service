@@ -24,6 +24,7 @@ How the subscription screens call the backend. API details and full responses: [
 | Success | Payment returned `200` |
 | Payment failed | Payment returned `402`, `422` or `502` — show `message`, render a **new** card frame to retry |
 | Billing History | `GET /api/payway/invoices` |
+| Cancel Subscription | `POST /api/payway/subscription/cancel` with optional `{ "reason": "…" }` — see section 7 |
 
 Show these screens to lawyers only. A lawyer who joined a firm (not the firm admin) gets `403` — show "Your firm's subscription is managed by your firm admin".
 
@@ -141,7 +142,25 @@ Empty list (`"data": []`) = no invoices yet. Dates are plain dates without a tim
 
 ---
 
-## 7. Testing
+## 7. Cancel Subscription screen
+
+```js
+const res = await fetch(`${API_BASE}/api/payway/subscription/cancel`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+  body: JSON.stringify({ reason }),          // optional "Tell us why you're leaving"
+});
+```
+
+| HTTP | Show |
+|---|---|
+| 200 | "Cancelled. Access continues until `data.accessUntil`" — no refund, no further charges |
+| 404 | No subscription (show plans) |
+| 409 | Already cancelled / not active |
+
+"Access continues until" on the confirm dialog (before cancelling) is the subscription's next billing date (`renewsAt` from the payment response).
+
+## 8. Testing
 
 Sandbox test cards (any cardholder name of 4+ characters):
 

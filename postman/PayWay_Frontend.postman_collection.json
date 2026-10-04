@@ -375,6 +375,44 @@
           "body": "{\n  \"code\": 200,\n  \"status\": \"success\",\n  \"message\": \"Billing history fetched\",\n  \"data\": [\n    {\n      \"invoiceUuid\": \"14fb96bb-191d-4b08-8c11-54786e29f079\",\n      \"invoiceNumber\": \"INV261004-00000001\",\n      \"invoiceType\": \"INITIAL\",\n      \"date\": \"2026-10-04\",\n      \"description\": \"Subscription for Individual Lawyers — Monthly\",\n      \"planId\": 1,\n      \"planName\": \"Subscription for Individual Lawyers\",\n      \"planDuration\": \"monthly\",\n      \"periodStart\": \"2026-10-04\",\n      \"periodEnd\": \"2026-11-04\",\n      \"amount\": 20.0,\n      \"gstAmount\": 2.0,\n      \"totalAmount\": 22.0,\n      \"currency\": \"aud\",\n      \"status\": \"PAID\",\n      \"paidAt\": \"2026-10-03T19:51:27.534716\",\n      \"orderNumber\": \"BJ261004-00000002\",\n      \"receiptNumber\": \"4527933816\",\n      \"cardScheme\": \"visa\",\n      \"maskedCardNumber\": \"456471...004\"\n    }\n  ]\n}"
         }
       ]
+    },
+    {
+      "name": "Cancel subscription",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/payway/subscription/cancel",
+        "description": "Stops renewals; access continues until data.accessUntil. Body optional. 404 = never subscribed, 409 = not active.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Too expensive\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 or 409', () => pm.expect(pm.response.code).to.be.oneOf([200, 409]));"
+            ]
+          }
+        }
+      ]
     }
   ],
   "variable": [

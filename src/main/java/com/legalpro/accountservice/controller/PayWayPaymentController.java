@@ -2,6 +2,8 @@ package com.legalpro.accountservice.controller;
 
 import com.legalpro.accountservice.dto.ApiResponse;
 import com.legalpro.accountservice.dto.payway.BillingHistoryItemDto;
+import com.legalpro.accountservice.dto.payway.CancelSubscriptionRequest;
+import com.legalpro.accountservice.dto.payway.CancelSubscriptionResponse;
 import com.legalpro.accountservice.dto.payway.MakePaymentRequest;
 import com.legalpro.accountservice.dto.payway.PayWayPaymentResponse;
 import com.legalpro.accountservice.security.CustomUserDetails;
@@ -43,6 +45,16 @@ public class PayWayPaymentController {
             default -> ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body(ApiResponse.error(502, payment.getErrorMessage(), payment));
         };
+    }
+
+    // Cancel: stops renewals; access continues until renewsAt. Body is optional.
+    @PostMapping("/subscription/cancel")
+    public ResponseEntity<ApiResponse<CancelSubscriptionResponse>> cancelSubscription(
+            @Valid @RequestBody(required = false) CancelSubscriptionRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Subscription cancelled",
+                paymentService.cancelSubscription(userDetails.getUuid(), request)));
     }
 
     // Billing history: the logged-in payer's invoices, newest first

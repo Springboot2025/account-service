@@ -4,7 +4,7 @@ Lawyer subscriptions (Individual / Firm, monthly / yearly) paid by card through 
 
 Related: [Frontend guide](FRONTEND_GUIDE.md) · [Code walkthrough](CODE_WALKTHROUGH.md) · Postman: `postman/PayWay_Frontend.postman_collection.json`, `postman/PayWay_Backend.postman_collection.json`
 
-All example responses below were captured from a real run against the PayWay sandbox.
+All example responses below were captured from a real run against the PayWay sandbox, except Cancel (4.5), which shows the response shape.
 
 ---
 
@@ -46,6 +46,16 @@ Daily 02:00 Melbourne ─▶ subscriptions with status ACTIVE and renews_at reac
 GET /api/payway/invoices ─▶ the payer's invoices (PAID / OVERDUE / DUE renewals), newest first
 ```
 
+### Cancel
+
+```
+POST /api/payway/subscription/cancel ─▶ subscription status 2 (cancelled): the renewal job stops charging
+                                        access continues until renews_at, no refund
+                                        open renewal invoices (DUE / OVERDUE) → VOID
+                                        then PATCH /customers/{n}/payment-setup stopped=true ──▶ PayWay rejects any further charge
+                                        (second lock; the saved card stays in the vault, re-subscribing clears the flag)
+```
+
 ---
 
 ## 2. Concepts
@@ -84,7 +94,7 @@ GET /api/payway/invoices ─▶ the payer's invoices (PAID / OVERDUE / DUE renew
 - Keys come from the PayWay portal: **Settings → REST API Keys**. Sandbox and live use the same URL; the keys decide which facility is used.
 - If the keys or merchant id are missing the app still starts; payment calls return `503`.
 - Saving cards needs PayWay's **Recurring Billing and Customer Vault** module on the facility.
-- Database: migration `V76__create_payway_transactions.sql` (tables `subscription_invoices`, `payway_transactions`, `payway_api_logs`; column `user_subscriptions.payway_customer_number`).
+- Database: migrations `V76__create_payway_transactions.sql` (tables `subscription_invoices`, `payway_transactions`, `payway_api_logs`; column `user_subscriptions.payway_customer_number`) and `V77__user_subscription_cancellation.sql` (`user_subscriptions.cancelled_at`, `cancel_reason`).
 
 ---
 
@@ -293,6 +303,54 @@ curl $BASE/api/payway/invoices -H "Authorization: Bearer $TOKEN"
 
 An `OVERDUE` renewal looks the same with `"invoiceType": "RENEWAL"`, `"status": "OVERDUE"`, and `paidAt` / `orderNumber` / `receiptNumber` / card fields `null`. A payer with no invoices gets `"data": []`. Firm members get `403`.
 
+### 4.5 Cancel subscription
+
+`POST /api/payway/subscription/cancel` — Lawyer role. Body optional.
+
+| Field | Type | Rules |
+|---|---|---|
+| `reason` | string | Optional, max 1000 chars ("Tell us why you're leaving") |
+
+```bash
+curl -X POST $BASE/api/payway/subscription/cancel \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{ "reason": "Too expensive" }'
+```
+
+**200 — cancelled** (shape; values from the test lawyer above)
+
+```json
+{
+  "code": 200, "status": "success", "message": "Subscription cancelled",
+  "data": {
+    "subscriptionUuid": "f3547556-e18c-459f-810e-b72ffd5edc54",
+    "status": 2,
+    "planId": 1,
+    "planName": "Subscription for Individual Lawyers",
+    "planDuration": "monthly",
+    "startDate": "2026-10-03T15:47:22",
+    "accessUntil": "2026-11-04T00:00:00",
+    "cancelledAt": "2026-10-04T08:30:00",
+    "cancelReason": "Too expensive",
+    "voidedInvoices": 0,
+    "paywayPaymentsStopped": true
+  }
+}
+```
+
+`accessUntil` is the date to show as "Access continues until". `voidedInvoices` > 0 when a renewal was overdue at the time of cancelling. `paywayPaymentsStopped` is `false` only if the PayWay stop call failed — the cancel itself still succeeded (renewals are stopped by our DB status); the failure is in the logs and `payway_api_logs`.
+
+**Errors**
+
+| HTTP | When | `message` |
+|---|---|---|
+| 403 | Firm member | `"Your firm's subscription is managed by the firm admin"` |
+| 404 | Never subscribed | `"No subscription found"` |
+| 409 | Not active (already cancelled, or inactive) | `"No active subscription to cancel"` |
+
+To subscribe again later the lawyer goes through **Make a payment**: the new period starts on the day of payment, and the cancellation fields are cleared.
+
 ---
 
 ## 5. PayWay calls made by the server
@@ -304,6 +362,7 @@ All with the **secret key** as the HTTP Basic username (blank password), `applic
 | Save customer + card | `PUT /customers/{customerNumber}` | `singleUseTokenId`, `merchantId`, `customerName`, `emailAddress`, `sendEmailReceipts=false` |
 | Charge | `POST /transactions` + header `Idempotency-Key` | `transactionType=payment`, `customerNumber`, `principalAmount`, `currency=aud`, `orderNumber` |
 | Slow network (`202 pending`) | `GET /transactions/{transactionId}` | every 3 s, up to 5 times |
+| Cancel (stop all payments) | `PATCH /customers/{customerNumber}/payment-setup` | `stopped=true`. PayWay then rejects charges with "All remaining payments for this customer have been stopped". Saving a card (`PUT /customers/{n}`) resets it to `false`. |
 
 - A timeout, `429` or `503` is retried once with the same `Idempotency-Key`, so PayWay can't charge twice.
 - PayWay `422` (bad token / card) → our `422` with PayWay's message. PayWay `401/403` → our `502` ("not configured correctly").
@@ -325,7 +384,7 @@ curl "https://api.payway.com.au/rest/v1/transactions/search-order?orderNumber=BJ
 | `subscription_invoices` | billing period | `invoice_number`, `user_uuid`, `user_subscription_uuid`, `invoice_type` (INITIAL / RENEWAL), `period_start`, `period_end`, `amount`, `gst_amount`, `total_amount`, `status`, `paid_at`, `failed_attempts` |
 | `payway_transactions` | payment attempt | `order_number`, `invoice_uuid`, `user_uuid`, `customer_number`, `idempotency_key`, amounts, `status`, PayWay response (`payway_transaction_id`, `receipt_number`, `response_code`, `response_text`, `card_scheme`, `masked_card_number`, `settlement_date`, …), `error_message` |
 | `payway_api_logs` | HTTP call to PayWay (audit, append-only) | `payway_transaction_uuid`, `operation`, `http_method`, `endpoint`, `attempt`, `request_headers`, `request_body`, `response_status`, `response_body`, `error_message`, `duration_ms` |
-| `user_subscriptions` (existing) | subscriber | new column `payway_customer_number`; `status`, `plan_id`, `plan_duration`, `start_date`, `renews_at` set on approval |
+| `user_subscriptions` (existing) | subscriber | new columns `payway_customer_number` (V76), `cancelled_at`, `cancel_reason` (V77); `status`, `plan_id`, `plan_duration`, `start_date`, `renews_at` set on approval |
 
 **Audit masking** (`payway_api_logs`): the `Authorization` header (secret key), card numbers, CVN and bank account numbers are never stored; `singleUseTokenId` is stored as `****<last 4>`; card numbers PayWay returns already masked (`456471...004`) are kept.
 
@@ -357,6 +416,5 @@ Use with merchant id `TEST`; any cardholder name of 4+ characters. ([PayWay's fu
 ## 8. Not built yet
 
 - Update payment method (needed to recover an `OVERDUE` renewal while the subscription is still active)
-- Cancel subscription
 - Invoice / receipt PDF download
 - A plans endpoint for lawyers (plans are only exposed at `/api/superadmin/subscriptions`)

@@ -4,13 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legalpro.accountservice.config.PayWayProperties;
 import com.legalpro.accountservice.dto.payway.PayWayCustomerResponse;
+import com.legalpro.accountservice.dto.payway.PayWayPaymentSetup;
 import com.legalpro.accountservice.dto.payway.PayWayTransactionResponse;
 import com.legalpro.accountservice.entity.PayWayTransaction;
 import com.legalpro.accountservice.exception.PayWayException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -18,12 +19,14 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import java.math.RoundingMode;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Calls the PayWay REST API (https://www.payway.com.au/docs/rest.html) with
@@ -49,8 +52,11 @@ public class PayWayClient {
         this.objectMapper = objectMapper;
         this.auditLogger = auditLogger;
 
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofSeconds(properties.getConnectTimeoutSeconds()));
+        // JDK HttpClient: supports PATCH (needed for stop payments), unlike HttpURLConnection
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(properties.getConnectTimeoutSeconds()))
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(Duration.ofSeconds(properties.getReadTimeoutSeconds()));
 
         this.restClient = RestClient.builder()
@@ -95,6 +101,24 @@ public class PayWayClient {
         HttpResult result = send(context, "SAVE_CUSTOMER", HttpMethod.PUT,
                 "/customers/" + txn.getCustomerNumber(), form, Map.of());
         return parse(result, PayWayCustomerResponse.class, "save customer " + txn.getCustomerNumber());
+    }
+
+    /**
+     * PATCH /customers/{customerNumber}/payment-setup stopped=true ("stop all payments"):
+     * PayWay rejects any further charge to this customer. Saving a new card later
+     * (PUT /customers/{n}) clears the flag, so re-subscribing works as normal.
+     */
+    public PayWayPaymentSetup stopPayments(UUID userUuid, String customerNumber) {
+        ensureConfigured();
+        PayWayAuditLogger.Context context = new PayWayAuditLogger.Context(null, userUuid);
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("stopped", "true");
+
+        // PATCH with the same value is idempotent, so no Idempotency-Key is needed
+        HttpResult result = send(context, "STOP_PAYMENTS", HttpMethod.PATCH,
+                "/customers/" + customerNumber + "/payment-setup", form, Map.of());
+        return parse(result, PayWayPaymentSetup.class, "stop payments " + customerNumber);
     }
 
     /**

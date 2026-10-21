@@ -1,6 +1,7 @@
 package com.legalpro.accountservice.dto.payway;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -35,4 +36,8 @@ public class MakePaymentRequest {
     // From payway.js / POST /single-use-tokens -- single use, expires after 10 minutes
     @NotBlank
     private String singleUseTokenId;
+
+    // Additional lawyer seats beyond the firm admin's own (FIRM plans only, null/0 for Individual)
+    @Min(0)
+    private Integer additionalSeats;
 }

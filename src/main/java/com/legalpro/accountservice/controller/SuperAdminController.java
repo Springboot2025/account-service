@@ -414,6 +414,16 @@ public class SuperAdminController {
         return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
     }
 
+    @GetMapping("/cases/{caseUuid}/questionnaire-documents")
+    public ResponseEntity<ApiResponse<List<ClientDocument>>> getQuestionnaireDocuments(
+            @PathVariable UUID caseUuid,
+            @RequestParam(value = "prefix", defaultValue = "") String prefix
+    ) {
+        UUID clientUuid = legalCaseService.getCaseByUuid(caseUuid).getClientUuid();
+        List<ClientDocument> docs = clientDocumentService.getClientDocumentsByPrefix(clientUuid, prefix);
+        return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
+    }
+
     @GetMapping("/case-events/{caseUuid}")
     public ResponseEntity<ApiResponse<List<CaseEventDto>>> getCaseEvents(
             @PathVariable UUID caseUuid

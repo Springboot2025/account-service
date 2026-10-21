@@ -80,6 +80,10 @@ public class SubscriptionInvoice {
     private BigDecimal totalAmount;
 
     @Builder.Default
+    @Column(name = "seat_count", nullable = false)
+    private Integer seatCount = 0;
+
+    @Builder.Default
     @Column(nullable = false)
     private String currency = "aud";
 

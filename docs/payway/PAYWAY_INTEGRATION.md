@@ -172,6 +172,7 @@ curl -X POST https://api.payway.com.au/rest/v1/single-use-tokens \
 | `gstAmount` | number | ≥ 0 |
 | `totalAmount` | number | Must equal `amount + gstAmount`; this is charged |
 | `singleUseTokenId` | string | From 4.2 |
+| `additionalSeats` | number | Optional, FIRM plans only. Lawyer seats beyond the firm admin's own; `amount` must equal `monthly_price`/`annual_price` + `additionalSeats × seat_price`. Omit/0 for plans with no `seat_price` (e.g. Individual) |
 
 ```bash
 curl -X POST $BASE/api/payway/payments \
@@ -351,6 +352,83 @@ curl -X POST $BASE/api/payway/subscription/cancel \
 
 To subscribe again later the lawyer goes through **Make a payment**: the new period starts on the day of payment, and the cancellation fields are cleared.
 
+### 4.6 Subscription status
+
+`GET /api/payway/subscription` — Lawyer role. The payer's current subscription, read fresh from the DB (not inferred from invoices). `subscribed: false` with everything else `null` when there's no subscription row at all.
+
+```bash
+curl $BASE/api/payway/subscription -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "code": 200, "status": "success", "message": "Subscription status fetched",
+  "data": {
+    "subscribed": true,
+    "subscriptionUuid": "5a078ac2-70f2-4951-a594-35baf43a3a33",
+    "planId": 2, "planName": "Subscription for Firms", "planDuration": "monthly",
+    "status": 1, "startDate": "2026-10-03T15:47:22", "renewsAt": "2026-11-04T00:00:00", "cancelledAt": null,
+    "monthlyAmount": 70.00, "gstAmount": 7.00, "totalAmount": 77.00,
+    "isFirm": true, "additionalSeats": 2, "usedSeats": 1
+  }
+}
+```
+
+`isFirm`/`additionalSeats`/`usedSeats` are only meaningful (non-null) for a firm account. `usedSeats` counts lawyers actually invited/joined under the firm, excluding the admin's own account.
+
+### 4.7 Manage seats (FIRM only)
+
+`PUT /api/payway/subscription/seats` — Lawyer role, firm admin only (`403` otherwise).
+
+| Field | Type | Rules |
+|---|---|---|
+| `additionalSeats` | number | The new **total** of additional seats (not a delta), ≥ 0 |
+
+```bash
+curl -X PUT $BASE/api/payway/subscription/seats \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{ "additionalSeats": 3 }'
+```
+
+**Increasing seats** charges the saved card immediately, pro-rata for the days remaining in the current billing cycle, and takes effect right away:
+
+```json
+{
+  "code": 200, "status": "success", "message": "Seats updated",
+  "data": {
+    "additionalSeats": 3, "usedSeats": 1, "newMonthlyAmount": 80.00,
+    "proRataCharge": 7.33, "invoiceNumber": "INV261020-00000005",
+    "message": "Seat added, charged pro-rata for the rest of this cycle."
+  }
+}
+```
+
+**Decreasing seats** is free but only takes effect at the next renewal (`SubscriptionRenewalJob` recomputes the renewal amount from the plan price + current seat count rather than copying the last invoice, for any plan with a `seat_price`):
+
+```json
+{
+  "code": 200, "status": "success", "message": "Seats updated",
+  "data": {
+    "additionalSeats": 1, "usedSeats": 1, "newMonthlyAmount": 60.00,
+    "proRataCharge": 0,
+    "message": "Seats reduced. This takes effect from your next billing date; no refund for the current period."
+  }
+}
+```
+
+**Errors**
+
+| HTTP | When | `message` |
+|---|---|---|
+| 403 | Not a firm admin | `"Only a firm admin can manage seats"` |
+| 409 | No active subscription | `"No active subscription"` |
+| 409 | Plan has no `seat_price` | `"This plan does not support additional seats"` |
+| 409 | Reducing below lawyers actually assigned | `"Unassign a lawyer before removing that many seats (N currently assigned)"` |
+| 402 | Pro-rata charge declined | `"Payment declined: ..."` |
+
+Lawyer invites (`POST /api/invites`) are blocked with `409` once used + pending invites for the firm reach `additionalSeats`.
+
 ---
 
 ## 5. PayWay calls made by the server
@@ -381,10 +459,12 @@ curl "https://api.payway.com.au/rest/v1/transactions/search-order?orderNumber=BJ
 
 | Table | One row per | Key columns |
 |---|---|---|
-| `subscription_invoices` | billing period | `invoice_number`, `user_uuid`, `user_subscription_uuid`, `invoice_type` (INITIAL / RENEWAL), `period_start`, `period_end`, `amount`, `gst_amount`, `total_amount`, `status`, `paid_at`, `failed_attempts` |
-| `payway_transactions` | payment attempt | `order_number`, `invoice_uuid`, `user_uuid`, `customer_number`, `idempotency_key`, amounts, `status`, PayWay response (`payway_transaction_id`, `receipt_number`, `response_code`, `response_text`, `card_scheme`, `masked_card_number`, `settlement_date`, …), `error_message` |
+| `subscription_invoices` | billing period | `invoice_number`, `user_uuid`, `user_subscription_uuid`, `invoice_type` (INITIAL / RENEWAL / SEAT_ADDITION), `period_start`, `period_end`, `amount`, `gst_amount`, `total_amount`, `seat_count` (V79), `status`, `paid_at`, `failed_attempts` |
+| `payway_transactions` | payment attempt | `order_number`, `invoice_uuid`, `user_uuid`, `customer_number`, `idempotency_key`, amounts, `seat_count` (V79), `status`, PayWay response (`payway_transaction_id`, `receipt_number`, `response_code`, `response_text`, `card_scheme`, `masked_card_number`, `settlement_date`, …), `error_message` |
 | `payway_api_logs` | HTTP call to PayWay (audit, append-only) | `payway_transaction_uuid`, `operation`, `http_method`, `endpoint`, `attempt`, `request_headers`, `request_body`, `response_status`, `response_body`, `error_message`, `duration_ms` |
-| `user_subscriptions` (existing) | subscriber | new columns `payway_customer_number` (V76), `cancelled_at`, `cancel_reason` (V77); `status`, `plan_id`, `plan_duration`, `start_date`, `renews_at` set on approval |
+| `user_subscriptions` (existing) | subscriber | new columns `payway_customer_number` (V76), `cancelled_at`, `cancel_reason` (V77), `seat_count` (V79); `status`, `plan_id`, `plan_duration`, `start_date`, `renews_at` set on approval |
+| `subscriptions` (existing) | plan | new column `seat_price` (V79) — `NULL` means the plan has no seat concept; set to `10.00` for the Firms plan |
+| `companies` (existing) | firm | new columns `abn`, `business_phone`, `business_address`, `primary_contact_name`, `primary_contact_email` (V78) |
 
 **Audit masking** (`payway_api_logs`): the `Authorization` header (secret key), card numbers, CVN and bank account numbers are never stored; `singleUseTokenId` is stored as `****<last 4>`; card numbers PayWay returns already masked (`456471...004`) are kept.
 

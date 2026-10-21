@@ -282,10 +282,31 @@ public class AuthController {
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
 
-        boolean isSubscribed = Boolean.TRUE.equals(claims.get("Subscribed", Boolean.class));
-        boolean isCompany = Boolean.TRUE.equals(claims.get("isCompany", Boolean.class));
-        boolean isCompanyMember = Boolean.TRUE.equals(claims.get("isCompanyMember", Boolean.class));
-        String companyName = claims.get("companyName", String.class);
+        // Re-derived fresh from the DB (not trusted from the old token's claims) so a
+        // subscription change, cancellation, or company upgrade made mid-session shows
+        // up on the very next refresh instead of requiring a full re-login.
+        Account refreshAccount = accountService.findByEmail(username).orElse(null);
+        boolean isSubscribed;
+        boolean isCompany;
+        boolean isCompanyMember;
+        String companyName;
+        if (refreshAccount != null) {
+            isSubscribed = subscriberRepository.findByEmail(refreshAccount.getEmail())
+                    .map(sub -> Boolean.TRUE.equals(sub.getIsActive()))
+                    .orElse(false);
+            isCompany = refreshAccount.isCompany();
+            isCompanyMember = !refreshAccount.isCompany() && refreshAccount.getCompanyUuid() != null;
+            companyName = isCompany
+                    ? companyRepository.findByUuid(refreshAccount.getCompanyUuid()).map(Company::getName).orElse(null)
+                    : null;
+        } else {
+            // Account not found by the old token's username (shouldn't happen) -- fall
+            // back to whatever the token already claimed rather than failing the refresh
+            isSubscribed = Boolean.TRUE.equals(claims.get("Subscribed", Boolean.class));
+            isCompany = Boolean.TRUE.equals(claims.get("isCompany", Boolean.class));
+            isCompanyMember = Boolean.TRUE.equals(claims.get("isCompanyMember", Boolean.class));
+            companyName = claims.get("companyName", String.class);
+        }
 
         // ✅ Generate new tokens with uuid included -- new refresh token stays
         // in the same rotation family as the one just redeemed.

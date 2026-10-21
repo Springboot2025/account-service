@@ -38,6 +38,9 @@ public class Subscription {
     @Column(name = "annual_price", nullable = false)
     private BigDecimal annualPrice;
 
+    @Column(name = "seat_price")
+    private BigDecimal seatPrice;
+
     @Column(nullable = false)
     private Boolean recommended = false;
 

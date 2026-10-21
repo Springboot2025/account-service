@@ -6,6 +6,9 @@ import com.legalpro.accountservice.dto.payway.CancelSubscriptionRequest;
 import com.legalpro.accountservice.dto.payway.CancelSubscriptionResponse;
 import com.legalpro.accountservice.dto.payway.MakePaymentRequest;
 import com.legalpro.accountservice.dto.payway.PayWayPaymentResponse;
+import com.legalpro.accountservice.dto.payway.SubscriptionStatusResponse;
+import com.legalpro.accountservice.dto.payway.UpdateSeatsRequest;
+import com.legalpro.accountservice.dto.payway.UpdateSeatsResponse;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.PayWayPaymentService;
 import jakarta.validation.Valid;
@@ -64,5 +67,22 @@ public class PayWayPaymentController {
     ) {
         return ResponseEntity.ok(ApiResponse.success(200, "Billing history fetched",
                 paymentService.getBillingHistory(userDetails.getUuid())));
+    }
+
+    @GetMapping("/subscription")
+    public ResponseEntity<ApiResponse<SubscriptionStatusResponse>> getSubscriptionStatus(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Subscription status fetched",
+                paymentService.getSubscriptionStatus(userDetails.getUuid())));
+    }
+
+    @PutMapping("/subscription/seats")
+    public ResponseEntity<ApiResponse<UpdateSeatsResponse>> updateSeats(
+            @Valid @RequestBody UpdateSeatsRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Seats updated",
+                paymentService.updateSeats(userDetails.getUuid(), request.getAdditionalSeats())));
     }
 }

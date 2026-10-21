@@ -121,6 +121,15 @@ public class ClientDocumentService {
         return docs;
     }
 
+    public List<ClientDocument> getClientDocumentsByPrefix(UUID clientUuid, String prefix) {
+        List<ClientDocument> docs = repository.findAllByClientUuidAndDocumentTypeStartingWithAndDeletedAtIsNull(clientUuid, prefix);
+
+        docs.parallelStream().forEach(doc ->
+                doc.setFileUrl(com.legalpro.accountservice.util.GcsUrlSigner.sign(doc.getFileUrl())));
+
+        return docs;
+    }
+
     public List<ClientDocument> getClientDocumentsByCase(UUID caseUuid) {
         List<ClientDocument> docs = repository.findByCaseUuidAndDeletedAtIsNull(caseUuid);
 

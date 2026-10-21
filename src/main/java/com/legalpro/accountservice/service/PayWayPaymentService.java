@@ -7,6 +7,8 @@ import com.legalpro.accountservice.dto.payway.CancelSubscriptionResponse;
 import com.legalpro.accountservice.dto.payway.MakePaymentRequest;
 import com.legalpro.accountservice.dto.payway.PayWayPaymentResponse;
 import com.legalpro.accountservice.dto.payway.PayWayTransactionResponse;
+import com.legalpro.accountservice.dto.payway.SubscriptionStatusResponse;
+import com.legalpro.accountservice.dto.payway.UpdateSeatsResponse;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Company;
 import com.legalpro.accountservice.entity.PayWayTransaction;
@@ -72,6 +74,7 @@ public class PayWayPaymentService {
     private static final DateTimeFormatter SETTLEMENT_DATE = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
     private static final ZoneId BILLING_ZONE = ZoneId.of("Australia/Melbourne");
     private static final int MAX_RENEWAL_ATTEMPTS = 3;
+    private static final BigDecimal GST_RATE = new BigDecimal("0.10");
 
     private final AccountRepository accountRepository;
     private final CompanyRepository companyRepository;
@@ -91,10 +94,19 @@ public class PayWayPaymentService {
                 .filter(p -> p.getRemovedAt() == null)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found"));
 
+        int additionalSeats = request.getAdditionalSeats() != null ? request.getAdditionalSeats() : 0;
+        if (additionalSeats > 0 && plan.getSeatPrice() == null) {
+            throw new IllegalArgumentException("This plan does not support additional seats");
+        }
+
         BigDecimal planPrice = "yearly".equals(duration) ? plan.getAnnualPrice() : plan.getMonthlyPrice();
-        if (request.getAmount().compareTo(planPrice) != 0) {
+        BigDecimal seatCost = plan.getSeatPrice() != null
+                ? plan.getSeatPrice().multiply(BigDecimal.valueOf(additionalSeats))
+                : BigDecimal.ZERO;
+        BigDecimal expectedAmount = planPrice.add(seatCost);
+        if (request.getAmount().compareTo(expectedAmount) != 0) {
             throw new IllegalArgumentException(
-                    "amount " + request.getAmount() + " does not match the " + duration + " plan price " + planPrice);
+                    "amount " + request.getAmount() + " does not match the " + duration + " plan price " + expectedAmount);
         }
         if (request.getAmount().add(request.getGstAmount()).compareTo(request.getTotalAmount()) != 0) {
             throw new IllegalArgumentException("totalAmount must equal amount + gstAmount");
@@ -115,7 +127,7 @@ public class PayWayPaymentService {
                                     "You already have an active subscription");
                         });
 
-                SubscriptionInvoice invoice = openInitialInvoice(userUuid, userType, companyUuid, plan, duration, request);
+                SubscriptionInvoice invoice = openInitialInvoice(userUuid, userType, companyUuid, plan, duration, request, additionalSeats);
                 return transactionRepository.saveAndFlush(PayWayTransaction.builder()
                         .invoiceUuid(invoice.getUuid())
                         .userUuid(userUuid)
@@ -127,6 +139,7 @@ public class PayWayPaymentService {
                         .amount(request.getAmount())
                         .gstAmount(request.getGstAmount())
                         .totalAmount(request.getTotalAmount())
+                        .seatCount(additionalSeats)
                         .build());
             });
         } catch (DataIntegrityViolationException e) {
@@ -251,6 +264,196 @@ public class PayWayPaymentService {
                     }
                 });
         return response;
+    }
+
+    // ---------------------------------------------------------------------
+    // Subscription status
+    // ---------------------------------------------------------------------
+
+    /** The logged-in payer's current subscription, read fresh from the DB. */
+    public SubscriptionStatusResponse getSubscriptionStatus(UUID userUuid) {
+        Account account = loadPayer(userUuid);
+        UserSubscription sub = userSubscriptionRepository
+                .findFirstByUserUuidAndDeletedAtIsNullOrderByIdDesc(userUuid)
+                .orElse(null);
+        if (sub == null) {
+            return SubscriptionStatusResponse.builder().subscribed(false).build();
+        }
+
+        Subscription plan = subscriptionRepository.findById(sub.getPlanId()).orElse(null);
+        boolean isFirm = account.isCompany();
+        int seatCount = sub.getSeatCount() != null ? sub.getSeatCount() : 0;
+        BigDecimal amount = null;
+        BigDecimal gstAmount = null;
+        BigDecimal totalAmount = null;
+        if (plan != null) {
+            BigDecimal planPrice = "yearly".equals(sub.getPlanDuration()) ? plan.getAnnualPrice() : plan.getMonthlyPrice();
+            BigDecimal seatCost = plan.getSeatPrice() != null
+                    ? plan.getSeatPrice().multiply(BigDecimal.valueOf(seatCount)) : BigDecimal.ZERO;
+            amount = planPrice.add(seatCost);
+            gstAmount = amount.multiply(GST_RATE).setScale(2, java.math.RoundingMode.HALF_UP);
+            totalAmount = amount.add(gstAmount);
+        }
+
+        return SubscriptionStatusResponse.builder()
+                .subscribed(sub.getStatus() == UserSubscription.STATUS_ACTIVE)
+                .subscriptionUuid(sub.getUuid())
+                .planId(sub.getPlanId())
+                .planName(plan != null ? plan.getPlanName() : null)
+                .planDuration(sub.getPlanDuration())
+                .status(sub.getStatus())
+                .startDate(sub.getStartDate())
+                .renewsAt(sub.getRenewsAt())
+                .cancelledAt(sub.getCancelledAt())
+                .monthlyAmount(amount)
+                .gstAmount(gstAmount)
+                .totalAmount(totalAmount)
+                .isFirm(isFirm)
+                .additionalSeats(isFirm ? seatCount : null)
+                .usedSeats(isFirm ? accountRepository.countByCompanyUuidAndIsCompanyFalse(account.getCompanyUuid()) : null)
+                .build();
+    }
+
+    // ---------------------------------------------------------------------
+    // Manage seats (FIRM only)
+    // ---------------------------------------------------------------------
+
+    /**
+     * Sets the firm's additional-seat count to the given new total (not a delta).
+     * Adding seats charges the saved card immediately, pro-rata for the days left
+     * in the current billing cycle; removing seats takes effect at the next
+     * renewal (SubscriptionRenewalJob recomputes from the new, lower count).
+     */
+    public UpdateSeatsResponse updateSeats(UUID userUuid, int newSeatCount) {
+        Account account = loadPayer(userUuid);
+        if (!account.isCompany()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only a firm admin can manage seats");
+        }
+
+        UserSubscription sub = userSubscriptionRepository.findFirstByUserUuidAndDeletedAtIsNullOrderByIdDesc(userUuid)
+                .filter(s -> s.getStatus() == UserSubscription.STATUS_ACTIVE)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "No active subscription"));
+
+        Subscription plan = subscriptionRepository.findById(sub.getPlanId())
+                .orElseThrow(() -> new IllegalStateException("Plan not found"));
+        if (plan.getSeatPrice() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This plan does not support additional seats");
+        }
+
+        int currentSeats = sub.getSeatCount() != null ? sub.getSeatCount() : 0;
+        if (newSeatCount == currentSeats) {
+            throw new IllegalArgumentException("Seat count is unchanged");
+        }
+
+        BigDecimal planPrice = "yearly".equals(sub.getPlanDuration()) ? plan.getAnnualPrice() : plan.getMonthlyPrice();
+        BigDecimal newMonthlyAmount = planPrice.add(plan.getSeatPrice().multiply(BigDecimal.valueOf(newSeatCount)));
+
+        if (newSeatCount < currentSeats) {
+            // Removing seats: can't drop below lawyers actually assigned; no refund,
+            // takes effect at the next renewal (seatCount is stored now, but this
+            // period was already paid at the old, higher amount)
+            int usedSeats = accountRepository.countByCompanyUuidAndIsCompanyFalse(account.getCompanyUuid());
+            if (newSeatCount < usedSeats) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Unassign a lawyer before removing that many seats (" + usedSeats + " currently assigned)");
+            }
+            sub.setSeatCount(newSeatCount);
+            sub.setUpdatedAt(LocalDateTime.now());
+            userSubscriptionRepository.save(sub);
+            return UpdateSeatsResponse.builder()
+                    .additionalSeats(newSeatCount)
+                    .usedSeats(usedSeats)
+                    .newMonthlyAmount(newMonthlyAmount)
+                    .proRataCharge(BigDecimal.ZERO)
+                    .message("Seats reduced. This takes effect from your next billing date; no refund for the current period.")
+                    .build();
+        }
+
+        // Adding seats: charge pro-rata now for the remainder of this billing cycle
+        if (sub.getRenewsAt() == null || sub.getPaywayCustomerNumber() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Subscription has no saved card to charge");
+        }
+        SubscriptionInvoice lastPaid = invoiceRepository
+                .findFirstByUserSubscriptionUuidAndStatusAndDeletedAtIsNullOrderByPeriodStartDesc(
+                        sub.getUuid(), SubscriptionInvoiceStatus.PAID)
+                .filter(inv -> inv.getInvoiceType() != SubscriptionInvoiceType.SEAT_ADDITION)
+                .orElseThrow(() -> new IllegalStateException("No paid invoice found for this subscription"));
+
+        LocalDate periodStart = lastPaid.getPeriodStart();
+        LocalDate periodEnd = sub.getRenewsAt().toLocalDate();
+        LocalDate today = LocalDate.now(BILLING_ZONE);
+        long daysInPeriod = java.time.temporal.ChronoUnit.DAYS.between(periodStart, periodEnd);
+        long daysRemaining = java.time.temporal.ChronoUnit.DAYS.between(today, periodEnd);
+        if (daysInPeriod <= 0) daysInPeriod = 1;
+        if (daysRemaining < 0) daysRemaining = 0;
+
+        int seatsAdded = newSeatCount - currentSeats;
+        BigDecimal fullSeatsCost = plan.getSeatPrice().multiply(BigDecimal.valueOf(seatsAdded));
+        BigDecimal proRataAmount = fullSeatsCost
+                .multiply(BigDecimal.valueOf(daysRemaining))
+                .divide(BigDecimal.valueOf(daysInPeriod), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal proRataGst = proRataAmount.multiply(GST_RATE).setScale(2, java.math.RoundingMode.HALF_UP);
+        BigDecimal proRataTotal = proRataAmount.add(proRataGst);
+
+        String customerNumber = sub.getPaywayCustomerNumber();
+        SubscriptionInvoice invoice = invoiceRepository.saveAndFlush(SubscriptionInvoice.builder()
+                .userUuid(userUuid)
+                .userType(USER_TYPE_FIRM)
+                .companyUuid(account.getCompanyUuid())
+                .userSubscriptionUuid(sub.getUuid())
+                .invoiceType(SubscriptionInvoiceType.SEAT_ADDITION)
+                .planId(plan.getId())
+                .planDuration(sub.getPlanDuration())
+                .periodStart(today)
+                .periodEnd(periodEnd)
+                .dueDate(today)
+                .amount(proRataAmount)
+                .gstAmount(proRataGst)
+                .totalAmount(proRataTotal)
+                .seatCount(seatsAdded)
+                .build());
+
+        PayWayTransaction txn = transactionRepository.saveAndFlush(PayWayTransaction.builder()
+                .invoiceUuid(invoice.getUuid())
+                .userUuid(userUuid)
+                .userType(USER_TYPE_FIRM)
+                .companyUuid(account.getCompanyUuid())
+                .planId(plan.getId())
+                .planDuration(sub.getPlanDuration())
+                .customerNumber(customerNumber)
+                .amount(proRataAmount)
+                .gstAmount(proRataGst)
+                .totalAmount(proRataTotal)
+                .seatCount(seatsAdded)
+                .build());
+
+        PayWayTransactionResponse result = payWayClient.createTransaction(txn);
+        applyResult(txn, result);
+        transactionRepository.save(txn);
+
+        if (txn.getStatus() != PayWayTransactionStatus.APPROVED) {
+            invoice.setStatus(SubscriptionInvoiceStatus.VOID);
+            invoiceRepository.save(invoice);
+            String reason = txn.getErrorMessage() != null ? txn.getErrorMessage() : txn.getResponseText();
+            throw new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED, "Payment declined: " + reason);
+        }
+
+        invoice.setStatus(SubscriptionInvoiceStatus.PAID);
+        invoice.setPaidAt(LocalDateTime.now());
+        invoiceRepository.save(invoice);
+
+        sub.setSeatCount(newSeatCount);
+        sub.setUpdatedAt(LocalDateTime.now());
+        userSubscriptionRepository.save(sub);
+
+        return UpdateSeatsResponse.builder()
+                .additionalSeats(newSeatCount)
+                .usedSeats(accountRepository.countByCompanyUuidAndIsCompanyFalse(account.getCompanyUuid()))
+                .newMonthlyAmount(newMonthlyAmount)
+                .proRataCharge(proRataTotal)
+                .invoiceNumber(invoice.getInvoiceNumber())
+                .message("Seat" + (seatsAdded > 1 ? "s" : "") + " added, charged pro-rata for the rest of this cycle.")
+                .build();
     }
 
     // ---------------------------------------------------------------------
@@ -423,6 +626,23 @@ public class PayWayPaymentService {
             return null;
         }
 
+        // For seat-priced plans (FIRM), recompute from the plan's current price and the
+        // subscription's CURRENT seat count rather than copying the last invoice -- this
+        // is how a seat count change (added or removed via Manage Seats) takes effect at
+        // the next billing date instead of being silently dropped.
+        Subscription plan = subscriptionRepository.findById(sub.getPlanId()).orElse(null);
+        BigDecimal amount = lastPaid.getAmount();
+        BigDecimal gstAmount = lastPaid.getGstAmount();
+        BigDecimal totalAmount = lastPaid.getTotalAmount();
+        int seatCount = lastPaid.getSeatCount();
+        if (plan != null && plan.getSeatPrice() != null) {
+            BigDecimal planPrice = "yearly".equals(sub.getPlanDuration()) ? plan.getAnnualPrice() : plan.getMonthlyPrice();
+            seatCount = sub.getSeatCount() != null ? sub.getSeatCount() : 0;
+            amount = planPrice.add(plan.getSeatPrice().multiply(BigDecimal.valueOf(seatCount)));
+            gstAmount = amount.multiply(GST_RATE).setScale(2, java.math.RoundingMode.HALF_UP);
+            totalAmount = amount.add(gstAmount);
+        }
+
         // The new period starts on the billing date, even if the charge succeeds a few days late
         LocalDate periodStart = sub.getRenewsAt().toLocalDate();
         SubscriptionInvoice invoice = invoiceRepository
@@ -441,9 +661,10 @@ public class PayWayPaymentService {
                     .periodStart(periodStart)
                     .periodEnd(addPeriod(periodStart, sub.getPlanDuration()))
                     .dueDate(periodStart)
-                    .amount(lastPaid.getAmount())
-                    .gstAmount(lastPaid.getGstAmount())
-                    .totalAmount(lastPaid.getTotalAmount())
+                    .amount(amount)
+                    .gstAmount(gstAmount)
+                    .totalAmount(totalAmount)
+                    .seatCount(seatCount)
                     .currency(lastPaid.getCurrency())
                     .build());
         } else if (invoice.getStatus() == SubscriptionInvoiceStatus.PAID) {
@@ -475,6 +696,7 @@ public class PayWayPaymentService {
                 .amount(invoice.getAmount())
                 .gstAmount(invoice.getGstAmount())
                 .totalAmount(invoice.getTotalAmount())
+                .seatCount(invoice.getSeatCount())
                 .currency(invoice.getCurrency())
                 .build());
     }
@@ -502,6 +724,7 @@ public class PayWayPaymentService {
         sub.setPlanId(txn.getPlanId());
         sub.setPlanDuration(txn.getPlanDuration());
         sub.setStatus(UserSubscription.STATUS_ACTIVE);
+        sub.setSeatCount(txn.getSeatCount());
         sub.setCancelledAt(null);
         sub.setCancelReason(null);
         if (sub.getStartDate() == null) {
@@ -523,7 +746,8 @@ public class PayWayPaymentService {
      * different plan / amount are voided.
      */
     private SubscriptionInvoice openInitialInvoice(UUID userUuid, String userType, UUID companyUuid,
-                                                   Subscription plan, String duration, MakePaymentRequest request) {
+                                                   Subscription plan, String duration, MakePaymentRequest request,
+                                                   int additionalSeats) {
         LocalDate today = LocalDate.now(BILLING_ZONE);
         SubscriptionInvoice reuse = null;
 
@@ -550,6 +774,7 @@ public class PayWayPaymentService {
                 .amount(request.getAmount())
                 .gstAmount(request.getGstAmount())
                 .totalAmount(request.getTotalAmount())
+                .seatCount(additionalSeats)
                 .build();
         invoice.setPeriodStart(today);
         invoice.setPeriodEnd(addPeriod(today, duration));

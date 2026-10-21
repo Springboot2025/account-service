@@ -26,4 +26,6 @@ public interface ClientDocumentRepository extends JpaRepository<ClientDocument, 
     List<ClientDocument> findByClientUuidAndDeletedAtIsNull(UUID clientUuid);
     List<ClientDocument> findAllByClientUuidAndCaseUuidAndDeletedAtIsNull(UUID clientUuid, UUID caseUuid);
     List<ClientDocument> findByCaseUuidAndDeletedAtIsNull(UUID caseUuid);
+
+    List<ClientDocument> findAllByClientUuidAndDocumentTypeStartingWithAndDeletedAtIsNull(UUID clientUuid, String prefix);
 }

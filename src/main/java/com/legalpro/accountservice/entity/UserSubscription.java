@@ -62,6 +62,8 @@ public class UserSubscription {
     @Column(name = "cancel_reason", columnDefinition = "TEXT")
     private String cancelReason;
 
+    // Additional lawyer seats (FIRM); NOT NULL in the DB, so default it for builder-created rows
+    @Builder.Default
     @Column(name = "seat_count", nullable = false)
     private Integer seatCount = 0;
 

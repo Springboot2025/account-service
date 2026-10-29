@@ -45,6 +45,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -419,10 +420,7 @@ public class PayWayPaymentService {
         if (sub.getRenewsAt() == null || sub.getPaywayCustomerNumber() == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Subscription has no saved card to charge");
         }
-        SubscriptionInvoice lastPaid = invoiceRepository
-                .findFirstByUserSubscriptionUuidAndStatusAndDeletedAtIsNullOrderByPeriodStartDesc(
-                        sub.getUuid(), SubscriptionInvoiceStatus.PAID)
-                .filter(inv -> inv.getInvoiceType() != SubscriptionInvoiceType.SEAT_ADDITION)
+        SubscriptionInvoice lastPaid = lastPaidBillingPeriod(sub)
                 .orElseThrow(() -> new IllegalStateException("No paid invoice found for this subscription"));
 
         LocalDate periodStart = lastPaid.getPeriodStart();
@@ -459,23 +457,44 @@ public class PayWayPaymentService {
                 .seatCount(seatsAdded)
                 .build());
 
-        PayWayTransaction txn = transactionRepository.saveAndFlush(PayWayTransaction.builder()
-                .invoiceUuid(invoice.getUuid())
-                .userUuid(userUuid)
-                .userType(USER_TYPE_FIRM)
-                .companyUuid(account.getCompanyUuid())
-                .planId(plan.getId())
-                .planDuration(sub.getPlanDuration())
-                .customerNumber(customerNumber)
-                .amount(proRataAmount)
-                .gstAmount(proRataGst)
-                .totalAmount(proRataTotal)
-                .seatCount(seatsAdded)
-                .build());
+        PayWayTransaction txn;
+        try {
+            txn = transactionRepository.saveAndFlush(PayWayTransaction.builder()
+                    .invoiceUuid(invoice.getUuid())
+                    .userUuid(userUuid)
+                    .userType(USER_TYPE_FIRM)
+                    .companyUuid(account.getCompanyUuid())
+                    .planId(plan.getId())
+                    .planDuration(sub.getPlanDuration())
+                    .customerNumber(customerNumber)
+                    .amount(proRataAmount)
+                    .gstAmount(proRataGst)
+                    .totalAmount(proRataTotal)
+                    .seatCount(seatsAdded)
+                    .build());
+        } catch (DataIntegrityViolationException e) {
+            // uq_payway_transactions_one_pending: another payment by this payer is in flight
+            invoice.setStatus(SubscriptionInvoiceStatus.VOID);
+            invoiceRepository.save(invoice);
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A payment is already in progress, please wait a moment");
+        }
 
-        PayWayTransactionResponse result = payWayClient.createTransaction(txn);
-        applyResult(txn, result);
-        transactionRepository.save(txn);
+        try {
+            PayWayTransactionResponse result = payWayClient.createTransaction(txn);
+            applyResult(txn, result);
+            transactionRepository.save(txn);
+        } catch (RuntimeException e) {
+            // Never leave the row PENDING: it would block this firm's next payments and renewals
+            String reason = e instanceof ResponseStatusException rse ? rse.getReason() : "Unexpected error";
+            txn.setStatus(PayWayTransactionStatus.ERROR);
+            txn.setErrorMessage(reason);
+            transactionRepository.save(txn);
+            invoice.setStatus(SubscriptionInvoiceStatus.VOID);
+            invoiceRepository.save(invoice);
+            log.warn("❌ Seat payment {} failed: {}", txn.getOrderNumber(), reason, e);
+            throw e;
+        }
 
         if (txn.getStatus() != PayWayTransactionStatus.APPROVED) {
             invoice.setStatus(SubscriptionInvoiceStatus.VOID);
@@ -663,10 +682,7 @@ public class PayWayPaymentService {
         }
 
         // Renewals charge what the subscriber last paid
-        SubscriptionInvoice lastPaid = invoiceRepository
-                .findFirstByUserSubscriptionUuidAndStatusAndDeletedAtIsNullOrderByPeriodStartDesc(
-                        sub.getUuid(), SubscriptionInvoiceStatus.PAID)
-                .orElse(null);
+        SubscriptionInvoice lastPaid = lastPaidBillingPeriod(sub).orElse(null);
         if (lastPaid == null) {
             log.warn("⚠️ Subscription {} has no paid invoice to renew from, skipping", sub.getUuid());
             return null;
@@ -745,6 +761,15 @@ public class PayWayPaymentService {
                 .seatCount(invoice.getSeatCount())
                 .currency(invoice.getCurrency())
                 .build());
+    }
+
+    // The billing period renewals and seat additions are based on: the latest paid
+    // INITIAL / RENEWAL invoice (a SEAT_ADDITION invoice starts mid-cycle, so it isn't one)
+    private Optional<SubscriptionInvoice> lastPaidBillingPeriod(UserSubscription sub) {
+        return invoiceRepository
+                .findFirstByUserSubscriptionUuidAndStatusAndInvoiceTypeInAndDeletedAtIsNullOrderByPeriodStartDesc(
+                        sub.getUuid(), SubscriptionInvoiceStatus.PAID,
+                        List.of(SubscriptionInvoiceType.INITIAL, SubscriptionInvoiceType.RENEWAL));
     }
 
     private static LocalDate addPeriod(LocalDate from, String duration) {

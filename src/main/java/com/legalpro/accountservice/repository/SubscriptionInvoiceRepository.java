@@ -33,4 +33,9 @@ public interface SubscriptionInvoiceRepository extends JpaRepository<Subscriptio
     // cancel: open renewal invoices of a subscription (DUE / OVERDUE) to void
     List<SubscriptionInvoice> findByUserSubscriptionUuidAndInvoiceTypeAndStatusInAndDeletedAtIsNull(
             UUID userSubscriptionUuid, SubscriptionInvoiceType invoiceType, Collection<SubscriptionInvoiceStatus> statuses);
+
+    // the latest paid INITIAL / RENEWAL invoice: the billing period a renewal or a seat
+    // addition is based on (excludes SEAT_ADDITION invoices, which start mid-cycle)
+    Optional<SubscriptionInvoice> findFirstByUserSubscriptionUuidAndStatusAndInvoiceTypeInAndDeletedAtIsNullOrderByPeriodStartDesc(
+            UUID userSubscriptionUuid, SubscriptionInvoiceStatus status, Collection<SubscriptionInvoiceType> invoiceTypes);
 }

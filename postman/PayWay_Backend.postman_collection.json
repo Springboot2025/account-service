@@ -384,6 +384,123 @@
           ]
         },
         {
+          "name": "Card token — new card (PayWay)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://api.payway.com.au/rest/v1/single-use-tokens",
+            "description": "Token for the card to save (Mastercard test card). Saves singleUseTokenId (single use, 10 minutes).",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "paymentMethod",
+                  "value": "creditCard",
+                  "type": "text"
+                },
+                {
+                  "key": "cardNumber",
+                  "value": "5163200000000008",
+                  "type": "text"
+                },
+                {
+                  "key": "cardholderName",
+                  "value": "Test Lawyer",
+                  "type": "text"
+                },
+                {
+                  "key": "cvn",
+                  "value": "070",
+                  "type": "text"
+                },
+                {
+                  "key": "expiryDateMonth",
+                  "value": "08",
+                  "type": "text"
+                },
+                {
+                  "key": "expiryDateYear",
+                  "value": "30",
+                  "type": "text"
+                }
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{publishableKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "pm.test('token created', () => pm.expect(d.singleUseTokenId).to.be.a('string'));",
+                  "pm.collectionVariables.set('singleUseTokenId', d.singleUseTokenId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save card (update payment method)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payway/payment-method",
+            "description": "Replaces the card saved on the payer's PayWay customer; the next renewal charges it. Run 'Card token — new card' first. Active subscription only (404 = never paid, 409 = not active).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"singleUseTokenId\": \"{{singleUseTokenId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('card saved', () => pm.response.to.have.status(200));",
+                  "const d = (pm.response.json().data) || {};",
+                  "if (d.maskedCardNumber) console.log('saved card', d.cardScheme, d.maskedCardNumber);"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Cancel subscription",
           "request": {
             "method": "POST",

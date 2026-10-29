@@ -4,7 +4,7 @@ Lawyer subscriptions (Individual / Firm, monthly / yearly) paid by card through 
 
 Related: [Frontend guide](FRONTEND_GUIDE.md) · [Code walkthrough](CODE_WALKTHROUGH.md) · Postman: `postman/PayWay_Frontend.postman_collection.json`, `postman/PayWay_Backend.postman_collection.json`
 
-All example responses below were captured from a real run against the PayWay sandbox, except Cancel (4.5), which shows the response shape.
+All example responses below were captured from a real run against the PayWay sandbox, except Cancel (4.5) and Save card (4.6), which show the response shape.
 
 ---
 
@@ -38,6 +38,20 @@ Daily 02:00 Melbourne ─▶ subscriptions with status ACTIVE and renews_at reac
                           b. POST /transactions (customerNumber) ───────────────▶ charge the saved card
                           c. approved → invoice PAID, renews_at moves to the end of the new period
                              declined → invoice OVERDUE, retried next day; after 3 declines the subscription goes INACTIVE
+```
+
+### Save card (update payment method)
+
+```
+Browser                         account-service                                  PayWay
+1. Card form (payway.js) ────────────────────────────────────────────────────────▶ POST /single-use-tokens
+   ◀───────────────────────────────────────────────────────────── singleUseTokenId
+2. PUT /api/payway/payment-method ─▶ a. payer must have an ACTIVE subscription with a PayWay customer
+   { singleUseTokenId }               b. PUT /customers/{LAW-12 | FIRM-5}/payment-setup ──▶ card replaced
+                                         (contact details kept; audited as UPDATE_CARD)
+   ◀── 200 new card (masked)
+3. Next renewal ─▶ POST /transactions (customerNumber, no token) ────────────────▶ charges the NEW card
+   An OVERDUE renewal is retried with the new card on the next nightly run.
 ```
 
 ### Billing history
@@ -352,6 +366,50 @@ curl -X POST $BASE/api/payway/subscription/cancel \
 
 To subscribe again later the lawyer goes through **Make a payment**: the new period starts on the day of payment, and the cancellation fields are cleared.
 
+### 4.6 Save card (update payment method)
+
+`PUT /api/payway/payment-method` — Lawyer role. Replaces the card saved on the payer's PayWay customer. **Renewals charge whichever card is saved**, so this is how a lawyer changes the card for their next payment (and recovers an `OVERDUE` renewal).
+
+| Field | Type | Rules |
+|---|---|---|
+| `singleUseTokenId` | string | Required. A **new** token for the new card (4.2) — single use, 10 minutes |
+
+```bash
+# 1. Token for the new card (PayWay, publishable key) — Mastercard test card
+curl -X POST https://api.payway.com.au/rest/v1/single-use-tokens \
+  -u "$PAYWAY_PUBLISHABLE_KEY:" \
+  -d paymentMethod=creditCard \
+  -d cardNumber=5163200000000008 \
+  -d cardholderName="Andrew Lawyer" \
+  -d cvn=070 \
+  -d expiryDateMonth=08 \
+  -d expiryDateYear=30
+
+# 2. Save it
+curl -X PUT $BASE/api/payway/payment-method \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{ "singleUseTokenId": "<singleUseTokenId from step 1>" }'
+```
+
+**200 — card saved** (shape; the card values are what PayWay returned for this card in the sandbox)
+
+```json
+{
+  "code": 200, "status": "success", "message": "Card saved",
+  "data": {
+    "customerNumber": "LAW-80",
+    "cardScheme": "mastercard",
+    "maskedCardNumber": "516320...008",
+    "expiryDateMonth": "08",
+    "expiryDateYear": "30",
+    "cardholderName": "Andrew Lawyer",
+    "overdueRenewal": false
+  }
+}
+```
+
+`overdueRenewal: true` means a renewal is `OVERDUE`: it is retried with this card on the next nightly run (no immediate charge).
 ### 4.6 Subscription status
 
 `GET /api/payway/subscription` — Lawyer role. The payer's current subscription, read fresh from the DB (not inferred from invoices). `subscribed: false` with everything else `null` when there's no subscription row at all.
@@ -421,6 +479,21 @@ curl -X PUT $BASE/api/payway/subscription/seats \
 
 | HTTP | When | `message` |
 |---|---|---|
+| 400 | `singleUseTokenId` missing | `"Validation failed"`, `data: { "singleUseTokenId": "must not be blank" }` |
+| 403 | Firm member | `"Your firm's subscription is managed by the firm admin"` |
+| 404 | Never paid (no PayWay customer yet) | `"No saved card yet, please make a payment first"` |
+| 409 | Subscription not active (cancelled / inactive) | `"No active subscription: the card can only be changed on an active subscription"` |
+| 422 | Token / card rejected by PayWay | e.g. `"Invalid single use token.  Tokens expire after 10 minutes, …"` |
+| 502 / 503 | PayWay unavailable / not configured | |
+
+Why not after cancelling: saving a card on PayWay resets its "stop payments" flag, which cancel sets as a safety lock. A cancelled lawyer who comes back goes through **Make a payment**, which saves the card again.
+
+**How the saved card is used**
+
+| Payment | Card used |
+|---|---|
+| Renewal (automatic) | The card saved on the customer — last one saved by Make a payment or Save card |
+| Make a payment (first payment, or after cancel/inactive) | Always a **new** token; the card is saved on the customer for future renewals |
 | 403 | Not a firm admin | `"Only a firm admin can manage seats"` |
 | 409 | No active subscription | `"No active subscription"` |
 | 409 | Plan has no `seat_price` | `"This plan does not support additional seats"` |
@@ -440,6 +513,7 @@ All with the **secret key** as the HTTP Basic username (blank password), `applic
 | Save customer + card | `PUT /customers/{customerNumber}` | `singleUseTokenId`, `merchantId`, `customerName`, `emailAddress`, `sendEmailReceipts=false` |
 | Charge | `POST /transactions` + header `Idempotency-Key` | `transactionType=payment`, `customerNumber`, `principalAmount`, `currency=aud`, `orderNumber` |
 | Slow network (`202 pending`) | `GET /transactions/{transactionId}` | every 3 s, up to 5 times |
+| Save card | `PUT /customers/{customerNumber}/payment-setup` | `singleUseTokenId`, `merchantId`. Keeps the contact details; resets `stopped` to `false` |
 | Cancel (stop all payments) | `PATCH /customers/{customerNumber}/payment-setup` | `stopped=true`. PayWay then rejects charges with "All remaining payments for this customer have been stopped". Saving a card (`PUT /customers/{n}`) resets it to `false`. |
 
 - A timeout, `429` or `503` is retried once with the same `Idempotency-Key`, so PayWay can't charge twice.
@@ -495,6 +569,6 @@ Use with merchant id `TEST`; any cardholder name of 4+ characters. ([PayWay's fu
 
 ## 8. Not built yet
 
-- Update payment method (needed to recover an `OVERDUE` renewal while the subscription is still active)
+- Paying an `OVERDUE` renewal immediately with the saved card (today it is retried on the next nightly run)
 - Invoice / receipt PDF download
 - A plans endpoint for lawyers (plans are only exposed at `/api/superadmin/subscriptions`)

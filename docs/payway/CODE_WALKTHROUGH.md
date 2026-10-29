@@ -10,7 +10,7 @@ Base package: `src/main/java/com/legalpro/accountservice` (paths below are relat
 
 ```
 controller/PayWayPaymentController        POST /api/payway/payments, GET /api/payway/invoices,
-                                          POST /api/payway/subscription/cancel
+                                          POST /api/payway/subscription/cancel, PUT /api/payway/payment-method
         │
 service/PayWayPaymentService              business flow: validate → invoice → payment row → PayWay → DB
         │            ▲
@@ -29,7 +29,7 @@ service/PayWayAuditLogger                 masks and writes every call to payway_
 | Entities | `entity/SubscriptionInvoice`, `entity/PayWayTransaction`, `entity/PayWayApiLog`, `entity/UserSubscription` (existing, + `paywayCustomerNumber`) |
 | Repositories | `SubscriptionInvoiceRepository`, `PayWayTransactionRepository`, `PayWayApiLogRepository`, `UserSubscriptionRepository` (existing, + 2 queries) |
 | Enums | `PayWayTransactionStatus`, `SubscriptionInvoiceStatus`, `SubscriptionInvoiceType` |
-| DTOs (`dto/payway`) | Our API: `MakePaymentRequest`, `PayWayPaymentResponse`, `BillingHistoryItemDto`, `CancelSubscriptionRequest`, `CancelSubscriptionResponse`. PayWay's responses: `PayWayTransactionResponse`, `PayWayCustomerResponse`, `PayWayPaymentSetup`, `PayWayCreditCard` |
+| DTOs (`dto/payway`) | Our API: `MakePaymentRequest`, `PayWayPaymentResponse`, `BillingHistoryItemDto`, `CancelSubscriptionRequest`, `CancelSubscriptionResponse`, `SaveCardRequest`, `SavedCardResponse`. PayWay's responses: `PayWayTransactionResponse`, `PayWayCustomerResponse`, `PayWayPaymentSetup`, `PayWayCreditCard` |
 | Errors | `exception/PayWayException` (extends `ResponseStatusException`, so `GlobalExceptionHandler` returns its status and message) |
 | Migrations | `V76__create_payway_transactions.sql`, `V77__user_subscription_cancellation.sql` (in `src/main/resources/db/migration`) |
 
@@ -87,6 +87,10 @@ service/PayWayAuditLogger                 masks and writes every call to payway_
 In `PayWayPaymentService`. One DB transaction: the payer's subscription must be active (`404` none, `409` not active); open RENEWAL invoices (`DUE` / `OVERDUE`) → `VOID`; subscription → `status = 2`, `cancelled_at`, `cancel_reason`. `renews_at` is left as is — it is the access end date. The renewal job only picks `status = 1`, so nothing more is charged. After the commit, `payWayClient.stopPayments` (`PATCH /customers/{n}/payment-setup stopped=true`, audited as `STOP_PAYMENTS`) locks the PayWay customer as a second safety; if it fails the cancel still stands and `paywayPaymentsStopped = false`. Re-subscribing saves a new card with `PUT /customers/{n}`, which clears PayWay's stop flag; `activateSubscription` clears `cancelled_at` / `cancel_reason`.
 
 `PayWayClient` uses `JdkClientHttpRequestFactory` (JDK `HttpClient`) because `HttpURLConnection` can't send `PATCH`.
+
+## 4b. Save card — `saveCard`
+
+In `PayWayPaymentService`. `loadPayer` (firm members `403`); the payer's latest `user_subscriptions` row must have a `payway_customer_number` (`404` otherwise) and be active (`409` otherwise — saving a card would undo the stop lock set by cancel). Then `payWayClient.updateCard` → `PUT /customers/{n}/payment-setup` with the token and `merchantId` (audited as `UPDATE_CARD`). No DB change: PayWay holds the card, and the renewal job charges whatever card is saved on the customer. `overdueRenewal` is true when the subscription has an `OVERDUE` RENEWAL invoice — the next nightly run retries it with the new card.
 
 ## 5. PayWay client — `PayWayClient`
 

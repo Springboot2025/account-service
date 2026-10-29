@@ -6,6 +6,8 @@ import com.legalpro.accountservice.dto.payway.CancelSubscriptionRequest;
 import com.legalpro.accountservice.dto.payway.CancelSubscriptionResponse;
 import com.legalpro.accountservice.dto.payway.MakePaymentRequest;
 import com.legalpro.accountservice.dto.payway.PayWayPaymentResponse;
+import com.legalpro.accountservice.dto.payway.SaveCardRequest;
+import com.legalpro.accountservice.dto.payway.SavedCardResponse;
 import com.legalpro.accountservice.security.CustomUserDetails;
 import com.legalpro.accountservice.service.PayWayPaymentService;
 import jakarta.validation.Valid;
@@ -45,6 +47,16 @@ public class PayWayPaymentController {
             default -> ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body(ApiResponse.error(502, payment.getErrorMessage(), payment));
         };
+    }
+
+    // Save card: replaces the card renewals charge (update payment method)
+    @PutMapping("/payment-method")
+    public ResponseEntity<ApiResponse<SavedCardResponse>> saveCard(
+            @Valid @RequestBody SaveCardRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Card saved",
+                paymentService.saveCard(userDetails.getUuid(), request)));
     }
 
     // Cancel: stops renewals; access continues until renewsAt. Body is optional.

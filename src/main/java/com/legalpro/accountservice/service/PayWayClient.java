@@ -122,6 +122,25 @@ public class PayWayClient {
     }
 
     /**
+     * PUT /customers/{customerNumber}/payment-setup: replaces the saved card with
+     * the card behind the single-use token, keeping the customer's contact details.
+     * Uses up the token. Also resets PayWay's "stopped" flag.
+     */
+    public PayWayPaymentSetup updateCard(UUID userUuid, String customerNumber, String singleUseTokenId) {
+        ensureConfigured();
+        PayWayAuditLogger.Context context = new PayWayAuditLogger.Context(null, userUuid);
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("singleUseTokenId", singleUseTokenId);
+        form.add("merchantId", properties.getMerchantId());
+
+        // PUT is idempotent by nature, so no Idempotency-Key is needed
+        HttpResult result = send(context, "UPDATE_CARD", HttpMethod.PUT,
+                "/customers/" + customerNumber + "/payment-setup", form, Map.of());
+        return parse(result, PayWayPaymentSetup.class, "update card " + customerNumber);
+    }
+
+    /**
      * POST /transactions: charges the card saved on the customer (no token).
      * A declined card is a normal response (status "declined"), not an exception.
      * If PayWay answers "pending" (slow card network), polls GET /transactions/{id}.

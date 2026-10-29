@@ -5,6 +5,10 @@ import com.legalpro.accountservice.dto.payway.BillingHistoryItemDto;
 import com.legalpro.accountservice.dto.payway.CancelSubscriptionRequest;
 import com.legalpro.accountservice.dto.payway.CancelSubscriptionResponse;
 import com.legalpro.accountservice.dto.payway.MakePaymentRequest;
+import com.legalpro.accountservice.dto.payway.PayWayCreditCard;
+import com.legalpro.accountservice.dto.payway.PayWayPaymentSetup;
+import com.legalpro.accountservice.dto.payway.SaveCardRequest;
+import com.legalpro.accountservice.dto.payway.SavedCardResponse;
 import com.legalpro.accountservice.dto.payway.PayWayPaymentResponse;
 import com.legalpro.accountservice.dto.payway.PayWayTransactionResponse;
 import com.legalpro.accountservice.entity.Account;
@@ -176,6 +180,48 @@ public class PayWayPaymentService {
     }
 
     private record Outcome(SubscriptionInvoice invoice, UserSubscription subscription) {
+    }
+
+    // ---------------------------------------------------------------------
+    // Save card (update payment method)
+    // ---------------------------------------------------------------------
+
+    /**
+     * Replaces the card saved on the payer's PayWay customer. Only for an active
+     * subscription: that's what renewals charge, and an OVERDUE renewal is retried
+     * with the new card on the next nightly run. Not allowed once cancelled, because
+     * saving a card would undo PayWay's "stop payments" lock set on cancel.
+     */
+    public SavedCardResponse saveCard(UUID userUuid, SaveCardRequest request) {
+        loadPayer(userUuid);
+
+        UserSubscription sub = userSubscriptionRepository.findFirstByUserUuidAndDeletedAtIsNullOrderByIdDesc(userUuid)
+                .filter(s -> s.getPaywayCustomerNumber() != null)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "No saved card yet, please make a payment first"));
+        if (sub.getStatus() != UserSubscription.STATUS_ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No active subscription: the card can only be changed on an active subscription");
+        }
+
+        PayWayPaymentSetup setup = payWayClient.updateCard(userUuid, sub.getPaywayCustomerNumber(),
+                request.getSingleUseTokenId());
+
+        boolean overdue = !invoiceRepository.findByUserSubscriptionUuidAndInvoiceTypeAndStatusInAndDeletedAtIsNull(
+                sub.getUuid(), SubscriptionInvoiceType.RENEWAL, List.of(SubscriptionInvoiceStatus.OVERDUE)).isEmpty();
+        PayWayCreditCard card = setup.getCreditCard();
+        log.info("💳 Card updated for {} ({}){}", sub.getPaywayCustomerNumber(),
+                card != null ? card.getCardNumber() : "?", overdue ? ", overdue renewal will retry tonight" : "");
+
+        return SavedCardResponse.builder()
+                .customerNumber(sub.getPaywayCustomerNumber())
+                .cardScheme(card != null ? card.getCardScheme() : null)
+                .maskedCardNumber(card != null ? card.getCardNumber() : null)
+                .expiryDateMonth(card != null ? card.getExpiryDateMonth() : null)
+                .expiryDateYear(card != null ? card.getExpiryDateYear() : null)
+                .cardholderName(card != null ? card.getCardholderName() : null)
+                .overdueRenewal(overdue)
+                .build();
     }
 
     // ---------------------------------------------------------------------

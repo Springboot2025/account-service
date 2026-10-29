@@ -24,6 +24,7 @@ How the subscription screens call the backend. API details and full responses: [
 | Success | Payment returned `200` |
 | Payment failed | Payment returned `402`, `422` or `502` — show `message`, render a **new** card frame to retry |
 | Billing History | `GET /api/payway/invoices` |
+| Update Payment Method | `payway.js` card frame → new `singleUseTokenId`, then `PUT /api/payway/payment-method` — see section 8 |
 | Cancel Subscription | `POST /api/payway/subscription/cancel` with optional `{ "reason": "…" }` — see section 7 |
 
 Show these screens to lawyers only. A lawyer who joined a firm (not the firm admin) gets `403` — show "Your firm's subscription is managed by your firm admin".
@@ -160,7 +161,45 @@ const res = await fetch(`${API_BASE}/api/payway/subscription/cancel`, {
 
 "Access continues until" on the confirm dialog (before cancelling) is the subscription's next billing date (`renewsAt` from the payment response).
 
-## 8. Testing
+## 8. Update Payment Method screen
+
+Same card frame as checkout (section 4) — only the API call differs. The new card is used for the **next renewal**.
+
+```js
+creditCardFrame.getToken(async (err, data) => {
+  creditCardFrame.destroy();
+  creditCardFrame = null;
+  if (err) { showError(err.message); renderCardFrame(); return; }
+
+  const res = await fetch(`${API_BASE}/api/payway/payment-method`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ singleUseTokenId: data.singleUseTokenId }),
+  });
+  const body = await res.json();
+
+  if (res.status === 200) {
+    showCard(body.data);                 // "Current card on file": cardScheme + maskedCardNumber + expiry
+    if (body.data.overdueRenewal) {
+      showInfo("Your overdue payment will be retried with this card overnight.");
+    }
+  } else {
+    showError(body.message);
+    if (res.status === 422) renderCardFrame();   // bad / expired token: let them try again
+  }
+});
+```
+
+| HTTP | Show |
+|---|---|
+| 200 | "Card saved" — show the new card (`maskedCardNumber`, `cardScheme`, `expiryDateMonth`/`expiryDateYear`) |
+| 404 | No card yet — send them to checkout |
+| 409 | Subscription not active (e.g. cancelled) — offer to subscribe again (checkout) instead |
+| 422 | Card / token rejected — new card frame, try again |
+
+Only show this screen for an active subscription.
+
+## 9. Testing
 
 Sandbox test cards (any cardholder name of 4+ characters):
 

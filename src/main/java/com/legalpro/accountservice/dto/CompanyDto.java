@@ -13,6 +13,11 @@ public class CompanyDto {
     private UUID uuid;
     private String name;
     private String description;
+    private String abn;
+    private String businessPhone;
+    private String businessAddress;
+    private String primaryContactName;
+    private String primaryContactEmail;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime removedAt;

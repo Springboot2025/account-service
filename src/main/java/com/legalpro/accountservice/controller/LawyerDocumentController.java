@@ -99,4 +99,34 @@ public class LawyerDocumentController {
 
         return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
     }
+
+    
+    @GetMapping("/cases/{caseUuid}/questionnaire-documents")
+    public ResponseEntity<ApiResponse<List<ClientDocument>>> getQuestionnaireDocuments(
+            @PathVariable UUID caseUuid,
+            @RequestParam(value = "prefix", defaultValue = "") String prefix,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lawyerUuid = userDetails.getUuid();
+
+        Account account = accountService.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean isCompany = account.isCompany();
+
+        // Company accessing lawyer case
+        if (isCompany) {
+            LegalCase legalCaseEntity = legalCaseRepository.findByUuid(caseUuid)
+                    .orElseThrow(() -> new RuntimeException("Case not found"));
+
+            lawyerUuid = legalCaseEntity.getLawyerUuid();
+        }
+
+        LegalCaseDto legalCaseDto = legalCaseService.getCase(caseUuid, lawyerUuid);
+        UUID clientUuid = legalCaseDto.getClientUuid();
+
+        List<ClientDocument> docs = clientDocumentService.getClientDocumentsByPrefix(clientUuid, prefix);
+
+        return ResponseEntity.ok(ApiResponse.success(200, "Documents fetched successfully", docs));
+    }
 }

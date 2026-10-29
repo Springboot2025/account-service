@@ -27,6 +27,21 @@ public class Company {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(length = 20)
+    private String abn;
+
+    @Column(name = "business_phone", length = 30)
+    private String businessPhone;
+
+    @Column(name = "business_address", length = 255)
+    private String businessAddress;
+
+    @Column(name = "primary_contact_name", length = 150)
+    private String primaryContactName;
+
+    @Column(name = "primary_contact_email", length = 150)
+    private String primaryContactEmail;
+
     @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 

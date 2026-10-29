@@ -62,6 +62,9 @@ public class UserSubscription {
     @Column(name = "cancel_reason", columnDefinition = "TEXT")
     private String cancelReason;
 
+    @Column(name = "seat_count", nullable = false)
+    private Integer seatCount = 0;
+
     @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 

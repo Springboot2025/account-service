@@ -2,10 +2,14 @@ package com.legalpro.accountservice.service;
 
 import com.legalpro.accountservice.util.FrontendUrl;
 import com.legalpro.accountservice.dto.CompanyInviteRequestDto;
+import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Company;
 import com.legalpro.accountservice.entity.CompanyInvite;
+import com.legalpro.accountservice.entity.UserSubscription;
+import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.CompanyInviteRepository;
 import com.legalpro.accountservice.repository.CompanyRepository;
+import com.legalpro.accountservice.repository.UserSubscriptionRepository;
 import com.legalpro.accountservice.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +26,8 @@ public class CompanyInviteService {
 
     private final CompanyInviteRepository inviteRepo;
     private final CompanyRepository companyRepo;
+    private final AccountRepository accountRepo;
+    private final UserSubscriptionRepository userSubscriptionRepo;
     private final EmailService emailService;
 
     public CompanyInvite createInvite(CompanyInviteRequestDto request) {
@@ -29,6 +35,8 @@ public class CompanyInviteService {
         // Validate company exists
         Company company = companyRepo.findByUuid(request.getCompanyUuid())
                 .orElseThrow(() -> new RuntimeException("Invalid company UUID"));
+
+        checkSeatAvailable(company.getUuid());
 
         Optional<CompanyInvite> existingInviteOpt =
                 inviteRepo.findTopByCompanyUuidAndEmailOrderByCreatedAtDesc(
@@ -96,6 +104,26 @@ public class CompanyInviteService {
         }
 
         return invite;
+    }
+
+    /** Blocks a new invite once used + pending invites reach the firm's purchased seats. */
+    private void checkSeatAvailable(UUID companyUuid) {
+        Account admin = accountRepo.findByCompanyUuidAndIsCompanyTrue(companyUuid).orElse(null);
+        if (admin == null) {
+            return; // no subscription to check against -- shouldn't happen for a real company
+        }
+        UserSubscription sub = userSubscriptionRepo
+                .findFirstByUserUuidAndDeletedAtIsNullOrderByIdDesc(admin.getUuid())
+                .filter(s -> s.getStatus() == UserSubscription.STATUS_ACTIVE)
+                .orElse(null);
+        int purchasedSeats = sub != null && sub.getSeatCount() != null ? sub.getSeatCount() : 0;
+
+        int usedSeats = accountRepo.countByCompanyUuidAndIsCompanyFalse(companyUuid);
+        long pendingInvites = inviteRepo.countByCompanyUuidAndUsedFalseAndExpiresAtAfter(companyUuid, LocalDateTime.now());
+        if (usedSeats + pendingInvites >= purchasedSeats) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No lawyer seats available -- purchase more seats to invite another lawyer");
+        }
     }
 
     private void sendInviteEmail(CompanyInvite invite, Company company) {

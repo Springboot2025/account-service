@@ -14,8 +14,8 @@ public class AdminDashboardSummaryDto {
     private long activeCases;
     private double activeCasesChangePercent;
 
-    private double monthlyRevenue;      // placeholder
+    private double monthlyRevenue;      // actual cash collected this calendar month (PAID invoices)
     private double revenueChangePercent;
-    private long activeSubscriptions;   // placeholder
+    private long activeSubscriptions;
     private double subscriptionsChangePercent;
 }

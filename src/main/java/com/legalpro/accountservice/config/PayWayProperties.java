@@ -5,6 +5,8 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.math.BigDecimal;
+
 /**
  * PayWay (Westpac) REST API settings, bound from the "payway" block in
  * application.yml, which reads the PAYWAY_* environment variables.
@@ -37,6 +39,9 @@ public class PayWayProperties {
 
     // Off by default: turning this on lets the renewal job charge saved cards.
     private boolean autoRenewEnabled = false;
+
+    // Small refundable charge used to verify a new card at trial signup (AUD).
+    private BigDecimal verificationAmount = new BigDecimal("1.00");
 
     public boolean isConfigured() {
         return secretKey != null && !secretKey.isBlank()

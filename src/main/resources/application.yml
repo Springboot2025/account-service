@@ -46,6 +46,10 @@ payway:
   merchant-id: ${PAYWAY_MERCHANT_ID:}
   auto-renew-enabled: ${PAYWAY_RENEWAL_AUTO_ENABLED:false}
   renewal-cron: ${PAYWAY_RENEWAL_CRON:0 0 2 * * *}
+  # Small refundable charge used to verify a new card at the start of a free
+  # trial (immediately refunded). AUD -- PayWay/Westpac has no INR facility.
+  verification-amount: ${PAYWAY_VERIFICATION_AMOUNT:1.00}
+  trial-reminder-cron: ${PAYWAY_TRIAL_REMINDER_CRON:0 0 8 * * *}
 
 springdoc:
   api-docs:

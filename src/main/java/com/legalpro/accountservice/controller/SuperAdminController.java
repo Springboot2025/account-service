@@ -347,6 +347,30 @@ public class SuperAdminController {
         );
     }
 
+    @GetMapping("/billing/overview")
+    public ResponseEntity<ApiResponse<AdminBillingOverviewDto>> getBillingOverview() {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Billing overview fetched successfully",
+                        superAdminService.getBillingOverview()
+                )
+        );
+    }
+
+    @GetMapping("/lawyers/{lawyerUuid}/billing")
+    public ResponseEntity<ApiResponse<AdminLawyerBillingDto>> getLawyerBilling(@PathVariable UUID lawyerUuid) {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        "Lawyer billing fetched successfully",
+                        superAdminService.getLawyerBilling(lawyerUuid)
+                )
+        );
+    }
+
     @GetMapping("/recent-activity")
     public ResponseEntity<ApiResponse<List<ActivityLogDto>>> getRecentActivity(
             @RequestParam(required = false) Integer limit

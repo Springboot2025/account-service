@@ -2,10 +2,12 @@ package com.legalpro.accountservice.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.legalpro.accountservice.config.PayWayProperties;
 import com.legalpro.accountservice.dto.*;
 import com.legalpro.accountservice.dto.admin.*;
 import com.legalpro.accountservice.entity.*;
 import com.legalpro.accountservice.enums.AccountStatus;
+import com.legalpro.accountservice.enums.SubscriptionInvoiceStatus;
 import com.legalpro.accountservice.enums.AdminLawyerStatus;
 import com.legalpro.accountservice.enums.AdminSortBy;
 import com.legalpro.accountservice.mapper.ActivityLogMapper;
@@ -44,6 +46,8 @@ public class SuperAdminService {
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final ActivityLogRepository activityLogRepository;
     private final CompanyInviteRepository companyInviteRepository;
+    private final PayWayProperties payWayProperties;
+    private final SubscriptionInvoiceRepository invoiceRepository;
 
     private static final String GCS_PUBLIC_BASE = "https://storage.googleapis.com/legalpro";
     public List<AccountDto> getUsersByType(String userType) {
@@ -209,15 +213,28 @@ public class SuperAdminService {
                             / activeCasesLastMonth) * 100;
         }
 
+        // Revenue actually collected (PAID invoices, excluding the refunded trial
+        // verification charge) -- not an MRR run-rate guess, a real cash total.
+        double revenueThisMonth = invoiceRepository.sumRevenueBetween(startOfThisMonth, now).doubleValue();
+        double revenueLastMonth = invoiceRepository.sumRevenueBetween(startOfLastMonth, endOfLastMonth).doubleValue();
+        double revenueChangePercent = revenueLastMonth > 0
+                ? ((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100 : 0;
+
+        long activeSubscriptions = userSubscriptionRepository.countActiveSubscribers();
+        long subsThisMonth = userSubscriptionRepository.countByCreatedAtBetween(startOfThisMonth, now);
+        long subsLastMonth = userSubscriptionRepository.countByCreatedAtBetween(startOfLastMonth, endOfLastMonth);
+        double subscriptionsChangePercent = subsLastMonth > 0
+                ? ((double) (subsThisMonth - subsLastMonth) / subsLastMonth) * 100 : 0;
+
         return AdminDashboardSummaryDto.builder()
                 .totalUsers(totalUsers)
                 .usersChangePercent(roundToTwoDecimals(usersChangePercent))
                 .activeCases(activeCases)
                 .activeCasesChangePercent(roundToTwoDecimals(activeCasesChangePercent))
-                .monthlyRevenue(0)              // placeholder
-                .revenueChangePercent(0)
-                .activeSubscriptions(0)         // placeholder
-                .subscriptionsChangePercent(0)
+                .monthlyRevenue(roundToTwoDecimals(revenueThisMonth))
+                .revenueChangePercent(roundToTwoDecimals(revenueChangePercent))
+                .activeSubscriptions(activeSubscriptions)
+                .subscriptionsChangePercent(roundToTwoDecimals(subscriptionsChangePercent))
                 .build();
     }
 
@@ -609,6 +626,10 @@ public class SuperAdminService {
         subscription.setAnnualPrice(dto.getAnnualPrice());
         subscription.setRecommended(dto.getRecommended());
         subscription.setFeatures(dto.getFeatures());
+        subscription.setSeatPrice(dto.getSeatPrice()); // null is valid -- "this plan has no seats"
+        if (dto.getTrialDays() != null) {
+            subscription.setTrialDays(dto.getTrialDays()); // NOT NULL column -- never clear it to null
+        }
         subscription.setUpdatedAt(LocalDateTime.now());
 
         Subscription saved = subscriptionRepository.save(subscription);
@@ -626,6 +647,8 @@ public class SuperAdminService {
                 .annualPrice(subscription.getAnnualPrice())
                 .recommended(subscription.getRecommended())
                 .features(subscription.getFeatures())
+                .seatPrice(subscription.getSeatPrice())
+                .trialDays(subscription.getTrialDays())
                 .build();
     }
 
@@ -637,6 +660,7 @@ public class SuperAdminService {
 
         return SystemSettingsDto.builder()
                 .settings(systemSetting.getSettings())
+                .autoRenewEnabled(payWayProperties.isAutoRenewEnabled())
                 .build();
     }
 
@@ -658,6 +682,7 @@ public class SuperAdminService {
 
         return SystemSettingsDto.builder()
                 .settings(saved.getSettings())
+                .autoRenewEnabled(payWayProperties.isAutoRenewEnabled())
                 .build();
     }
 
@@ -796,6 +821,7 @@ public class SuperAdminService {
 
         // MRR calculation
         double mrr = 0;
+        long activeTrials = 0;
 
         List<UserSubscription> activeSubscriptions =
                 userSubscriptionRepository.findAll()
@@ -809,18 +835,13 @@ public class SuperAdminService {
                         .collect(Collectors.toMap(Subscription::getId, s -> s));
 
         for (UserSubscription us : activeSubscriptions) {
-
+            if (Boolean.TRUE.equals(us.getIsTrial())) {
+                activeTrials++;
+                continue; // not generating revenue yet
+            }
             Subscription plan = plans.get(us.getPlanId());
-
             if (plan == null) continue;
-
-            if ("monthly".equalsIgnoreCase(us.getPlanDuration())) {
-                mrr += plan.getMonthlyPrice().doubleValue();
-            }
-
-            if ("yearly".equalsIgnoreCase(us.getPlanDuration())) {
-                mrr += plan.getAnnualPrice().doubleValue() / 12;
-            }
+            mrr += monthlyValueOf(us, plan);
         }
 
         return AdminSubscriptionsSummaryDto.builder()
@@ -829,7 +850,44 @@ public class SuperAdminService {
                 .newThisMonth(newThisMonth)
                 .cancelled(cancelled)
                 .retentionRate(Math.round(retentionRate * 10.0) / 10.0)
+                .activeTrials(activeTrials)
                 .build();
+    }
+
+    /**
+     * What one active, non-trial subscription contributes to MRR: the plan's
+     * monthly price (or annual price / 12), plus seat cost for FIRM plans.
+     * Trial subscriptions contribute 0 and are counted separately -- callers
+     * must skip them before calling this (see getSubscriptionsSummary).
+     */
+    private double monthlyValueOf(UserSubscription us, Subscription plan) {
+        double base = "yearly".equalsIgnoreCase(us.getPlanDuration())
+                ? plan.getAnnualPrice().doubleValue() / 12
+                : plan.getMonthlyPrice().doubleValue();
+        if (plan.getSeatPrice() == null || us.getSeatCount() == null) {
+            return base;
+        }
+        // seat_price is a MONTHLY per-seat rate (same convention as PayWayPaymentService.seatCostFor);
+        // a yearly plan charges 12x this per seat per year, which normalized back down to a monthly
+        // run-rate is just seatPrice x seats again -- no duration branching needed here, unlike the
+        // base plan price above (which genuinely differs between its own monthly/annual columns).
+        return base + plan.getSeatPrice().doubleValue() * us.getSeatCount();
+    }
+
+    /**
+     * What will actually be charged on the subscription's next billing date --
+     * the real per-cycle total (full annual amount for a yearly plan), NOT the
+     * monthly-equivalent run-rate monthlyValueOf gives for MRR reporting. Used
+     * for "amount due" on a specific upcoming charge, never for aggregate MRR.
+     */
+    private double fullCycleAmountOf(UserSubscription us, Subscription plan) {
+        boolean yearly = "yearly".equalsIgnoreCase(us.getPlanDuration());
+        double base = yearly ? plan.getAnnualPrice().doubleValue() : plan.getMonthlyPrice().doubleValue();
+        if (plan.getSeatPrice() == null || us.getSeatCount() == null) {
+            return base;
+        }
+        double perSeat = yearly ? plan.getSeatPrice().doubleValue() * 12 : plan.getSeatPrice().doubleValue();
+        return base + perSeat * us.getSeatCount();
     }
 
     public AdminSubscriptionPlansSummaryResponse getSubscriptionsPlansSummary() {
@@ -857,15 +915,9 @@ public class SuperAdminService {
 
             if (plan == null) continue;
 
-            double monthlyValue = 0;
-
-            if ("monthly".equalsIgnoreCase(us.getPlanDuration())) {
-                monthlyValue = plan.getMonthlyPrice().doubleValue();
-            }
-
-            if ("yearly".equalsIgnoreCase(us.getPlanDuration())) {
-                monthlyValue = plan.getAnnualPrice().doubleValue() / 12;
-            }
+            // Subscriber counts include trials (they're genuinely subscribed);
+            // revenue only counts once they're actually being charged.
+            double monthlyValue = Boolean.TRUE.equals(us.getIsTrial()) ? 0 : monthlyValueOf(us, plan);
 
             if (us.getPlanId() == 1) {
                 individualCount++;
@@ -942,6 +994,154 @@ public class SuperAdminService {
                     .build();
 
         }).toList();
+    }
+
+    /** Backs the admin Billing/Revenue page: real revenue, MRR, upcoming charges, recent declines. */
+    public AdminBillingOverviewDto getBillingOverview() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfThisMonth = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime startOfLastMonth = startOfThisMonth.minusMonths(1);
+        LocalDateTime endOfLastMonth = startOfThisMonth.minusNanos(1);
+
+        double revenueThisMonth = invoiceRepository.sumRevenueBetween(startOfThisMonth, now).doubleValue();
+        double revenueLastMonth = invoiceRepository.sumRevenueBetween(startOfLastMonth, endOfLastMonth).doubleValue();
+        double revenueChangePercent = revenueLastMonth > 0
+                ? ((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100 : 0;
+
+        Map<Long, Subscription> plans = subscriptionRepository.findAll().stream()
+                .collect(Collectors.toMap(Subscription::getId, p -> p));
+
+        List<UserSubscription> activeSubs = userSubscriptionRepository.findAll().stream()
+                .filter(s -> s.getStatus() == UserSubscription.STATUS_ACTIVE)
+                .toList();
+        double mrr = 0;
+        long activeTrials = 0;
+        for (UserSubscription us : activeSubs) {
+            if (Boolean.TRUE.equals(us.getIsTrial())) {
+                activeTrials++;
+                continue;
+            }
+            Subscription plan = plans.get(us.getPlanId());
+            if (plan != null) mrr += monthlyValueOf(us, plan);
+        }
+
+        // Upcoming charges: anything (trial conversion or ordinary renewal) due in the next 7 days
+        List<UserSubscription> upcoming = userSubscriptionRepository
+                .findActiveWithRenewalBetween(now, now.plusDays(7));
+        Set<UUID> upcomingAccountUuids = upcoming.stream().map(UserSubscription::getUserUuid).collect(Collectors.toSet());
+        Map<UUID, Account> upcomingAccounts = accountRepository.findAllByUuidIn(upcomingAccountUuids).stream()
+                .collect(Collectors.toMap(Account::getUuid, a -> a));
+
+        List<AdminUpcomingChargeDto> upcomingCharges = upcoming.stream().map(us -> {
+            Account account = upcomingAccounts.get(us.getUserUuid());
+            Subscription plan = plans.get(us.getPlanId());
+            double amount = plan != null ? fullCycleAmountOf(us, plan) : 0;
+            return AdminUpcomingChargeDto.builder()
+                    .subscriptionUuid(us.getUuid())
+                    .name(extractFullName(account))
+                    .email(account != null ? account.getEmail() : "")
+                    .planName(plan != null ? plan.getPlanName() : "")
+                    .trialConversion(Boolean.TRUE.equals(us.getIsTrial()))
+                    .amountDue(BigDecimal.valueOf(amount).setScale(2, java.math.RoundingMode.HALF_UP))
+                    .chargeDate(us.getRenewsAt())
+                    .build();
+        }).toList();
+
+        // Recent declines: most recent OVERDUE renewal invoices
+        List<SubscriptionInvoice> declined = invoiceRepository
+                .findTop10ByStatusAndDeletedAtIsNullOrderByUpdatedAtDesc(SubscriptionInvoiceStatus.OVERDUE);
+        Set<UUID> declinedAccountUuids = declined.stream().map(SubscriptionInvoice::getUserUuid).collect(Collectors.toSet());
+        Map<UUID, Account> declinedAccounts = accountRepository.findAllByUuidIn(declinedAccountUuids).stream()
+                .collect(Collectors.toMap(Account::getUuid, a -> a));
+
+        List<AdminDeclinedInvoiceDto> recentDeclines = declined.stream().map(inv -> {
+            Account account = declinedAccounts.get(inv.getUserUuid());
+            Subscription plan = plans.get(inv.getPlanId());
+            UserSubscription sub = inv.getUserSubscriptionUuid() != null
+                    ? userSubscriptionRepository.findByUuid(inv.getUserSubscriptionUuid()).orElse(null) : null;
+            return AdminDeclinedInvoiceDto.builder()
+                    .subscriptionUuid(sub != null ? sub.getUuid() : null)
+                    .name(extractFullName(account))
+                    .email(account != null ? account.getEmail() : "")
+                    .invoiceNumber(inv.getInvoiceNumber())
+                    .planName(plan != null ? plan.getPlanName() : "")
+                    .totalAmount(inv.getTotalAmount())
+                    .failedAttempts(inv.getFailedAttempts())
+                    .lastAttemptAt(inv.getUpdatedAt())
+                    .build();
+        }).toList();
+
+        return AdminBillingOverviewDto.builder()
+                .monthlyRevenue(roundToTwoDecimals(revenueThisMonth))
+                .revenueChangePercent(roundToTwoDecimals(revenueChangePercent))
+                .mrr(roundToTwoDecimals(mrr))
+                .activeSubscriptions(activeSubs.size())
+                .activeTrials(activeTrials)
+                .upcomingCharges(upcomingCharges)
+                .recentDeclines(recentDeclines)
+                .build();
+    }
+
+    /** Backs an admin "Billing" view on a lawyer's profile: their subscription + every invoice. */
+    public AdminLawyerBillingDto getLawyerBilling(UUID lawyerUuid) {
+        Account account = accountRepository.findByUuid(lawyerUuid)
+                .orElseThrow(() -> new RuntimeException("Lawyer not found"));
+
+        AdminLawyerBillingDto.AdminLawyerBillingDtoBuilder builder = AdminLawyerBillingDto.builder()
+                .lawyerUuid(lawyerUuid)
+                .name(extractFullName(account))
+                .email(account.getEmail());
+
+        if (account.getCompanyUuid() != null && !account.isCompany()) {
+            // Firm member -- their billing lives with the firm admin's subscription, not their own
+            return builder.managedByFirm(true).subscribed(false).build();
+        }
+
+        UserSubscription sub = userSubscriptionRepository
+                .findFirstByUserUuidAndDeletedAtIsNullOrderByIdDesc(lawyerUuid)
+                .orElse(null);
+        if (sub == null) {
+            return builder.subscribed(false).build();
+        }
+
+        Subscription plan = subscriptionRepository.findById(sub.getPlanId()).orElse(null);
+        boolean isFirm = account.isCompany();
+        BigDecimal monthlyAmount = plan != null
+                ? BigDecimal.valueOf(monthlyValueOf(sub, plan)).setScale(2, java.math.RoundingMode.HALF_UP) : null;
+
+        List<SubscriptionInvoice> invoices = invoiceRepository
+                .findByUserUuidAndDeletedAtIsNullOrderByPeriodStartDesc(lawyerUuid);
+        List<AdminLawyerInvoiceDto> invoiceDtos = invoices.stream().map(inv -> AdminLawyerInvoiceDto.builder()
+                .invoiceNumber(inv.getInvoiceNumber())
+                .invoiceType(inv.getInvoiceType().name())
+                .status(inv.getStatus().name())
+                .periodStart(inv.getPeriodStart())
+                .periodEnd(inv.getPeriodEnd())
+                .amount(inv.getAmount())
+                .gstAmount(inv.getGstAmount())
+                .totalAmount(inv.getTotalAmount())
+                .seatCount(inv.getSeatCount())
+                .paidAt(inv.getPaidAt())
+                .failedAttempts(inv.getFailedAttempts())
+                .build()).toList();
+
+        return builder
+                .subscribed(sub.getStatus() == UserSubscription.STATUS_ACTIVE)
+                .subscriptionUuid(sub.getUuid())
+                .planName(plan != null ? plan.getPlanName() : null)
+                .planDuration(sub.getPlanDuration())
+                .status(sub.getStatus())
+                .isTrial(Boolean.TRUE.equals(sub.getIsTrial()))
+                .startDate(sub.getStartDate())
+                .renewsAt(sub.getRenewsAt())
+                .cancelledAt(sub.getCancelledAt())
+                .cancelReason(sub.getCancelReason())
+                .monthlyAmount(monthlyAmount)
+                .isFirm(isFirm)
+                .seatCount(isFirm ? sub.getSeatCount() : null)
+                .usedSeats(isFirm ? accountRepository.countByCompanyUuidAndIsCompanyFalse(account.getCompanyUuid()) : null)
+                .invoices(invoiceDtos)
+                .build();
     }
 
     public List<ActivityLogDto> getRecentActivities(Integer limit) {

@@ -4,14 +4,36 @@ import com.legalpro.accountservice.entity.SubscriptionInvoice;
 import com.legalpro.accountservice.enums.SubscriptionInvoiceStatus;
 import com.legalpro.accountservice.enums.SubscriptionInvoiceType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface SubscriptionInvoiceRepository extends JpaRepository<SubscriptionInvoice, Long> {
+
+    // Real cash collected in a date range -- excludes the refunded trial
+    // verification charge, which was never actually revenue.
+    @Query("""
+        SELECT COALESCE(SUM(i.totalAmount), 0)
+        FROM SubscriptionInvoice i
+        WHERE i.status = 'PAID'
+        AND i.invoiceType <> 'VERIFICATION'
+        AND i.paidAt >= :start AND i.paidAt < :end
+        AND i.deletedAt IS NULL
+    """)
+    BigDecimal sumRevenueBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    // admin billing overview "recent declines"
+    List<SubscriptionInvoice> findTop10ByStatusAndDeletedAtIsNullOrderByUpdatedAtDesc(SubscriptionInvoiceStatus status);
+
+    // admin per-lawyer billing detail
+    List<SubscriptionInvoice> findByUserUuidAndDeletedAtIsNullOrderByPeriodStartDesc(UUID userUuid);
 
     Optional<SubscriptionInvoice> findByUuid(UUID uuid);
 
@@ -22,10 +44,6 @@ public interface SubscriptionInvoiceRepository extends JpaRepository<Subscriptio
     // the renewal invoice for a given period (created on the first attempt, reused on retries)
     Optional<SubscriptionInvoice> findFirstByUserSubscriptionUuidAndInvoiceTypeAndPeriodStartAndDeletedAtIsNull(
             UUID userSubscriptionUuid, SubscriptionInvoiceType invoiceType, LocalDate periodStart);
-
-    // the latest paid invoice: renewals charge the same amounts
-    Optional<SubscriptionInvoice> findFirstByUserSubscriptionUuidAndStatusAndDeletedAtIsNullOrderByPeriodStartDesc(
-            UUID userSubscriptionUuid, SubscriptionInvoiceStatus status);
 
     // billing history: newest period first
     List<SubscriptionInvoice> findByUserUuidAndDeletedAtIsNullOrderByPeriodStartDescIdDesc(UUID userUuid);

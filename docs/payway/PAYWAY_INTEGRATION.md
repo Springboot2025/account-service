@@ -10,7 +10,42 @@ All example responses below were captured from a real run against the PayWay san
 
 ## 1. Flow
 
-### First payment
+### First payment -- trial plans (default: every plan, 30 days)
+
+A plan with `subscriptions.trial_days > 0` doesn't charge the full price today.
+Instead it verifies the card with a tiny, immediately-refunded charge, then
+starts the subscription for free. One trial per account, ever --
+`user_subscriptions.has_used_trial` survives cancel + re-subscribe (the same
+row is reused in place) so it can't be repeated to stay free forever.
+
+```
+Browser                         account-service                                  PayWay
+───────                         ───────────────                                  ──────
+1. Lawyer logs in, picks a plan and clicks Select Plan
+2. Card form (payway.js, publishable key) ───────────────────────────────────────▶ POST /single-use-tokens
+   ◀───────────────────────────────────────────────────────────── singleUseTokenId
+3. POST /api/payway/payments ──▶ a. validate plan + amounts against the DB (this is
+   { planId, planDuration,          what will be charged once the trial ends)
+     amount, gstAmount,          b. VERIFICATION invoice (seat/plan-agnostic, tiny
+     totalAmount,                   amount) + payment row (PENDING) saved
+     singleUseTokenId }         c. PUT  /customers/{LAW-12 | FIRM-5} ──────────▶ customer created, card saved
+                                 d. POST /transactions (verification amount) ──▶ charge the card
+                                    ◀────────────────────────────────── approved / declined
+                                 e. declined → stop here, no subscription (same as a normal decline)
+                                    approved → POST /transactions/{id}/refunds ─▶ refund it
+                                       (a failed refund is logged but never blocks the trial)
+                                 f. INITIAL invoice for the trial period itself, amount $0, PAID
+                                    subscription ACTIVE, is_trial=true, renews_at = today + trial_days
+   ◀── 200 approved (trial=true, trialEndsAt, renewalAmount/renewalTotalAmount)
+```
+
+5 days and 1 day before `renews_at`, `TrialReminderJob` emails the subscriber
+that their card will be charged automatically (see `PayWayPaymentService.sendTrialReminders`).
+Cancelling during the trial (`POST /api/payway/subscription/cancel`, same
+endpoint as any other cancel) stops the first real charge from ever
+happening -- the renewal job only picks up `status = ACTIVE`.
+
+### First payment -- no trial (`trial_days = 0`, or the account already used its trial)
 
 ```
 Browser                         account-service                                  PayWay
@@ -28,15 +63,19 @@ Browser                         account-service                                 
    ◀── 200 approved / 402 declined
 ```
 
-Every call to PayWay (c, d) is also written to `payway_api_logs` with sensitive values masked.
+Every call to PayWay is also written to `payway_api_logs` with sensitive values masked.
 
-### Renewals (automatic)
+### Renewals (automatic) -- including a trial's first real charge
 
 ```
 Daily 02:00 Melbourne ─▶ subscriptions with status ACTIVE and renews_at reached
-                          a. RENEWAL invoice for the next period (same amounts as the last paid invoice)
+                          a. RENEWAL invoice for the next period, amount recomputed fresh
+                             from the plan's CURRENT price + seat count (never copied from
+                             a previous invoice -- this is what makes a trial's first charge,
+                             a seat count change, or a plan price change all take effect here)
                           b. POST /transactions (customerNumber) ───────────────▶ charge the saved card
-                          c. approved → invoice PAID, renews_at moves to the end of the new period
+                          c. approved → invoice PAID, renews_at moves to the end of the new period,
+                             is_trial cleared if this was a trial's first charge
                              declined → invoice OVERDUE, retried next day; after 3 declines the subscription goes INACTIVE
 ```
 
@@ -182,11 +221,11 @@ curl -X POST https://api.payway.com.au/rest/v1/single-use-tokens \
 |---|---|---|
 | `planId` | number | Plan id from the `subscriptions` table |
 | `planDuration` | string | `monthly` or `yearly` |
-| `amount` | number | Must equal `monthly_price` / `annual_price` of the plan |
+| `amount` | number | Must equal `monthly_price` / `annual_price` of the plan -- this is what's charged **once the trial ends** (or today, if `trial_days = 0`) |
 | `gstAmount` | number | ≥ 0 |
-| `totalAmount` | number | Must equal `amount + gstAmount`; this is charged |
+| `totalAmount` | number | Must equal `amount + gstAmount` |
 | `singleUseTokenId` | string | From 4.2 |
-| `additionalSeats` | number | Optional, FIRM plans only. Lawyer seats beyond the firm admin's own; `amount` must equal `monthly_price`/`annual_price` + `additionalSeats × seat_price`. Omit/0 for plans with no `seat_price` (e.g. Individual) |
+| `additionalSeats` | number | Optional, FIRM plans only. Lawyer seats beyond the firm admin's own; `amount` must equal `monthly_price`/`annual_price` + `additionalSeats × seat_price` (`× 12` instead if `planDuration` is `yearly` -- `seat_price` is a **monthly** rate, see `PayWayPaymentService.seatCostFor`). Omit/0 for plans with no `seat_price` (e.g. Individual) |
 
 ```bash
 curl -X POST $BASE/api/payway/payments \
@@ -202,7 +241,7 @@ curl -X POST $BASE/api/payway/payments \
       }'
 ```
 
-**200 — approved** (invoice `PAID`, subscription active)
+**200 — approved, trial started** (the plan's default: `trial_days = 30` and this account hasn't used a trial before). `amount`/`gstAmount`/`totalAmount` are what was *actually* charged today -- the small, refunded verification charge, not the plan price:
 
 ```json
 {
@@ -213,17 +252,17 @@ curl -X POST $BASE/api/payway/payments \
     "invoiceNumber": "INV261004-00000001",
     "invoiceStatus": "PAID",
     "periodStart": "2026-10-04",
-    "periodEnd": "2026-11-04",
+    "periodEnd": "2026-11-03",
     "subscriptionUuid": "5a078ac2-70f2-4951-a594-35baf43a3a33",
     "subscriptionStatus": 1,
-    "renewsAt": "2026-11-04T00:00:00",
+    "renewsAt": "2026-11-03T00:00:00",
     "status": "APPROVED",
     "planId": 1,
     "planDuration": "monthly",
     "customerNumber": "LAW-4",
-    "amount": 20.0,
-    "gstAmount": 2.0,
-    "totalAmount": 22.0,
+    "amount": 1.00,
+    "gstAmount": 0.00,
+    "totalAmount": 1.00,
     "currency": "aud",
     "paywayTransactionId": 4527933816,
     "receiptNumber": "4527933816",
@@ -233,12 +272,20 @@ curl -X POST $BASE/api/payway/payments \
     "maskedCardNumber": "456471...004",
     "settlementDate": "2026-10-04",
     "errorMessage": null,
-    "createdAt": "2026-10-03T19:51:25.718124"
+    "createdAt": "2026-10-03T19:51:25.718124",
+    "trial": true,
+    "trialEndsAt": "2026-11-03T00:00:00",
+    "verificationRefunded": true,
+    "renewalAmount": 20.0,
+    "renewalGstAmount": 2.0,
+    "renewalTotalAmount": 22.0
   }
 }
 ```
 
-**402 — declined by the bank** (invoice stays `DUE`, no subscription). Get a new token and retry; the same invoice is reused.
+**200 — approved, no trial** (`trial_days = 0`, or this account already has `has_used_trial = true`) — same shape as above, but `trial` is absent/`false`, and `amount`/`gstAmount`/`totalAmount` are the full plan price, charged today, same as before this feature existed.
+
+**402 — declined by the bank** (invoice stays `DUE`, no subscription). Get a new token and retry; the same invoice is reused. For a trial signup, a decline happens on the small verification charge instead -- same response shape, no trial started, nothing charged.
 
 ```json
 {
@@ -533,11 +580,11 @@ curl "https://api.payway.com.au/rest/v1/transactions/search-order?orderNumber=BJ
 
 | Table | One row per | Key columns |
 |---|---|---|
-| `subscription_invoices` | billing period | `invoice_number`, `user_uuid`, `user_subscription_uuid`, `invoice_type` (INITIAL / RENEWAL / SEAT_ADDITION), `period_start`, `period_end`, `amount`, `gst_amount`, `total_amount`, `seat_count` (V79), `status`, `paid_at`, `failed_attempts` |
-| `payway_transactions` | payment attempt | `order_number`, `invoice_uuid`, `user_uuid`, `customer_number`, `idempotency_key`, amounts, `seat_count` (V79), `status`, PayWay response (`payway_transaction_id`, `receipt_number`, `response_code`, `response_text`, `card_scheme`, `masked_card_number`, `settlement_date`, …), `error_message` |
+| `subscription_invoices` | billing period | `invoice_number`, `user_uuid`, `user_subscription_uuid`, `invoice_type` (INITIAL / RENEWAL / SEAT_ADDITION / VERIFICATION, V80), `period_start`, `period_end`, `amount`, `gst_amount`, `total_amount`, `seat_count` (V79), `status` (+ `REFUNDED`, V80), `paid_at`, `failed_attempts` |
+| `payway_transactions` | payment attempt | `order_number`, `invoice_uuid`, `user_uuid`, `customer_number`, `idempotency_key`, amounts, `seat_count` (V79), `status`, PayWay response (`payway_transaction_id`, `receipt_number`, `response_code`, `response_text`, `card_scheme`, `masked_card_number`, `settlement_date`, …), `refunded_at`, `refund_transaction_id` (V80), `error_message` |
 | `payway_api_logs` | HTTP call to PayWay (audit, append-only) | `payway_transaction_uuid`, `operation`, `http_method`, `endpoint`, `attempt`, `request_headers`, `request_body`, `response_status`, `response_body`, `error_message`, `duration_ms` |
-| `user_subscriptions` (existing) | subscriber | new columns `payway_customer_number` (V76), `cancelled_at`, `cancel_reason` (V77), `seat_count` (V79); `status`, `plan_id`, `plan_duration`, `start_date`, `renews_at` set on approval |
-| `subscriptions` (existing) | plan | new column `seat_price` (V79) — `NULL` means the plan has no seat concept; set to `10.00` for the Firms plan |
+| `user_subscriptions` (existing) | subscriber | new columns `payway_customer_number` (V76), `cancelled_at`, `cancel_reason` (V77), `seat_count` (V79), `is_trial`, `trial_reminder_5d_sent`, `trial_reminder_1d_sent`, `has_used_trial` (V80); `status`, `plan_id`, `plan_duration`, `start_date`, `renews_at` set on approval |
+| `subscriptions` (existing) | plan | new columns `seat_price` (V79) — a **monthly** per-seat rate; `NULL` means the plan has no seat concept; set to `10.00` for the Firms plan. On a `yearly` subscription this is charged ×12 per seat (every amount calculation in `PayWayPaymentService` goes through the shared `seatCostFor` helper to keep this consistent — don't multiply `seat_price` directly anywhere else) — and `trial_days` (V80, default `30`; `0` = no trial, charge immediately) |
 | `companies` (existing) | firm | new columns `abn`, `business_phone`, `business_address`, `primary_contact_name`, `primary_contact_email` (V78) |
 
 **Audit masking** (`payway_api_logs`): the `Authorization` header (secret key), card numbers, CVN and bank account numbers are never stored; `singleUseTokenId` is stored as `****<last 4>`; card numbers PayWay returns already masked (`456471...004`) are kept.
@@ -572,3 +619,6 @@ Use with merchant id `TEST`; any cardholder name of 4+ characters. ([PayWay's fu
 - Paying an `OVERDUE` renewal immediately with the saved card (today it is retried on the next nightly run)
 - Invoice / receipt PDF download
 - A plans endpoint for lawyers (plans are only exposed at `/api/superadmin/subscriptions`)
+- **`PayWayClient.refundTransaction` (V80, trial verification charge) hasn't been run against the PayWay sandbox yet.** It's modelled on PayWay's documented refund endpoint and the same `principalAmount` field `createTransaction` already uses successfully, but the exact path/field names should be confirmed against a real sandbox call before this goes to production -- see the method's own doc comment in `PayWayClient.java`.
+- No admin UI exposes `subscriptions.trial_days` / `seat_price` yet -- change them with a direct `UPDATE subscriptions SET ...` for now.
+- `PAYWAY_RENEWAL_AUTO_ENABLED` (GCP secret `payway-renewal-auto-enabled`) gates **both** the renewal job and the trial reminder emails -- if it's `false`, trials still start (the flow doesn't depend on it), but no trial's first charge, and no reminder email, will ever fire. Confirm it's `true` before relying on trials actually converting to paid subscriptions.

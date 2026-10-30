@@ -67,6 +67,14 @@ public class UserSubscription {
     @Column(name = "seat_count", nullable = false)
     private Integer seatCount = 0;
 
+    // True from trial signup until the first real (RENEWAL) charge succeeds
+    @Column(name = "is_trial", nullable = false)
+    private Boolean isTrial = false;
+
+    // Sticky even across cancel + re-subscribe -- one free trial per account, ever
+    @Column(name = "has_used_trial", nullable = false)
+    private Boolean hasUsedTrial = false;
+
     @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 

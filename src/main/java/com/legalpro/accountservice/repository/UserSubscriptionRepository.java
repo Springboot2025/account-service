@@ -71,4 +71,21 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
         AND us.renewsAt <= :now
     """)
     List<Long> findIdsDueForRenewal(LocalDateTime now);
+
+    // trial subscribers still awaiting their first real charge (for reminder emails)
+    List<UserSubscription> findByStatusAndIsTrialTrueAndDeletedAtIsNull(Integer status);
+
+    // for the admin dashboard's month-over-month new-subscription comparison
+    long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    // admin billing overview "upcoming charges" -- covers a trial's first real
+    // charge and an ordinary renewal alike, since both are just "renewsAt soon"
+    @Query("""
+        SELECT us FROM UserSubscription us
+        WHERE us.status = 1
+        AND us.deletedAt IS NULL
+        AND us.renewsAt BETWEEN :start AND :end
+        ORDER BY us.renewsAt ASC
+    """)
+    List<UserSubscription> findActiveWithRenewalBetween(LocalDateTime start, LocalDateTime end);
 }

@@ -41,6 +41,9 @@ public class Subscription {
     @Column(name = "seat_price")
     private BigDecimal seatPrice;
 
+    @Column(name = "trial_days", nullable = false)
+    private Integer trialDays = 30;
+
     @Column(nullable = false)
     private Boolean recommended = false;
 

@@ -14,4 +14,6 @@ public class SystemSettingsDto {
 
     private JsonNode settings;
 
+    private Boolean autoRenewEnabled;
+
 }

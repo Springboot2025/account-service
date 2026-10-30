@@ -13,6 +13,7 @@ import com.legalpro.accountservice.dto.payway.PayWayPaymentResponse;
 import com.legalpro.accountservice.dto.payway.PayWayTransactionResponse;
 import com.legalpro.accountservice.dto.payway.SubscriptionStatusResponse;
 import com.legalpro.accountservice.dto.payway.UpdateSeatsResponse;
+import com.legalpro.accountservice.config.PayWayProperties;
 import com.legalpro.accountservice.entity.Account;
 import com.legalpro.accountservice.entity.Company;
 import com.legalpro.accountservice.entity.PayWayTransaction;
@@ -22,11 +23,15 @@ import com.legalpro.accountservice.entity.UserSubscription;
 import com.legalpro.accountservice.enums.PayWayTransactionStatus;
 import com.legalpro.accountservice.enums.SubscriptionInvoiceStatus;
 import com.legalpro.accountservice.enums.SubscriptionInvoiceType;
+import com.legalpro.accountservice.entity.SystemSetting;
+import com.legalpro.accountservice.entity.TrialReminderSend;
 import com.legalpro.accountservice.repository.AccountRepository;
 import com.legalpro.accountservice.repository.CompanyRepository;
 import com.legalpro.accountservice.repository.PayWayTransactionRepository;
 import com.legalpro.accountservice.repository.SubscriptionInvoiceRepository;
 import com.legalpro.accountservice.repository.SubscriptionRepository;
+import com.legalpro.accountservice.repository.SystemSettingRepository;
+import com.legalpro.accountservice.repository.TrialReminderSendRepository;
 import com.legalpro.accountservice.repository.UserSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -87,8 +92,33 @@ public class PayWayPaymentService {
     private final PayWayTransactionRepository transactionRepository;
     private final SubscriptionInvoiceRepository invoiceRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
+    private final TrialReminderSendRepository trialReminderSendRepository;
+    private final SystemSettingRepository systemSettingRepository;
     private final PayWayClient payWayClient;
+    private final PayWayProperties payWayProperties;
+    private final EmailService emailService;
     private final TransactionTemplate transactionTemplate;
+
+    // Fallback reminder schedule when system_settings has nothing configured yet
+    private static final List<Integer> DEFAULT_TRIAL_REMINDER_DAYS = List.of(5, 1);
+
+    /**
+     * subscriptions.seat_price is documented as a MONTHLY per-seat rate (see
+     * Subscription.seatPrice) -- same convention as the base plan's own
+     * monthly_price/annual_price split. A yearly plan must therefore charge
+     * 12x this rate per seat per year, exactly like its base price is ~12x
+     * the monthly one; charging the flat monthly rate once for a whole year
+     * would make seats on a yearly plan ~12x cheaper than on a monthly one.
+     */
+    private static BigDecimal seatCostFor(Subscription plan, String duration, int seatCount) {
+        if (plan.getSeatPrice() == null || seatCount <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal perSeat = "yearly".equals(duration)
+                ? plan.getSeatPrice().multiply(BigDecimal.valueOf(12))
+                : plan.getSeatPrice();
+        return perSeat.multiply(BigDecimal.valueOf(seatCount));
+    }
 
     public PayWayPaymentResponse makePayment(UUID userUuid, MakePaymentRequest request) {
         String duration = request.getPlanDuration().toLowerCase();
@@ -105,9 +135,7 @@ public class PayWayPaymentService {
         }
 
         BigDecimal planPrice = "yearly".equals(duration) ? plan.getAnnualPrice() : plan.getMonthlyPrice();
-        BigDecimal seatCost = plan.getSeatPrice() != null
-                ? plan.getSeatPrice().multiply(BigDecimal.valueOf(additionalSeats))
-                : BigDecimal.ZERO;
+        BigDecimal seatCost = seatCostFor(plan, duration, additionalSeats);
         BigDecimal expectedAmount = planPrice.add(seatCost);
         if (request.getAmount().compareTo(expectedAmount) != 0) {
             throw new IllegalArgumentException(
@@ -120,6 +148,18 @@ public class PayWayPaymentService {
         String userType = account.isCompany() ? USER_TYPE_FIRM : USER_TYPE_INDIVIDUAL;
         UUID companyUuid = account.isCompany() ? account.getCompanyUuid() : null;
         String customerNumber = customerNumberFor(account);
+
+        // A plan with trial_days > 0 gets a free trial instead of being charged
+        // today -- unless this account has already used its one trial before
+        // (the same user_subscriptions row is reused across cancel/resubscribe,
+        // so hasUsedTrial survives that and is never reset).
+        int trialDays = plan.getTrialDays() != null ? plan.getTrialDays() : 0;
+        boolean usedTrialBefore = userSubscriptionRepository.findFirstByUserUuidAndDeletedAtIsNullOrderByIdDesc(userUuid)
+                .map(UserSubscription::getHasUsedTrial).map(Boolean.TRUE::equals).orElse(false);
+        if (trialDays > 0 && !usedTrialBefore) {
+            return startTrialSubscription(userUuid, account, plan, duration, request, additionalSeats,
+                    userType, companyUuid, customerNumber, trialDays);
+        }
 
         // 2. Invoice for the first period + the payment attempt, saved before calling PayWay
         PayWayTransaction txn;
@@ -335,9 +375,7 @@ public class PayWayPaymentService {
         BigDecimal totalAmount = null;
         if (plan != null) {
             BigDecimal planPrice = "yearly".equals(sub.getPlanDuration()) ? plan.getAnnualPrice() : plan.getMonthlyPrice();
-            BigDecimal seatCost = plan.getSeatPrice() != null
-                    ? plan.getSeatPrice().multiply(BigDecimal.valueOf(seatCount)) : BigDecimal.ZERO;
-            amount = planPrice.add(seatCost);
+            amount = planPrice.add(seatCostFor(plan, sub.getPlanDuration(), seatCount));
             gstAmount = amount.multiply(GST_RATE).setScale(2, java.math.RoundingMode.HALF_UP);
             totalAmount = amount.add(gstAmount);
         }
@@ -393,7 +431,7 @@ public class PayWayPaymentService {
         }
 
         BigDecimal planPrice = "yearly".equals(sub.getPlanDuration()) ? plan.getAnnualPrice() : plan.getMonthlyPrice();
-        BigDecimal newMonthlyAmount = planPrice.add(plan.getSeatPrice().multiply(BigDecimal.valueOf(newSeatCount)));
+        BigDecimal newMonthlyAmount = planPrice.add(seatCostFor(plan, sub.getPlanDuration(), newSeatCount));
 
         if (newSeatCount < currentSeats) {
             // Removing seats: can't drop below lawyers actually assigned; no refund,
@@ -416,10 +454,29 @@ public class PayWayPaymentService {
                     .build();
         }
 
+        // Adding seats during a free trial: nothing to charge yet -- just raise the
+        // count now, and it's priced correctly (seatPrice x seats) when the trial
+        // converts to the first real charge (see startRenewalAttempt).
+        if (Boolean.TRUE.equals(sub.getIsTrial())) {
+            sub.setSeatCount(newSeatCount);
+            sub.setUpdatedAt(LocalDateTime.now());
+            userSubscriptionRepository.save(sub);
+            return UpdateSeatsResponse.builder()
+                    .additionalSeats(newSeatCount)
+                    .usedSeats(accountRepository.countByCompanyUuidAndIsCompanyFalse(account.getCompanyUuid()))
+                    .newMonthlyAmount(newMonthlyAmount)
+                    .proRataCharge(BigDecimal.ZERO)
+                    .message("Seat" + (newSeatCount - currentSeats > 1 ? "s" : "") + " added for free during your trial.")
+                    .build();
+        }
+
         // Adding seats: charge pro-rata now for the remainder of this billing cycle
         if (sub.getRenewsAt() == null || sub.getPaywayCustomerNumber() == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Subscription has no saved card to charge");
         }
+        // lastPaidBillingPeriod whitelists INITIAL/RENEWAL invoice types, which also
+        // correctly excludes VERIFICATION (trial card-check charges) without needing
+        // to know about that type specifically -- cleaner than filtering it out by name.
         SubscriptionInvoice lastPaid = lastPaidBillingPeriod(sub)
                 .orElseThrow(() -> new IllegalStateException("No paid invoice found for this subscription"));
 
@@ -432,7 +489,10 @@ public class PayWayPaymentService {
         if (daysRemaining < 0) daysRemaining = 0;
 
         int seatsAdded = newSeatCount - currentSeats;
-        BigDecimal fullSeatsCost = plan.getSeatPrice().multiply(BigDecimal.valueOf(seatsAdded));
+        // Full cost of the new seats for this whole billing period (annualized
+        // for a yearly plan, same as seatCostFor elsewhere), then pro-rated down
+        // to just the days remaining in it.
+        BigDecimal fullSeatsCost = seatCostFor(plan, sub.getPlanDuration(), seatsAdded);
         BigDecimal proRataAmount = fullSeatsCost
                 .multiply(BigDecimal.valueOf(daysRemaining))
                 .divide(BigDecimal.valueOf(daysInPeriod), 2, java.math.RoundingMode.HALF_UP);
@@ -554,10 +614,15 @@ public class PayWayPaymentService {
     }
 
     private static boolean isBillingHistoryInvoice(SubscriptionInvoice invoice) {
+        // The card-verification charge at trial signup is refunded and isn't a real
+        // bill -- never shown, regardless of status.
+        if (invoice.getInvoiceType() == SubscriptionInvoiceType.VERIFICATION) {
+            return false;
+        }
         return switch (invoice.getStatus()) {
             case PAID, OVERDUE -> true;
             case DUE -> invoice.getInvoiceType() == SubscriptionInvoiceType.RENEWAL;
-            case VOID -> false;
+            case VOID, REFUNDED -> false;
         };
     }
 
@@ -649,8 +714,10 @@ public class PayWayPaymentService {
                 invoice.setStatus(SubscriptionInvoiceStatus.PAID);
                 invoice.setPaidAt(now);
                 sub.setRenewsAt(invoice.getPeriodEnd().atStartOfDay());
-                log.info("✅ Subscription {} renewed ({}), next billing {}", sub.getUuid(),
-                        invoice.getInvoiceNumber(), sub.getRenewsAt());
+                boolean wasTrial = Boolean.TRUE.equals(sub.getIsTrial());
+                sub.setIsTrial(false); // this is always a real paid charge -- for a trial subscriber, their first one
+                log.info("✅ Subscription {} renewed ({}), next billing {}{}", sub.getUuid(),
+                        invoice.getInvoiceNumber(), sub.getRenewsAt(), wasTrial ? " (trial converted to paid)" : "");
             } else if (failedAttempt) {
                 invoice.setStatus(SubscriptionInvoiceStatus.OVERDUE);
                 invoice.setFailedAttempts(invoice.getFailedAttempts() + 1);
@@ -681,29 +748,29 @@ public class PayWayPaymentService {
             return null;
         }
 
-        // Renewals charge what the subscriber last paid
-        SubscriptionInvoice lastPaid = lastPaidBillingPeriod(sub).orElse(null);
-        if (lastPaid == null) {
-            log.warn("⚠️ Subscription {} has no paid invoice to renew from, skipping", sub.getUuid());
+        // Renewals -- including a trial subscriber's first real charge -- are always
+        // computed fresh from the plan's current price and the subscription's current
+        // seat count, never copied from a previous invoice. This matters even though a
+        // trial subscriber DOES have a prior PAID invoice (the trial period itself,
+        // see openTrialInvoice): that invoice's amount is $0, so blindly copying it
+        // forward would charge $0 forever instead of the real plan price. This is also
+        // how a seat count change (added or removed via Manage Seats) takes effect at
+        // the next billing date, and how a plan price change in the DB applies from the
+        // next renewal onward.
+        Subscription plan = subscriptionRepository.findById(sub.getPlanId()).orElse(null);
+        if (plan == null) {
+            log.warn("⚠️ Subscription {} references missing plan {}, skipping renewal", sub.getUuid(), sub.getPlanId());
             return null;
         }
+        BigDecimal planPrice = "yearly".equals(sub.getPlanDuration()) ? plan.getAnnualPrice() : plan.getMonthlyPrice();
+        int seatCount = sub.getSeatCount() != null ? sub.getSeatCount() : 0;
+        BigDecimal amount = planPrice.add(seatCostFor(plan, sub.getPlanDuration(), seatCount));
+        BigDecimal gstAmount = amount.multiply(GST_RATE).setScale(2, java.math.RoundingMode.HALF_UP);
+        BigDecimal totalAmount = amount.add(gstAmount);
 
-        // For seat-priced plans (FIRM), recompute from the plan's current price and the
-        // subscription's CURRENT seat count rather than copying the last invoice -- this
-        // is how a seat count change (added or removed via Manage Seats) takes effect at
-        // the next billing date instead of being silently dropped.
-        Subscription plan = subscriptionRepository.findById(sub.getPlanId()).orElse(null);
-        BigDecimal amount = lastPaid.getAmount();
-        BigDecimal gstAmount = lastPaid.getGstAmount();
-        BigDecimal totalAmount = lastPaid.getTotalAmount();
-        int seatCount = lastPaid.getSeatCount();
-        if (plan != null && plan.getSeatPrice() != null) {
-            BigDecimal planPrice = "yearly".equals(sub.getPlanDuration()) ? plan.getAnnualPrice() : plan.getMonthlyPrice();
-            seatCount = sub.getSeatCount() != null ? sub.getSeatCount() : 0;
-            amount = planPrice.add(plan.getSeatPrice().multiply(BigDecimal.valueOf(seatCount)));
-            gstAmount = amount.multiply(GST_RATE).setScale(2, java.math.RoundingMode.HALF_UP);
-            totalAmount = amount.add(gstAmount);
-        }
+        UUID companyUuid = USER_TYPE_FIRM.equals(sub.getUserType())
+                ? accountRepository.findByUuid(sub.getUserUuid()).map(Account::getCompanyUuid).orElse(null)
+                : null;
 
         // The new period starts on the billing date, even if the charge succeeds a few days late
         LocalDate periodStart = sub.getRenewsAt().toLocalDate();
@@ -715,7 +782,7 @@ public class PayWayPaymentService {
             invoice = invoiceRepository.saveAndFlush(SubscriptionInvoice.builder()
                     .userUuid(sub.getUserUuid())
                     .userType(sub.getUserType())
-                    .companyUuid(lastPaid.getCompanyUuid())
+                    .companyUuid(companyUuid)
                     .userSubscriptionUuid(sub.getUuid())
                     .invoiceType(SubscriptionInvoiceType.RENEWAL)
                     .planId(sub.getPlanId())
@@ -727,7 +794,6 @@ public class PayWayPaymentService {
                     .gstAmount(gstAmount)
                     .totalAmount(totalAmount)
                     .seatCount(seatCount)
-                    .currency(lastPaid.getCurrency())
                     .build());
         } else if (invoice.getStatus() == SubscriptionInvoiceStatus.PAID) {
             // This period is already paid but renews_at wasn't moved on: fix it instead of
@@ -776,6 +842,139 @@ public class PayWayPaymentService {
         return "yearly".equals(duration) ? from.plusYears(1) : from.plusMonths(1);
     }
 
+    // ---------------------------------------------------------------------
+    // Trial reminder emails (TrialReminderJob)
+    // ---------------------------------------------------------------------
+
+    /**
+     * Emails trial subscribers ahead of their first real charge, on the schedule
+     * configured by an admin (system_settings.payments.trialReminderDaysBeforeCharge --
+     * any number of day-offsets, not just a fixed "5 and 1"; defaults to [5, 1] if
+     * unset). Skipped entirely if system_settings.payments.trialReminderEmailsEnabled
+     * is false.
+     */
+    public void sendTrialReminders() {
+        if (!isTrialReminderEmailsEnabled()) {
+            log.info("📧 Trial reminder emails are disabled in system settings, skipping");
+            return;
+        }
+        List<Integer> reminderDays = getConfiguredTrialReminderDays();
+        LocalDate today = LocalDate.now(BILLING_ZONE);
+
+        List<UserSubscription> trialSubs = userSubscriptionRepository
+                .findByStatusAndIsTrialTrueAndDeletedAtIsNull(UserSubscription.STATUS_ACTIVE);
+        log.info("📧 Checking {} trial subscription(s) against reminder schedule {}", trialSubs.size(), reminderDays);
+
+        for (UserSubscription sub : trialSubs) {
+            if (sub.getRenewsAt() == null) continue;
+            LocalDate trialEnds = sub.getRenewsAt().toLocalDate();
+
+            for (int daysBefore : reminderDays) {
+                if (!trialEnds.equals(today.plusDays(daysBefore))) continue;
+                try {
+                    // Claim this (subscription, daysBefore) pair before sending -- the unique
+                    // constraint on trial_reminder_sends means a second app instance racing
+                    // the same cron tick gets a DataIntegrityViolationException here instead
+                    // of also sending the email.
+                    trialReminderSendRepository.saveAndFlush(TrialReminderSend.builder()
+                            .userSubscriptionUuid(sub.getUuid())
+                            .daysBefore(daysBefore)
+                            .build());
+                } catch (DataIntegrityViolationException e) {
+                    continue; // already sent (by this run or another instance)
+                }
+                try {
+                    sendTrialReminderEmail(sub, daysBefore);
+                } catch (Exception e) {
+                    // The reminder is already claimed above -- a failed send here is
+                    // logged and not retried, rather than risking a duplicate email.
+                    log.error("❌ Trial reminder ({} day(s) before) failed for user_subscription {}",
+                            daysBefore, sub.getUuid(), e);
+                }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // system_settings.payments (admin-configurable)
+    // ---------------------------------------------------------------------
+
+    private JsonNode readPaymentsSettings() {
+        return systemSettingRepository.findFirstByRemovedAtIsNull()
+                .map(SystemSetting::getSettings)
+                .map(s -> s.get("payments"))
+                .orElse(null);
+    }
+
+    private boolean isTrialReminderEmailsEnabled() {
+        JsonNode payments = readPaymentsSettings();
+        if (payments == null) return true;
+        JsonNode value = payments.path("trialReminderEmailsEnabled").path("value");
+        return !value.isBoolean() || value.asBoolean();
+    }
+
+    private List<Integer> getConfiguredTrialReminderDays() {
+        JsonNode payments = readPaymentsSettings();
+        if (payments == null) return DEFAULT_TRIAL_REMINDER_DAYS;
+        JsonNode value = payments.path("trialReminderDaysBeforeCharge").path("value");
+        if (!value.isArray() || value.isEmpty()) return DEFAULT_TRIAL_REMINDER_DAYS;
+        List<Integer> days = new java.util.ArrayList<>();
+        value.forEach(n -> {
+            if (n.isNumber() && n.asInt() > 0) days.add(n.asInt());
+        });
+        return days.isEmpty() ? DEFAULT_TRIAL_REMINDER_DAYS : days;
+    }
+
+    /** Admin-configurable override (system_settings.payments.verificationAmount); falls back to PAYWAY_VERIFICATION_AMOUNT. */
+    private BigDecimal getEffectiveVerificationAmount() {
+        JsonNode payments = readPaymentsSettings();
+        if (payments != null) {
+            JsonNode value = payments.path("verificationAmount").path("value");
+            if (value.isNumber()) {
+                return BigDecimal.valueOf(value.asDouble()).setScale(2, java.math.RoundingMode.HALF_UP);
+            }
+        }
+        return payWayProperties.getVerificationAmount();
+    }
+
+    private void sendTrialReminderEmail(UserSubscription sub, int daysLeft) {
+        Account account = accountRepository.findByUuid(sub.getUserUuid()).orElse(null);
+        if (account == null || account.getEmail() == null || account.getEmail().isBlank()) {
+            return;
+        }
+
+        Subscription plan = subscriptionRepository.findById(sub.getPlanId()).orElse(null);
+        String planName = plan != null ? plan.getPlanName() : "your plan";
+        String cycleLabel = "yearly".equals(sub.getPlanDuration()) ? "year" : "month";
+
+        String amountText = "the plan price";
+        if (plan != null) {
+            BigDecimal planPrice = "yearly".equals(sub.getPlanDuration()) ? plan.getAnnualPrice() : plan.getMonthlyPrice();
+            int seatCount = sub.getSeatCount() != null ? sub.getSeatCount() : 0;
+            BigDecimal amount = planPrice.add(seatCostFor(plan, sub.getPlanDuration(), seatCount));
+            BigDecimal gst = amount.multiply(GST_RATE).setScale(2, java.math.RoundingMode.HALF_UP);
+            amountText = "$" + amount.add(gst).setScale(2, java.math.RoundingMode.HALF_UP) + " AUD";
+        }
+
+        String chargeDate = sub.getRenewsAt().toLocalDate().format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH));
+        String subject = daysLeft == 1
+                ? "Your Boss Justice free trial ends tomorrow"
+                : "Your Boss Justice free trial ends in " + daysLeft + " days";
+
+        String bodyHtml =
+                "<p>Hello,</p>" +
+                "<p>Your free trial of <strong>" + planName + "</strong> ends on <strong>" + chargeDate + "</strong>.</p>" +
+                "<p>After that, your saved card will be charged <strong>" + amountText + "</strong> automatically" +
+                (daysLeft == 1 ? " tomorrow" : "") + ", and your subscription will then renew every " + cycleLabel +
+                ".</p>" +
+                "<p>If you'd like to cancel, you can do so any time before the trial ends from your subscription " +
+                "settings -- no charge will be made if you cancel before then.</p>" +
+                "<p>Thanks,<br>Boss Justice</p>";
+
+        emailService.sendEmail(account.getEmail(), subject, bodyHtml);
+        log.info("📧 Trial reminder ({} day(s) left) sent to {} for subscription {}", daysLeft, account.getEmail(), sub.getUuid());
+    }
+
     /**
      * Turns the payer's subscription on for the paid period: updates their
      * existing user_subscriptions row (e.g. inactive or cancelled) or creates one.
@@ -796,6 +995,7 @@ public class PayWayPaymentService {
         sub.setPlanDuration(txn.getPlanDuration());
         sub.setStatus(UserSubscription.STATUS_ACTIVE);
         sub.setSeatCount(txn.getSeatCount());
+        sub.setIsTrial(false); // this path charges in full today -- never a trial
         sub.setCancelledAt(null);
         sub.setCancelReason(null);
         if (sub.getStartDate() == null) {
@@ -808,6 +1008,219 @@ public class PayWayPaymentService {
         sub = userSubscriptionRepository.save(sub);
         log.info("✅ Subscription {} active for {} until {}", sub.getUuid(), sub.getUserUuid(), sub.getRenewsAt());
         return sub;
+    }
+
+    /**
+     * Like activateSubscription, but for a trial signup: access starts now, free,
+     * with the first real charge deferred to renews_at (= the trial's end date).
+     */
+    private UserSubscription activateTrialSubscription(PayWayTransaction verificationTxn, SubscriptionInvoice trialInvoice) {
+        LocalDateTime now = LocalDateTime.now();
+        UserSubscription sub = userSubscriptionRepository
+                .findFirstByUserUuidAndDeletedAtIsNullOrderByIdDesc(verificationTxn.getUserUuid())
+                .orElseGet(() -> UserSubscription.builder()
+                        .uuid(UUID.randomUUID())
+                        .userUuid(verificationTxn.getUserUuid())
+                        .createdAt(now)
+                        .build());
+
+        sub.setUserType(verificationTxn.getUserType());
+        sub.setPlanId(verificationTxn.getPlanId());
+        sub.setPlanDuration(verificationTxn.getPlanDuration());
+        sub.setStatus(UserSubscription.STATUS_ACTIVE);
+        sub.setSeatCount(verificationTxn.getSeatCount());
+        sub.setIsTrial(true);
+        sub.setHasUsedTrial(true);
+        sub.setCancelledAt(null);
+        sub.setCancelReason(null);
+        if (sub.getStartDate() == null) {
+            sub.setStartDate(now); // member since
+        }
+        sub.setRenewsAt(trialInvoice.getPeriodEnd().atStartOfDay()); // trial end = first real charge date
+        sub.setPaywayCustomerNumber(verificationTxn.getCustomerNumber());
+        sub.setUpdatedAt(now);
+
+        sub = userSubscriptionRepository.save(sub);
+        log.info("🆓 Subscription {} on trial for {} until {}", sub.getUuid(), sub.getUserUuid(), sub.getRenewsAt());
+        return sub;
+    }
+
+    /**
+     * The verification charge invoice: a tiny, immediately-refunded charge used to
+     * confirm the card is real before starting a free trial. Never a real bill --
+     * excluded from billing history regardless of status (isBillingHistoryInvoice).
+     */
+    private SubscriptionInvoice openVerificationInvoice(UUID userUuid, String userType, UUID companyUuid,
+                                                         Long planId, String duration, BigDecimal verificationAmount) {
+        LocalDate today = LocalDate.now(BILLING_ZONE);
+        SubscriptionInvoice invoice = SubscriptionInvoice.builder()
+                .userUuid(userUuid)
+                .userType(userType)
+                .companyUuid(companyUuid)
+                .invoiceType(SubscriptionInvoiceType.VERIFICATION)
+                .planId(planId)
+                .planDuration(duration)
+                .amount(verificationAmount)
+                .gstAmount(BigDecimal.ZERO)
+                .totalAmount(verificationAmount)
+                .build();
+        invoice.setPeriodStart(today);
+        invoice.setPeriodEnd(today);
+        invoice.setDueDate(today);
+        return invoiceRepository.saveAndFlush(invoice);
+    }
+
+    /**
+     * The trial period itself: amount 0, settled as PAID immediately (nothing was
+     * actually charged for the subscription -- only the separate, refunded
+     * verification charge was). periodEnd is the date the first real charge is due.
+     */
+    private SubscriptionInvoice openTrialInvoice(UUID userUuid, String userType, UUID companyUuid, Subscription plan,
+                                                 String duration, int additionalSeats, int trialDays) {
+        LocalDate today = LocalDate.now(BILLING_ZONE);
+        SubscriptionInvoice invoice = SubscriptionInvoice.builder()
+                .userUuid(userUuid)
+                .userType(userType)
+                .companyUuid(companyUuid)
+                .invoiceType(SubscriptionInvoiceType.INITIAL)
+                .planId(plan.getId())
+                .planDuration(duration)
+                .amount(BigDecimal.ZERO)
+                .gstAmount(BigDecimal.ZERO)
+                .totalAmount(BigDecimal.ZERO)
+                .seatCount(additionalSeats)
+                .status(SubscriptionInvoiceStatus.PAID)
+                .build();
+        invoice.setPeriodStart(today);
+        invoice.setPeriodEnd(today.plusDays(trialDays));
+        invoice.setDueDate(today);
+        invoice.setPaidAt(LocalDateTime.now());
+        return invoiceRepository.saveAndFlush(invoice);
+    }
+
+    /**
+     * Starts a free trial instead of charging today: saves the card, runs a small
+     * refundable verification charge to confirm it's real, then activates the
+     * subscription for free with the first real charge deferred to renews_at.
+     * A declined verification behaves exactly like a declined full payment (402,
+     * no subscription created). A failed refund never blocks the trial -- the
+     * card is already proven valid regardless.
+     */
+    private PayWayPaymentResponse startTrialSubscription(UUID userUuid, Account account, Subscription plan,
+            String duration, MakePaymentRequest request, int additionalSeats, String userType, UUID companyUuid,
+            String customerNumber, int trialDays) {
+
+        BigDecimal verificationAmount = getEffectiveVerificationAmount();
+
+        PayWayTransaction txn;
+        try {
+            txn = transactionTemplate.execute(status -> {
+                userSubscriptionRepository.findFirstByUserUuidAndDeletedAtIsNullOrderByIdDesc(userUuid)
+                        .filter(sub -> sub.getStatus() == UserSubscription.STATUS_ACTIVE)
+                        .ifPresent(sub -> {
+                            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                    "You already have an active subscription");
+                        });
+
+                SubscriptionInvoice verificationInvoice = openVerificationInvoice(
+                        userUuid, userType, companyUuid, plan.getId(), duration, verificationAmount);
+                return transactionRepository.saveAndFlush(PayWayTransaction.builder()
+                        .invoiceUuid(verificationInvoice.getUuid())
+                        .userUuid(userUuid)
+                        .userType(userType)
+                        .companyUuid(companyUuid)
+                        .planId(plan.getId())
+                        .planDuration(duration)
+                        .customerNumber(customerNumber)
+                        .amount(verificationAmount)
+                        .gstAmount(BigDecimal.ZERO)
+                        .totalAmount(verificationAmount)
+                        .seatCount(additionalSeats)
+                        .build());
+            });
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A payment is already in progress, please wait a moment");
+        }
+        log.info("🆓 Trial signup {} started by {}: verifying card with {} {}", txn.getOrderNumber(), userUuid,
+                txn.getTotalAmount(), txn.getCurrency());
+
+        PayWayTransactionResponse result;
+        try {
+            payWayClient.saveCustomer(txn, request.getSingleUseTokenId(), payerName(account), account.getEmail());
+            result = payWayClient.createTransaction(txn);
+        } catch (RuntimeException e) {
+            String reason = e instanceof ResponseStatusException rse ? rse.getReason() : "Unexpected error";
+            txn.setStatus(PayWayTransactionStatus.ERROR);
+            txn.setErrorMessage(reason);
+            transactionRepository.save(txn);
+            log.warn("❌ Trial signup {} failed: {}", txn.getOrderNumber(), reason, e);
+            throw e;
+        }
+        applyResult(txn, result);
+
+        if (txn.getStatus() != PayWayTransactionStatus.APPROVED) {
+            // Card verification declined -- no trial, no subscription, same as a declined full charge
+            PayWayTransaction declinedTxn = txn;
+            transactionTemplate.executeWithoutResult(status -> {
+                transactionRepository.save(declinedTxn);
+                SubscriptionInvoice inv = invoiceRepository.findByUuid(declinedTxn.getInvoiceUuid()).orElseThrow();
+                inv.setStatus(SubscriptionInvoiceStatus.VOID);
+                invoiceRepository.save(inv);
+            });
+            log.info("💳 Trial signup {} card verification {}: {} {}", txn.getOrderNumber(), txn.getStatus(),
+                    result.getResponseCode(), result.getResponseText());
+            return toResponse(txn, invoiceRepository.findByUuid(txn.getInvoiceUuid()).orElseThrow(), null);
+        }
+
+        // Verification approved -- refund it right away. A failed refund is logged
+        // but never blocks the trial: the card is already proven valid either way.
+        transactionRepository.save(txn);
+        boolean refunded = false;
+        try {
+            PayWayTransactionResponse refundResult = payWayClient.refundTransaction(txn, verificationAmount);
+            if (refundResult.isApproved()) {
+                txn.setRefundedAt(LocalDateTime.now());
+                txn.setRefundTransactionId(refundResult.getTransactionId());
+                refunded = true;
+                log.info("↩️ Trial signup {} verification charge refunded (refund txn {})",
+                        txn.getOrderNumber(), refundResult.getTransactionId());
+            } else {
+                log.warn("⚠️ Trial signup {} verification refund not approved ({}), proceeding with trial anyway",
+                        txn.getOrderNumber(), refundResult.getStatus());
+            }
+        } catch (RuntimeException e) {
+            log.warn("⚠️ Trial signup {} verification refund failed, proceeding with trial anyway: {}",
+                    txn.getOrderNumber(), e.getMessage());
+        }
+
+        PayWayTransaction savedTxn = txn;
+        boolean finalRefunded = refunded;
+        Outcome outcome = transactionTemplate.execute(status -> {
+            transactionRepository.save(savedTxn);
+            SubscriptionInvoice verificationInvoice = invoiceRepository.findByUuid(savedTxn.getInvoiceUuid()).orElseThrow();
+            verificationInvoice.setStatus(finalRefunded ? SubscriptionInvoiceStatus.REFUNDED : SubscriptionInvoiceStatus.PAID);
+            verificationInvoice.setPaidAt(LocalDateTime.now());
+            invoiceRepository.save(verificationInvoice);
+
+            SubscriptionInvoice trialInvoice = openTrialInvoice(userUuid, userType, companyUuid, plan, duration, additionalSeats, trialDays);
+            UserSubscription sub = activateTrialSubscription(savedTxn, trialInvoice);
+            trialInvoice.setUserSubscriptionUuid(sub.getUuid());
+            trialInvoice = invoiceRepository.save(trialInvoice);
+            return new Outcome(trialInvoice, sub);
+        });
+
+        log.info("🆓 Trial started for {}: {} {}, first charge {} on {}", userUuid, plan.getPlanName(), duration,
+                request.getTotalAmount(), outcome.subscription().getRenewsAt());
+
+        PayWayPaymentResponse response = toResponse(txn, outcome.invoice(), outcome.subscription());
+        response.setTrial(true);
+        response.setTrialEndsAt(outcome.subscription().getRenewsAt());
+        response.setVerificationRefunded(finalRefunded);
+        response.setRenewalAmount(request.getAmount());
+        response.setRenewalGstAmount(request.getGstAmount());
+        response.setRenewalTotalAmount(request.getTotalAmount());
+        return response;
     }
 
     /**

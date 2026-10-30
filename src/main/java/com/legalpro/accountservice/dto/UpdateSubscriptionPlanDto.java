@@ -25,4 +25,8 @@ public class UpdateSubscriptionPlanDto {
     private Boolean recommended;
 
     private JsonNode features;
+
+    private BigDecimal seatPrice;
+
+    private Integer trialDays;
 }

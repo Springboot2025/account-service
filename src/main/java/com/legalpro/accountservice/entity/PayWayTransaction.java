@@ -126,6 +126,12 @@ public class PayWayTransaction {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
+    @Column(name = "refunded_at")
+    private LocalDateTime refundedAt;
+
+    @Column(name = "refund_transaction_id")
+    private Long refundTransactionId;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

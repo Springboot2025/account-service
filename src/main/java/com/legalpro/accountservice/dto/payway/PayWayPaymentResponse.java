@@ -37,4 +37,14 @@ public class PayWayPaymentResponse {
     private LocalDate settlementDate;
     private String errorMessage;
     private LocalDateTime createdAt;
+
+    // Trial signup only -- amount/gstAmount/totalAmount above are what was actually
+    // charged today (the small, refunded verification amount); these describe what
+    // happens once the trial ends.
+    private Boolean trial;
+    private LocalDateTime trialEndsAt;
+    private Boolean verificationRefunded;
+    private BigDecimal renewalAmount;
+    private BigDecimal renewalGstAmount;
+    private BigDecimal renewalTotalAmount;
 }

@@ -18,6 +18,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
@@ -171,6 +172,33 @@ public class PayWayClient {
                     PayWayTransactionResponse.class, "transaction " + result.getTransactionId());
         }
         return result;
+    }
+
+    /**
+     * POST /transactions/{transactionId}/refunds -- refunds a previous charge, used
+     * to return the small card-verification charge made at trial signup.
+     *
+     * NOTE: modelled on PayWay's documented refund endpoint and the same
+     * principalAmount field createTransaction uses, matching this client's other
+     * calls -- but unlike those, this one hasn't been run against the PayWay
+     * sandbox yet. Verify the path/field names against
+     * https://www.payway.com.au/docs/rest.html before relying on this in production.
+     */
+    public PayWayTransactionResponse refundTransaction(PayWayTransaction originalTxn, BigDecimal refundAmount) {
+        ensureConfigured();
+        PayWayAuditLogger.Context context = new PayWayAuditLogger.Context(originalTxn.getUuid(), originalTxn.getUserUuid());
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("principalAmount", refundAmount.setScale(2, RoundingMode.HALF_UP).toPlainString());
+
+        // A fresh key per attempt -- refunding the same charge twice should never be
+        // silently deduped the way a retried charge is.
+        Map<String, String> headers = Map.of("Idempotency-Key", UUID.randomUUID().toString());
+
+        HttpResult result = send(context, "REFUND_TRANSACTION", HttpMethod.POST,
+                "/transactions/" + originalTxn.getPaywayTransactionId() + "/refunds", form, headers);
+        return parse(result, PayWayTransactionResponse.class,
+                "refund of transaction " + originalTxn.getPaywayTransactionId());
     }
 
     // ---------------------------------------------------------------------

@@ -12,4 +12,5 @@ public class AdminSubscriptionsSummaryDto {
     private long newThisMonth;
     private long cancelled;
     private double retentionRate;
+    private long activeTrials;
 }

@@ -18,7 +18,6 @@ public class AccountDto {
     private String mobile;
     private String address;
 
-    // New fields
     private LocalDate dateOfBirth;
     private boolean terms;
     private boolean newsletter;
